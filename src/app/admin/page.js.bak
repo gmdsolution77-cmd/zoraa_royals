@@ -1,0 +1,1638 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import {
+  LayoutDashboard,
+  Wallet,
+  TrendingUp,
+  Key,
+  Coins,
+  Gamepad2,
+  CreditCard,
+  Users,
+  MessageSquare,
+  Settings,
+  ShieldCheck,
+  Check,
+  X,
+  Plus,
+  RefreshCw,
+  Search,
+  Eye,
+  AlertCircle,
+  Clock,
+  ArrowLeft,
+  DollarSign,
+  UserCheck,
+  UserX,
+  Send
+} from 'lucide-react';
+
+export default function AdminPortal() {
+  const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState(null);
+
+  const [overviewStats, setOverviewStats] = useState(null);
+  const [deposits, setDeposits] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [gameLoads, setGameLoads] = useState([]);
+  const [accountRequests, setAccountRequests] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [allGames, setAllGames] = useState([]);
+  const [gateways, setGateways] = useState([]);
+  const [chatThreads, setChatThreads] = useState([]);
+  const [systemSettings, setSystemSettings] = useState(null);
+
+  // Settings form edit state
+  const [settingsForm, setSettingsForm] = useState({
+    welcomeBonusPercentage: 100,
+    regularBonusPercentage: 20,
+    signupBonusAmount: 3.0,
+    minDeposit: 10,
+    minWithdrawal: 25,
+  });
+
+  // Rejection modal
+  const [rejectionModal, setRejectionModal] = useState({
+    open: false,
+    type: '', // 'game_load' | 'deposit' | 'withdrawal'
+    id: null,
+    title: '',
+  });
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+
+  // Coin Allotment form state
+  const [coinTargetEmail, setCoinTargetEmail] = useState('');
+  const [coinAmountSC, setCoinAmountSC] = useState('');
+  const [coinAmountGC, setCoinAmountGC] = useState('');
+  const [coinAction, setCoinAction] = useState('credit');
+  const [coinReason, setCoinReason] = useState('');
+
+  // Assign credentials modal state
+  const [assignModal, setAssignModal] = useState({ open: false, request: null });
+  const [assignUsername, setAssignUsername] = useState('');
+  const [assignPassword, setAssignPassword] = useState('');
+  const [assignPin, setAssignPin] = useState('');
+
+  // Active chat thread
+  const [activeChatThread, setActiveChatThread] = useState(null);
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [chatSearch, setChatSearch] = useState('');
+
+  // Edit & Approve Deposit Modal state
+  const [editDepositModal, setEditDepositModal] = useState({
+    open: false,
+    deposit: null,
+    amount: '',
+    bonusPercentage: 100,
+    bonusAmount: '',
+    totalCredited: '',
+  });
+
+  const openEditDeposit = (dep) => {
+    const baseAmt = dep.amount || 0;
+    const bonusPct = dep.bonusPercentage || (systemSettings?.welcomeBonusPercentage || 100);
+    const bonusAmt = dep.bonusAmount !== undefined ? dep.bonusAmount : +(baseAmt * (bonusPct / 100)).toFixed(2);
+    const totalAmt = dep.totalCredited !== undefined ? dep.totalCredited : +(baseAmt + bonusAmt).toFixed(2);
+    setEditDepositModal({
+      open: true,
+      deposit: dep,
+      amount: baseAmt.toString(),
+      bonusPercentage: bonusPct,
+      bonusAmount: bonusAmt.toString(),
+      totalCredited: totalAmt.toString(),
+    });
+  };
+
+  // Fetch Current Admin Session
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.user) {
+          setUser(data.user);
+          if (data.user.role === 'player') {
+            window.location.href = '/';
+          }
+        } else {
+          window.location.href = '/';
+        }
+      })
+      .catch(() => {
+        window.location.href = '/';
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Fetch Data based on active tab
+  const fetchData = async () => {
+    try {
+      if (activeTab === 'overview') {
+        const res = await fetch('/api/admin/overview');
+        const d = await res.json();
+        if (d.success) setOverviewStats(d.stats);
+      } else if (activeTab === 'deposits') {
+        const res = await fetch('/api/admin/deposits');
+        const d = await res.json();
+        if (d.success) setDeposits(d.deposits || []);
+      } else if (activeTab === 'withdrawals') {
+        const res = await fetch('/api/admin/withdrawals');
+        const d = await res.json();
+        if (d.success) setWithdrawals(d.withdrawals || []);
+      } else if (activeTab === 'game_loads') {
+        const res = await fetch('/api/admin/game-loads');
+        const d = await res.json();
+        if (d.success) setGameLoads(d.loads || []);
+      } else if (activeTab === 'account_requests') {
+        const res = await fetch('/api/admin/account-requests');
+        const d = await res.json();
+        if (d.success) setAccountRequests(d.requests || []);
+      } else if (activeTab === 'users') {
+        const res = await fetch('/api/admin/users');
+        const d = await res.json();
+        if (d.success) setAllUsers(d.users || []);
+      } else if (activeTab === 'games') {
+        const res = await fetch('/api/admin/games');
+        const d = await res.json();
+        if (d.success) setAllGames(d.games || []);
+      } else if (activeTab === 'gateways') {
+        const res = await fetch('/api/admin/gateways');
+        const d = await res.json();
+        if (d.success) setGateways(d.gateways || []);
+      } else if (activeTab === 'chat') {
+        const res = await fetch('/api/admin/chat');
+        const d = await res.json();
+        if (d.success) setChatThreads(d.threads || []);
+      } else if (activeTab === 'settings') {
+        const res = await fetch('/api/admin/settings');
+        const d = await res.json();
+        if (d.success && d.settings) {
+          setSystemSettings(d.settings);
+          setSettingsForm({
+            welcomeBonusPercentage: d.settings.welcomeBonusPercentage !== undefined ? d.settings.welcomeBonusPercentage : 100,
+            regularBonusPercentage: d.settings.regularBonusPercentage !== undefined ? d.settings.regularBonusPercentage : 20,
+            signupBonusAmount: d.settings.signupBonusAmount !== undefined ? d.settings.signupBonusAmount : 3.0,
+            minDeposit: d.settings.minDeposit || 10,
+            minWithdrawal: d.settings.minWithdrawal || 25,
+          });
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (user && user.role !== 'player') {
+      fetchData();
+    }
+  }, [activeTab, user]);
+
+  const showFeedback = (type, text) => {
+    setFeedback({ type, text });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  // 1. Process Deposit (with optional edited amount & bonus)
+  const handleProcessDeposit = async (depositId, action, reason = '', editedAmount, editedBonusAmount, editedTotalCredited) => {
+    try {
+      const payload = { depositId, action, rejectionReason: reason };
+      if (editedAmount !== undefined && !isNaN(parseFloat(editedAmount))) payload.editedAmount = parseFloat(editedAmount);
+      if (editedBonusAmount !== undefined && !isNaN(parseFloat(editedBonusAmount))) payload.editedBonusAmount = parseFloat(editedBonusAmount);
+      if (editedTotalCredited !== undefined && !isNaN(parseFloat(editedTotalCredited))) payload.editedTotalCredited = parseFloat(editedTotalCredited);
+
+      const res = await fetch('/api/admin/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', `Deposit ${action}ed successfully`);
+      setEditDepositModal({ open: false, deposit: null, amount: '', bonusPercentage: 100, bonusAmount: '', totalCredited: '' });
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // 2. Process Withdrawal
+  const handleProcessWithdrawal = async (withdrawalId, action, reason = '') => {
+    try {
+      const res = await fetch('/api/admin/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawalId,
+          action,
+          transactionRef: 'TX_' + Date.now().toString(36),
+          rejectionReason: reason,
+        }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', `Cashout ${action}ed successfully`);
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // 2b. Process Game Load Transfer Request
+  const handleProcessGameLoad = async (requestId, action, reason = '') => {
+    try {
+      const res = await fetch('/api/admin/game-loads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, action, rejectionReason: reason }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', d.message || `Game load request ${action}ed!`);
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // Rejection Confirm handler
+  const handleConfirmRejection = async () => {
+    const { type, id } = rejectionModal;
+    const reason = rejectionReasonInput.trim() || 'Declined by administrator';
+    setRejectionModal({ open: false, type: '', id: null, title: '' });
+    setRejectionReasonInput('');
+
+    if (type === 'game_load') {
+      await handleProcessGameLoad(id, 'reject', reason);
+    } else if (type === 'deposit') {
+      await handleProcessDeposit(id, 'reject', reason);
+    } else if (type === 'withdrawal') {
+      await handleProcessWithdrawal(id, 'reject', reason);
+    }
+  };
+
+  // Save Dynamic Bonus & System Settings
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          welcomeBonusPercentage: parseFloat(settingsForm.welcomeBonusPercentage) || 100,
+          regularBonusPercentage: parseFloat(settingsForm.regularBonusPercentage) || 20,
+          signupBonusAmount: parseFloat(settingsForm.signupBonusAmount) || 3.0,
+          minDeposit: parseFloat(settingsForm.minDeposit) || 10,
+          minWithdrawal: parseFloat(settingsForm.minWithdrawal) || 25,
+        }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', 'Bonus percentages and platform settings saved successfully!');
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // 3. Assign External Game Account
+  const handleAssignCredentials = async (e) => {
+    e.preventDefault();
+    if (!assignModal.request) return;
+
+    try {
+      const res = await fetch('/api/admin/account-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: assignModal.request._id,
+          action: 'assign',
+          platformUsername: assignUsername,
+          platformPassword: assignPassword,
+          platformPin: assignPin,
+        }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', 'Game credentials issued and delivered to player vault!');
+      setAssignModal({ open: false, request: null });
+      setAssignUsername('');
+      setAssignPassword('');
+      setAssignPin('');
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // 4. Coin Allotment
+  const handleCoinSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/coins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetEmail: coinTargetEmail,
+          action: coinAction,
+          amountSC: coinAmountSC,
+          amountGC: coinAmountGC,
+          reason: coinReason,
+        }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', d.message);
+      setCoinTargetEmail('');
+      setCoinAmountSC('');
+      setCoinAmountGC('');
+      setCoinReason('');
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // 5. Toggle User Ban
+  const handleToggleBan = async (userId) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'toggle_ban' }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      showFeedback('success', d.message);
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // 6. Admin Chat Reply
+  const handleSendChatReply = async (e) => {
+    e.preventDefault();
+    if (!activeChatThread || !adminReplyText.trim()) return;
+
+    const outgoing = adminReplyText.trim();
+    setAdminReplyText('');
+
+    // Optimistically append to active conversation
+    const optimisticMsg = {
+      sender: 'support',
+      agentName: user?.username || 'VIP Concierge',
+      text: outgoing,
+      createdAt: new Date().toISOString(),
+    };
+
+    setActiveChatThread(prev => prev ? ({
+      ...prev,
+      messages: [...(prev.messages || []), optimisticMsg]
+    }) : null);
+
+    try {
+      const res = await fetch('/api/admin/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: activeChatThread.userId,
+          targetEmail: activeChatThread.userEmail,
+          text: outgoing,
+        }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error);
+      fetchData();
+    } catch (err) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  // Real-time Chat Sync interval (every 3 seconds when chat tab is active)
+  useEffect(() => {
+    if (activeTab === 'chat' && user && user.role !== 'player') {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/admin/chat');
+          const d = await res.json();
+          if (d.success && d.threads) {
+            setChatThreads(d.threads);
+            if (activeChatThread) {
+              const current = d.threads.find(
+                (t) =>
+                  (t.userEmail && t.userEmail === activeChatThread.userEmail) ||
+                  (t.userId && t.userId === activeChatThread.userId)
+              );
+              if (current) {
+                setActiveChatThread(current);
+              }
+            }
+          }
+        } catch {}
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, user, activeChatThread]);
+
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'deposits', label: 'Deposits', icon: Wallet },
+    { id: 'withdrawals', label: 'Cashouts', icon: TrendingUp },
+    { id: 'game_loads', label: 'Game Load Requests', icon: Gamepad2 },
+    { id: 'account_requests', label: 'Game Requests', icon: Key },
+    { id: 'coins', label: 'Coin Manager', icon: Coins },
+    { id: 'games', label: 'Game Catalog', icon: Gamepad2 },
+    { id: 'gateways', label: 'Payment Gateways', icon: CreditCard },
+    { id: 'users', label: 'Players', icon: Users },
+    { id: 'chat', label: 'Live Support Desk', icon: MessageSquare },
+    { id: 'settings', label: 'Bonus & System Settings', icon: Settings },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#07080b] flex items-center justify-center text-white text-xs">
+        Loading Zorra Royals Command Center...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#07080b] text-[#f8fafc] flex flex-col">
+      {/* Top Admin Header */}
+      <header className="p-4 border-b border-[#d4af37]/25 bg-[#090b10] sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition text-xs font-bold mr-2">
+              <ArrowLeft className="w-4 h-4 text-[#ffd700]" />
+              <span className="hidden sm:inline">Exit to Lobby</span>
+            </Link>
+
+            <div className="flex items-center gap-2">
+              <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full" />
+              <div>
+                <h2 className="font-serif font-black text-white text-sm tracking-wider">
+                  ZORRA ROYALS <span className="text-[#ffd700]">ADMIN</span>
+                </h2>
+                <p className="text-[9px] text-gray-400 uppercase font-mono">Operations Portal</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs text-gray-300 font-bold hidden sm:inline">
+              Logged in as <strong className="text-[#ffd700]">{user?.username}</strong>
+            </span>
+            <button
+              onClick={fetchData}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 transition"
+              title="Refresh Current Tab"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Admin Layout */}
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col md:flex-row gap-6">
+        {/* Admin Left Tabs Nav */}
+        <aside className="w-full md:w-64 shrink-0">
+          <div className="p-1 rounded-2xl bg-[#0e111a] border border-[#d4af37]/20 flex flex-row md:flex-col gap-1 overflow-x-auto scrollbar-none">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition shrink-0 md:w-full text-left whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b38f26] text-black shadow-md'
+                      : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* Admin Main Body */}
+        <main className="flex-1 min-w-0 bg-[#0d0f17] border border-[#d4af37]/20 rounded-3xl p-5 sm:p-7 shadow-xl">
+          {/* Feedback banner */}
+          {feedback && (
+            <div className={`mb-6 p-3.5 rounded-xl text-xs flex items-center gap-2 ${
+              feedback.type === 'success'
+                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                : 'bg-red-500/10 border border-red-500/30 text-red-300'
+            }`}>
+              {feedback.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              <span>{feedback.text}</span>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 1: OVERVIEW */}
+          {/* ======================================================== */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-black text-white font-serif">Platform Analytics Overview</h3>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-[#131622] border border-emerald-500/25">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Total Deposits</p>
+                  <p className="text-xl font-black text-emerald-400 font-mono mt-1">
+                    ${(overviewStats?.totalDepositsUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#131622] border border-blue-500/25">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Total Cashouts</p>
+                  <p className="text-xl font-black text-blue-400 font-mono mt-1">
+                    ${(overviewStats?.totalWithdrawalsUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#131622] border border-amber-500/25">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Pending Actions</p>
+                  <p className="text-xl font-black text-amber-400 font-mono mt-1">
+                    {(overviewStats?.pendingDepositsCount || 0) + (overviewStats?.pendingWithdrawalsCount || 0) + (overviewStats?.pendingAccountRequests || 0)}
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#131622] border border-[#d4af37]/30">
+                  <p className="text-[10px] uppercase font-bold text-gray-400">Registered Players</p>
+                  <p className="text-xl font-black text-gold-gradient font-mono mt-1">
+                    {overviewStats?.totalUsers || 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-xs text-gray-300">
+                <p className="font-bold text-white mb-1">System Health & Fallback Engine:</p>
+                <p>
+                  All transactions, player records, and credentials are authenticated and backed up locally with full persistence.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 2: DEPOSITS */}
+          {/* ======================================================== */}
+          {activeTab === 'deposits' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-white font-serif">Player Deposit Requests</h3>
+
+              {deposits.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 text-xs">No deposit requests recorded yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {deposits.map((dep) => (
+                    <div
+                      key={dep._id}
+                      className="p-4 rounded-2xl bg-[#131622] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{dep.username || dep.userEmail}</span>
+                          <span className="font-mono font-black text-emerald-400 text-sm">
+                            ${(dep.amount || 0).toFixed(2)} USD
+                          </span>
+                          {dep.bonusAmount > 0 && (
+                            <span className="text-[10px] text-[#ffd700] font-mono font-bold bg-[#d4af37]/15 px-1.5 py-0.5 rounded">
+                              +${dep.bonusAmount.toFixed(2)} Bonus (Total: ${dep.totalCredited?.toFixed(2)})
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            dep.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300' :
+                            dep.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                            'bg-amber-500/20 text-amber-300'
+                          }`}>
+                            {dep.status}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-[11px]">
+                          Gateway: <strong>{dep.methodName}</strong> • Note: "{dep.senderNote || 'None'}" {dep.txHash ? `• TX: ${dep.txHash}` : ''}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {new Date(dep.createdAt).toLocaleString()}
+                        </p>
+                        {dep.status === 'rejected' && dep.rejectionReason && (
+                          <p className="text-[11px] text-red-400 mt-1 bg-red-950/30 p-1.5 rounded-lg border border-red-500/20">
+                            Reason: {dep.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+
+                      {dep.status === 'pending' && (
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          <button
+                            onClick={() => openEditDeposit(dep)}
+                            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#ffd700] to-[#d4af37] text-black font-extrabold hover:brightness-110 transition shadow-sm text-xs"
+                          >
+                            Edit & Approve
+                          </button>
+                          <button
+                            onClick={() => handleProcessDeposit(dep._id, 'approve')}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold hover:bg-emerald-500/30 transition text-xs"
+                          >
+                            Quick Approve
+                          </button>
+                          <button
+                            onClick={() => setRejectionModal({
+                              open: true,
+                              type: 'deposit',
+                              id: dep._id,
+                              title: `Reject Deposit for ${dep.username || dep.userEmail} ($${dep.amount})`,
+                            })}
+                            className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/30 transition text-xs"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 3: CASHOUTS */}
+          {/* ======================================================== */}
+          {activeTab === 'withdrawals' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-white font-serif">Cashout & Redemption Requests</h3>
+
+              {withdrawals.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 text-xs">No redemption requests recorded yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {withdrawals.map((w) => (
+                    <div
+                      key={w._id}
+                      className="p-4 rounded-2xl bg-[#131622] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{w.username || w.userEmail}</span>
+                          <span className="font-mono font-black text-blue-400 text-sm">
+                            ${(w.amount || 0).toFixed(2)} USD
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            w.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300' :
+                            w.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                            'bg-amber-500/20 text-amber-300'
+                          }`}>
+                            {w.status}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-[11px]">
+                          Payout: <strong>{w.payoutMethod}</strong> • Destination: <strong className="text-white font-mono">{w.destinationAddress}</strong>
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {new Date(w.createdAt).toLocaleString()}
+                        </p>
+                        {w.status === 'rejected' && w.rejectionReason && (
+                          <p className="text-[11px] text-red-400 mt-1 bg-red-950/30 p-1.5 rounded-lg border border-red-500/20">
+                            Reason: {w.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+
+                      {w.status === 'pending' && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleProcessWithdrawal(w._id, 'approve')}
+                            className="px-3.5 py-1.5 rounded-xl bg-blue-500 text-white font-extrabold hover:bg-blue-400 transition"
+                          >
+                            Mark Paid
+                          </button>
+                          <button
+                            onClick={() => setRejectionModal({
+                              open: true,
+                              type: 'withdrawal',
+                              id: w._id,
+                              title: `Decline & Refund Cashout for ${w.username || w.userEmail} ($${w.amount})`,
+                            })}
+                            className="px-3.5 py-1.5 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/30 transition"
+                          >
+                            Decline & Refund
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 3b: GAME LOAD REQUESTS */}
+          {/* ======================================================== */}
+          {activeTab === 'game_loads' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-white font-serif">Game Credits Load Requests</h3>
+                  <p className="text-xs text-gray-400">
+                    Player requests to transfer balance from their wallet into sweepstakes platforms.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchData}
+                  className="btn-surface text-xs py-1.5 px-3 flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {gameLoads.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 text-xs">No game load requests recorded yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {gameLoads.map((load) => (
+                    <div
+                      key={load._id}
+                      className="p-4 rounded-2xl bg-[#131622] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{load.clientName || load.clientEmail}</span>
+                          <span className="font-mono font-black text-purple-400 text-sm">
+                            ${(load.amount || 0).toFixed(2)} USD
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            load.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300' :
+                            load.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                            'bg-amber-500/20 text-amber-300'
+                          }`}>
+                            {load.status}
+                          </span>
+                        </div>
+                        <p className="text-gray-300 text-[11px]">
+                          Target Platform: <strong className="text-white">{load.gameName}</strong> • Game Username: <strong className="text-[#ffd700] font-mono">{load.gameUsername}</strong>
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          Requested: {new Date(load.createdAt).toLocaleString()}
+                        </p>
+                        {load.status === 'rejected' && load.rejectionReason && (
+                          <p className="text-[11px] text-red-400 mt-1 bg-red-950/30 p-1.5 rounded-lg border border-red-500/20">
+                            Reason: {load.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+
+                      {load.status === 'pending' && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleProcessGameLoad(load._id, 'approve')}
+                            className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white font-extrabold hover:bg-purple-500 transition shadow-md"
+                          >
+                            Approve & Deduct
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRejectionModal({
+                              open: true,
+                              type: 'game_load',
+                              id: load._id,
+                              title: `Reject Load Request for ${load.clientName} (${load.gameName})`,
+                            })}
+                            className="px-3.5 py-1.5 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/30 transition"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 4: EXTERNAL GAME REQUESTS */}
+          {/* ======================================================== */}
+          {activeTab === 'account_requests' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-white font-serif">Game Platform Account Requests</h3>
+
+              {accountRequests.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 text-xs">No pending game requests found.</div>
+              ) : (
+                <div className="space-y-3">
+                  {accountRequests.map((req) => (
+                    <div
+                      key={req._id}
+                      className="p-4 rounded-2xl bg-[#131622] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{req.username || req.userEmail}</span>
+                          <span className="font-black text-purple-400">{req.gameTitle}</span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            req.status === 'fulfilled' ? 'bg-emerald-500/20 text-emerald-300' :
+                            'bg-amber-500/20 text-amber-300'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500">
+                          Requested: {new Date(req.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+
+                      {req.status === 'pending' && (
+                        <button
+                          onClick={() => {
+                            setAssignModal({ open: true, request: req });
+                            setAssignUsername(req.username ? req.username + '_zr' : 'player_zr');
+                            setAssignPassword('Pass' + Math.floor(1000 + Math.random() * 9000));
+                          }}
+                          className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-extrabold hover:opacity-90 transition shrink-0"
+                        >
+                          Assign Credentials
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 5: MANUAL COIN ALLOTMENT */}
+          {/* ======================================================== */}
+          {activeTab === 'coins' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-black text-white font-serif">Manual Coin Allotment</h3>
+                <p className="text-xs text-gray-400">Credit or debit player coins directly with audit logging</p>
+              </div>
+
+              <form onSubmit={handleCoinSubmit} className="space-y-4 max-w-lg">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                    Player Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="player@zorraroyals.com"
+                    value={coinTargetEmail}
+                    onChange={(e) => setCoinTargetEmail(e.target.value)}
+                    className="w-full bg-[#131622] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      Sweeps Coins (SC)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={coinAmountSC}
+                      onChange={(e) => setCoinAmountSC(e.target.value)}
+                      className="w-full bg-[#131622] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      Gold Coins (GC)
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      placeholder="0"
+                      value={coinAmountGC}
+                      onChange={(e) => setCoinAmountGC(e.target.value)}
+                      className="w-full bg-[#131622] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCoinAction('credit')}
+                    className={`py-2 text-xs font-bold rounded-xl border transition ${
+                      coinAction === 'credit'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500'
+                        : 'bg-white/5 border-white/10 text-gray-400'
+                    }`}
+                  >
+                    Credit (+)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCoinAction('debit')}
+                    className={`py-2 text-xs font-bold rounded-xl border transition ${
+                      coinAction === 'debit'
+                        ? 'bg-red-500/20 text-red-300 border-red-500'
+                        : 'bg-white/5 border-white/10 text-gray-400'
+                    }`}
+                  >
+                    Debit (-)
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                    Staff Reason / Note
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. VIP Host Loyalty Match or Promotion"
+                    value={coinReason}
+                    onChange={(e) => setCoinReason(e.target.value)}
+                    className="w-full bg-[#131622] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full btn-gold py-3 text-xs font-black"
+                >
+                  Confirm Coin Adjustment
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 6: PLAYERS */}
+          {/* ======================================================== */}
+          {activeTab === 'users' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-white font-serif">Registered Players & Roles</h3>
+
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                {allUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    className="p-3.5 rounded-2xl bg-[#131622] border border-white/5 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">{u.username}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">({u.email})</span>
+                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                          {u.vipTier || 'Bronze'}
+                        </span>
+                        {u.role !== 'player' && (
+                          <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300">
+                            {u.role}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Balance: <strong className="text-[#ffd700]">${(u.balanceSC || 0).toFixed(2)} SC</strong> • {Math.floor(u.balanceGC || 0).toLocaleString()} GC
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleBan(u.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                          u.isBanned
+                            ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                            : 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+                        }`}
+                      >
+                        {u.isBanned ? 'Unban' : 'Suspend'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 7: LIVE SUPPORT DESK (WHATSAPP-STYLE INBOX & CHAT) */}
+          {/* ======================================================== */}
+          {activeTab === 'chat' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-white font-serif">VIP Live Concierge Desk</h3>
+                  <p className="text-xs text-gray-400">WhatsApp-style dual inbox with real-time player messaging</p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Sync
+                </span>
+              </div>
+
+              {/* Responsive Container */}
+              <div className="rounded-3xl border border-[#d4af37]/25 bg-[#090b12] overflow-hidden shadow-2xl flex flex-col md:flex-row h-[600px]">
+                {/* 1. Conversations Sidebar (Left Pane on desktop, full screen on mobile when !activeChatThread) */}
+                <div className={`w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-[#d4af37]/20 flex flex-col bg-[#0b0e17] ${
+                  activeChatThread ? 'hidden md:flex' : 'flex'
+                }`}>
+                  {/* Search header */}
+                  <div className="p-3 border-b border-white/5 bg-[#101320]">
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Search conversations..."
+                        value={chatSearch}
+                        onChange={(e) => setChatSearch(e.target.value)}
+                        className="w-full bg-[#181c2b] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Thread List */}
+                  <div className="flex-1 overflow-y-auto divide-y divide-white/5 scrollbar-thin">
+                    {chatThreads.filter(t => {
+                      if (!chatSearch.trim()) return true;
+                      const q = chatSearch.toLowerCase();
+                      return (
+                        (t.username && t.username.toLowerCase().includes(q)) ||
+                        (t.userEmail && t.userEmail.toLowerCase().includes(q))
+                      );
+                    }).length === 0 ? (
+                      <div className="p-8 text-center text-gray-500 text-xs">
+                        No conversations found.
+                      </div>
+                    ) : (
+                      chatThreads
+                        .filter(t => {
+                          if (!chatSearch.trim()) return true;
+                          const q = chatSearch.toLowerCase();
+                          return (
+                            (t.username && t.username.toLowerCase().includes(q)) ||
+                            (t.userEmail && t.userEmail.toLowerCase().includes(q))
+                          );
+                        })
+                        .map((thread, idx) => {
+                          const isSelected = (activeChatThread?.userEmail === thread.userEmail) || (activeChatThread?.userId === thread.userId);
+                          const lastMsg = thread.messages[thread.messages.length - 1];
+                          const unreadCount = thread.messages.filter(m => m.sender === 'player' && !m.read).length;
+
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => setActiveChatThread(thread)}
+                              className={`p-3.5 flex items-center gap-3 cursor-pointer transition ${
+                                isSelected
+                                  ? 'bg-[#181d30] border-l-4 border-[#d4af37]'
+                                  : 'hover:bg-white/5'
+                              }`}
+                            >
+                              <div className="relative w-10 h-10 rounded-full bg-gradient-to-tr from-[#997b24] to-[#ffd700] p-0.5 shrink-0">
+                                <div className="w-full h-full bg-[#0a0c14] rounded-full flex items-center justify-center text-xs font-black text-[#ffd700]">
+                                  {(thread.username || thread.userEmail || 'U')[0].toUpperCase()}
+                                </div>
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0b0e17]" />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <h4 className="text-xs font-bold text-white truncate">
+                                    {thread.username || thread.userEmail}
+                                  </h4>
+                                  {lastMsg && (
+                                    <span className="text-[10px] text-gray-500 font-mono shrink-0">
+                                      {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-gray-400 truncate">
+                                  {lastMsg ? (
+                                    <span>
+                                      {lastMsg.sender === 'support' ? 'You: ' : ''}
+                                      {lastMsg.text}
+                                    </span>
+                                  ) : (
+                                    'New conversation started'
+                                  )}
+                                </p>
+                              </div>
+
+                              {unreadCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-[#d4af37] text-black text-[9px] font-black shrink-0">
+                                  {unreadCount}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Active Chat Screen (Right Pane on desktop, full screen on mobile when activeChatThread) */}
+                <div className={`flex-1 flex flex-col bg-[#06070b] relative ${
+                  !activeChatThread ? 'hidden md:flex' : 'flex'
+                }`}>
+                  {activeChatThread ? (
+                    <>
+                      {/* WhatsApp Chat Header */}
+                      <div className="px-4 py-3 bg-[#101320] border-b border-[#d4af37]/20 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                          {/* Mobile Back to Conversations Button */}
+                          <button
+                            onClick={() => setActiveChatThread(null)}
+                            className="p-1.5 -ml-1 text-gray-300 hover:text-white rounded-lg hover:bg-white/10 md:hidden transition"
+                            title="Back to Conversations"
+                          >
+                            <ArrowLeft className="w-5 h-5 text-[#ffd700]" />
+                          </button>
+
+                          <div className="relative w-9 h-9 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#ffd700] p-0.5 shrink-0">
+                            <div className="w-full h-full bg-black rounded-full flex items-center justify-center text-xs font-bold text-white">
+                              {(activeChatThread.username || activeChatThread.userEmail || 'U')[0].toUpperCase()}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
+                              {activeChatThread.username || activeChatThread.userEmail}
+                            </h4>
+                            <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>{activeChatThread.userEmail}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="text-[10px] px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400 font-mono hidden sm:inline-block">
+                          {activeChatThread.messages?.length || 0} messages
+                        </span>
+                      </div>
+
+                      {/* WhatsApp Messages Scroll */}
+                      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#06070c] relative text-xs">
+                        <div className="absolute inset-0 bg-[radial-gradient(#d4af37_1px,transparent_1px)] [background-size:24px_24px] opacity-5 pointer-events-none" />
+
+                        {activeChatThread.messages?.map((m, i) => {
+                          const isSupport = m.sender === 'support';
+                          return (
+                            <div
+                              key={i}
+                              className={`flex flex-col ${isSupport ? 'items-end' : 'items-start'} animate-fade-in`}
+                            >
+                              <div
+                                className={`max-w-[85%] sm:max-w-[75%] px-3.5 py-2.5 rounded-2xl text-xs ${
+                                  isSupport
+                                    ? 'bg-gradient-to-r from-[#ffd700] via-[#d4af37] to-[#b38f26] text-black font-semibold rounded-br-xs shadow-md'
+                                    : 'bg-[#151928] border border-[#d4af37]/25 text-gray-100 rounded-bl-xs shadow-md'
+                                }`}
+                              >
+                                {isSupport && (
+                                  <span className="text-[9px] font-black uppercase text-black/80 block mb-0.5 tracking-wider font-mono">
+                                    Agent ({m.agentName || 'Concierge'})
+                                  </span>
+                                )}
+                                <p className="leading-relaxed whitespace-pre-wrap break-words">{m.text}</p>
+                                <div
+                                  className={`flex items-center justify-end gap-1 mt-1 text-[9px] font-mono ${
+                                    isSupport ? 'text-black/70 font-bold' : 'text-gray-400'
+                                  }`}
+                                >
+                                  <span>
+                                    {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  {isSupport && <span>✓✓</span>}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Reply Form */}
+                      <form onSubmit={handleSendChatReply} className="p-3 bg-[#0f121d] border-t border-[#d4af37]/20 flex items-center gap-2 shrink-0">
+                        <input
+                          type="text"
+                          placeholder={`Reply to ${activeChatThread.username || 'player'}...`}
+                          value={adminReplyText}
+                          onChange={(e) => setAdminReplyText(e.target.value)}
+                          className="flex-1 bg-[#161a29] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!adminReplyText.trim()}
+                          className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#ffd700] to-[#d4af37] text-black hover:brightness-110 disabled:opacity-40 transition font-bold text-xs flex items-center gap-1.5 shadow-md"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Reply</span>
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500 space-y-3">
+                      <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400">
+                        <MessageSquare className="w-8 h-8 text-[#ffd700]" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Select a Conversation</h4>
+                      <p className="text-xs text-gray-400 max-w-xs">
+                        Choose any player thread from the inbox on the left to review messages and provide instant support.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 8: PAYMENT GATEWAYS */}
+          {/* ======================================================== */}
+          {activeTab === 'gateways' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-white font-serif">Payment Gateway Configuration</h3>
+              <div className="space-y-3">
+                {gateways.map((gw) => (
+                  <div
+                    key={gw._id}
+                    className="p-4 rounded-2xl bg-[#131622] border border-white/5 text-xs space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white text-sm">{gw.name}</span>
+                      <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded ${
+                        gw.isActive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {gw.isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p className="font-mono text-gold-gradient text-xs">Account: {gw.accountDetails}</p>
+                    <p className="text-[11px] text-gray-400">{gw.instructions}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 9: SETTINGS */}
+          {/* ======================================================== */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h3 className="text-lg font-black text-white font-serif">Dynamic Bonus & Platform Settings</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  Adjust welcome bonus percentages, regular reload rates, and signup freeplay. Changes take effect across the entire platform immediately.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveSettings} className="p-6 rounded-3xl bg-[#131622] border border-[#d4af37]/30 shadow-xl space-y-4 text-xs">
+                <div>
+                  <label className="text-gray-300 font-bold block mb-1">
+                    First Deposit Welcome Match Bonus (%)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max="1000"
+                      value={settingsForm.welcomeBonusPercentage}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, welcomeBonusPercentage: e.target.value })}
+                      className="w-full bg-[#0b0d14] border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono font-bold focus:border-[#ffd700] focus:outline-none"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#ffd700] font-black">%</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-0.5 block">
+                    Applied automatically to a user's 1st deposit (e.g. 100% means deposit $50, get $50 bonus = $100 total)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-gray-300 font-bold block mb-1">
+                    Regular VIP Reload Bonus (%)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max="1000"
+                      value={settingsForm.regularBonusPercentage}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, regularBonusPercentage: e.target.value })}
+                      className="w-full bg-[#0b0d14] border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono font-bold focus:border-[#ffd700] focus:outline-none"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400 font-black">%</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-0.5 block">
+                    Applied automatically to all recurring deposits made by existing users
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-gray-300 font-bold block mb-1">
+                    One-Time Signup Freeplay Credit ($ USD)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-mono font-bold">$</span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      required
+                      value={settingsForm.signupBonusAmount}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, signupBonusAmount: e.target.value })}
+                      className="w-full pl-8 pr-4 py-2.5 bg-[#0b0d14] border border-white/10 rounded-xl text-white font-mono font-bold focus:border-[#ffd700] focus:outline-none"
+                    />
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-0.5 block">
+                    Freeplay amount granted to new signups (default: $3.00)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
+                  <div>
+                    <label className="text-gray-400 block mb-1">Min Deposit ($)</label>
+                    <input
+                      type="number"
+                      value={settingsForm.minDeposit}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, minDeposit: e.target.value })}
+                      className="w-full bg-[#0b0d14] border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 block mb-1">Min Cashout ($)</label>
+                    <input
+                      type="number"
+                      value={settingsForm.minWithdrawal}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, minWithdrawal: e.target.value })}
+                      className="w-full bg-[#0b0d14] border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full btn-gold py-3 font-black text-sm mt-4 shadow-[0_0_20px_rgba(212,175,55,0.35)]"
+                >
+                  Save Bonus & Platform Settings
+                </button>
+              </form>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Modal: Rejection Reason Prompt */}
+      {rejectionModal.open && (
+        <div className="modal-overlay">
+          <div className="relative w-full max-w-md rounded-3xl bg-[#0e111a] border border-red-500/40 p-6 space-y-4 animate-slide-up shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                <span>{rejectionModal.title}</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setRejectionModal({ open: false, type: '', id: null, title: '' })}
+                className="p-1 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-gray-300">
+                Please enter the reason for rejecting this request. This reason will be prominently displayed to the player in their <strong>Transaction History</strong>:
+              </p>
+
+              <div>
+                <label className="block text-gray-400 mb-1">Rejection Reason Note <span className="text-red-400">*</span></label>
+                <textarea
+                  rows={3}
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g. Game account username was not found on Orion Stars. Please verify your player ID."
+                  className="w-full bg-[#131622] border border-white/10 rounded-xl p-3 text-white focus:border-red-400 focus:outline-none text-xs"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRejectionModal({ open: false, type: '', id: null, title: '' })}
+                  className="flex-1 btn-surface py-2.5 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRejection}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold transition shadow-md"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Assign Credentials */}
+      {assignModal.open && (
+        <div className="modal-overlay">
+          <div className="relative w-full max-w-md rounded-3xl bg-[#0b0d14] border border-[#d4af37]/40 p-6 space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-white text-sm">
+                Issue Credentials for {assignModal.request?.gameTitle}
+              </h4>
+              <button
+                onClick={() => setAssignModal({ open: false, request: null })}
+                className="p-1 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignCredentials} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-400 mb-1">Platform Username</label>
+                <input
+                  type="text"
+                  required
+                  value={assignUsername}
+                  onChange={(e) => setAssignUsername(e.target.value)}
+                  className="w-full bg-[#131622] border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Platform Password</label>
+                <input
+                  type="text"
+                  required
+                  value={assignPassword}
+                  onChange={(e) => setAssignPassword(e.target.value)}
+                  className="w-full bg-[#131622] border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Platform PIN (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1234"
+                  value={assignPin}
+                  onChange={(e) => setAssignPin(e.target.value)}
+                  className="w-full bg-[#131622] border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                />
+              </div>
+
+              <button type="submit" className="w-full btn-gold py-2.5 font-bold mt-2">
+                Deliver to Player Game Vault
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit & Approve Deposit */}
+      {editDepositModal.open && (
+        <div className="modal-overlay">
+          <div className="relative w-full max-w-md rounded-3xl bg-[#0b0d14] border border-[#d4af37]/40 p-6 space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h4 className="font-bold text-white text-sm font-serif">
+                  Edit & Approve Deposit
+                </h4>
+                <p className="text-[11px] text-[#ffd700]">
+                  Player: {editDepositModal.deposit?.username || editDepositModal.deposit?.userEmail}
+                </p>
+              </div>
+              <button
+                onClick={() => setEditDepositModal({ open: false, deposit: null, amount: '', bonusPercentage: 100, bonusAmount: '', totalCredited: '' })}
+                className="p-1 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[11px] space-y-1">
+                <p className="text-gray-300">
+                  Method: <strong className="text-white">{editDepositModal.deposit?.methodName}</strong>
+                </p>
+                <p className="text-gray-300">
+                  Player Note: <strong className="text-gold-gradient">{editDepositModal.deposit?.senderNote || 'None'}</strong>
+                </p>
+                {editDepositModal.deposit?.txHash && (
+                  <p className="text-gray-400 font-mono text-[10px]">
+                    TX Ref: {editDepositModal.deposit.txHash}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold mb-1">
+                  Base Deposit Amount ($ USD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editDepositModal.amount}
+                  onChange={(e) => {
+                    const newAmt = e.target.value;
+                    const num = parseFloat(newAmt) || 0;
+                    const bonusPct = editDepositModal.bonusPercentage || 100;
+                    const calcBonus = +(num * (bonusPct / 100)).toFixed(2);
+                    setEditDepositModal(prev => ({
+                      ...prev,
+                      amount: newAmt,
+                      bonusAmount: calcBonus.toString(),
+                      totalCredited: (num + calcBonus).toFixed(2),
+                    }));
+                  }}
+                  className="w-full bg-[#131622] border border-white/15 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:border-[#d4af37]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold mb-1">
+                  Bonus Coins / Dollars to Award ($ USD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editDepositModal.bonusAmount}
+                  onChange={(e) => {
+                    const newBonus = e.target.value;
+                    const numBonus = parseFloat(newBonus) || 0;
+                    const base = parseFloat(editDepositModal.amount) || 0;
+                    setEditDepositModal(prev => ({
+                      ...prev,
+                      bonusAmount: newBonus,
+                      totalCredited: (base + numBonus).toFixed(2),
+                    }));
+                  }}
+                  className="w-full bg-[#131622] border border-white/15 rounded-xl px-3 py-2 text-[#ffd700] font-mono font-bold text-sm focus:border-[#d4af37]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-emerald-400 font-black mb-1">
+                  Total Final Dollars to Credit ($ USD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editDepositModal.totalCredited}
+                  onChange={(e) => {
+                    setEditDepositModal(prev => ({
+                      ...prev,
+                      totalCredited: e.target.value,
+                    }));
+                  }}
+                  className="w-full bg-emerald-950/30 border-2 border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-emerald-300 font-mono font-black text-base focus:border-emerald-400"
+                />
+                <span className="text-[10px] text-gray-400 mt-1 block">
+                  This exact dollar balance will be credited to the player's wallet immediately upon approval.
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditDepositModal({ open: false, deposit: null, amount: '', bonusPercentage: 100, bonusAmount: '', totalCredited: '' })}
+                  className="flex-1 btn-surface py-2.5 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleProcessDeposit(
+                      editDepositModal.deposit._id,
+                      'approve',
+                      '',
+                      editDepositModal.amount,
+                      editDepositModal.bonusAmount,
+                      editDepositModal.totalCredited
+                    );
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#ffd700] to-[#d4af37] text-black font-extrabold transition shadow-lg hover:brightness-110"
+                >
+                  Approve & Credit ${parseFloat(editDepositModal.totalCredited || 0).toFixed(2)}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

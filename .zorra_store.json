@@ -1,0 +1,70 @@
+{
+  "users": [
+    {
+      "_id": "id_t7akpe85qmvf92gqc",
+      "username": "CrownPlayer",
+      "email": "player@zorraroyals.com",
+      "password": "$2b$10$XgqBXMDSYOSj/0ZenGlEhuvkTudzL/Ee9vPiHg5NLWs8icbR9whwe",
+      "role": "player",
+      "vipTier": "Gold",
+      "balance": 151,
+      "firstDepositMade": false,
+      "signupBonusClaimed": true,
+      "isVerified": true,
+      "createdAt": "2026-10-19T12:48:06.708Z",
+      "referralCode": "CROWLS1V",
+      "updatedAt": "2026-10-20T14:41:06.380Z",
+      "lastDailyClaim": "2026-10-20T14:41:06.380Z",
+      "dailyStreak": 1,
+      "balanceSC": 1
+    },
+    {
+      "_id": "id_iurknt0zamvf92go9",
+      "username": "RoyalAdmin",
+      "email": "admin@zorraroyals.com",
+      "password": "$2b$10$Eo9LM6csswScgEvMtPkAke9r8YIChZ8BfYorkKCynbm6ALlsyPLyC",
+      "role": "super_admin",
+      "vipTier": "Royal Emperor",
+      "balance": 100000,
+      "isVerified": true,
+      "createdAt": "2026-10-19T12:48:06.633Z"
+    }
+  ],
+  "games": [],
+  "payment_methods": [],
+  "system_settings": [
+    {
+      "_id": "id_0l3psvu8lmvf92gqd",
+      "key": "general",
+      "siteName": "Zorra Royals",
+      "domain": "zorraroyals.com",
+      "welcomeBonusPercentage": 100,
+      "regularBonusPercentage": 20,
+      "signupBonusAmount": 3,
+      "minDeposit": 10,
+      "maxDeposit": 10000,
+      "minWithdrawal": 25,
+      "maxDailyWithdrawal": 5000,
+      "maintenanceMode": false,
+      "updatedAt": "2026-10-19T12:48:06.709Z",
+      "createdAt": "2026-10-19T12:48:06.709Z"
+    }
+  ],
+  "promotions": [],
+  "redemptions": [],
+  "ledger": [
+    {
+      "_id": "6ad77d8293c094246aecee7f",
+      "userId": "id_t7akpe85qmvf92gqc",
+      "username": "CrownPlayer",
+      "type": "daily_bonus",
+      "currency": "USD",
+      "amount": 1,
+      "balanceBefore": 150,
+      "balanceAfter": 151,
+      "performedBy": "player",
+      "notes": "Day 1 Daily Palace Reward: +$1 USD",
+      "createdAt": "2026-10-20T14:41:06.380Z"
+    }
+  ]
+}

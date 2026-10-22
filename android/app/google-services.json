@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "350985387057",
+    "project_id": "zorra-royals",
+    "storage_bucket": "zorra-royals.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:350985387057:android:ba60b5b67debae2776e910",
+        "android_client_info": {
+          "package_name": "com.zorraroyal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLBpc-9fHQIb0NcMekxOZnCSR-2xbOmB8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
