@@ -2,7 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { X, Sparkles, Shield, Lock, Mail, User, AlertCircle, ArrowRight, Gift } from 'lucide-react';
+import Link from 'next/link';
+import {
+  X,
+  Sparkles,
+  Shield,
+  Lock,
+  Mail,
+  User,
+  AlertCircle,
+  ArrowRight,
+  Gift,
+  KeyRound,
+  CheckCircle2,
+  Loader2,
+  ArrowLeft,
+  RotateCw,
+} from 'lucide-react';
 
 export default function AuthModal({
   isOpen,
@@ -11,13 +27,16 @@ export default function AuthModal({
   onSuccess,
 }) {
   const [tab, setTab] = useState(initialTab); // 'login' | 'register'
+  const [regStep, setRegStep] = useState('details'); // 'details' | 'otp'
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [autoReferred, setAutoReferred] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -31,32 +50,116 @@ export default function AuthModal({
     }
   }, []);
 
+  // Resend countdown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Handle Send / Resend OTP for Registration
+  const handleRequestOtp = async () => {
     setError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim();
+
+    if (!cleanUsername || cleanUsername.length < 3) {
+      setError('Username must be at least 3 characters.');
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const endpoint = tab === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const body = tab === 'login'
-        ? { email, password }
-        : { username, email, password, referralCode };
-
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          action: 'send',
+          email: cleanEmail,
+          username: cleanUsername,
+          purpose: 'Registration',
+        }),
       });
 
       const data = await res.json();
       if (!data.success) {
-        throw new Error(data.error || 'Authentication failed');
+        throw new Error(data.error || 'Failed to dispatch security code');
       }
 
-      onSuccess(data.user);
-      onClose();
+      setRegStep('otp');
+      setResendCooldown(40);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    // If in register tab and still on details step -> trigger OTP send
+    if (tab === 'register' && regStep === 'details') {
+      await handleRequestOtp();
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (tab === 'login') {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+
+        onSuccess(data.user);
+        onClose();
+      } else {
+        // Register step 2: Verify OTP and finalize
+        if (!otp || otp.trim().length !== 6) {
+          throw new Error('Please enter the 6-digit security code sent to your email.');
+        }
+
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: username.trim(),
+            email: email.trim().toLowerCase(),
+            password,
+            referralCode,
+            otp: otp.trim(),
+          }),
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Registration failed');
+        }
+
+        onSuccess(data.user);
+        onClose();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,6 +170,7 @@ export default function AuthModal({
   const handleDemoFill = (role) => {
     setError(null);
     setTab('login');
+    setRegStep('details');
     if (role === 'admin') {
       setEmail('admin@zorraroyals.com');
       setPassword('RoyalAdmin2026!');
@@ -102,7 +206,11 @@ export default function AuthModal({
             ZORRA ROYALS VIP
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {tab === 'login' ? 'Sign in to access your royal vault & balances' : 'Create VIP account & claim $10.00 SC Welcome Bonus'}
+            {tab === 'login'
+              ? 'Sign in to access your royal vault & balances'
+              : regStep === 'otp'
+              ? `Enter the 6-digit code sent to ${email}`
+              : 'Create VIP account & claim $10.00 SC Welcome Bonus'}
           </p>
         </div>
 
@@ -110,7 +218,11 @@ export default function AuthModal({
         <div className="grid grid-cols-2 p-1 rounded-xl bg-black/50 border border-white/5 mb-5">
           <button
             type="button"
-            onClick={() => { setTab('login'); setError(null); }}
+            onClick={() => {
+              setTab('login');
+              setRegStep('details');
+              setError(null);
+            }}
             className={`py-2 text-xs font-bold rounded-lg transition ${
               tab === 'login'
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b38f26] text-black shadow-md'
@@ -121,7 +233,11 @@ export default function AuthModal({
           </button>
           <button
             type="button"
-            onClick={() => { setTab('register'); setError(null); }}
+            onClick={() => {
+              setTab('register');
+              setRegStep('details');
+              setError(null);
+            }}
             className={`py-2 text-xs font-bold rounded-lg transition ${
               tab === 'register'
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b38f26] text-black shadow-md'
@@ -140,103 +256,214 @@ export default function AuthModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {tab === 'register' && (
-            <div>
-              <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
-                Player Username
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+          {/* LOGIN VIEW */}
+          {tab === 'login' && (
+            <>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="vip@zorraroyals.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider">
+                    Secret Password
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    onClick={onClose}
+                    className="text-[11px] text-[#ffd700] hover:underline font-bold"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* REGISTER STEP 1: Details */}
+          {tab === 'register' && regStep === 'details' && (
+            <>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  Player Username
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="RoyalKing99"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  Email Address (Verification Code will be sent)
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="vip@zorraroyals.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  Secret Password (Min 6 Characters)
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider">
+                    Referral / Friend Code <span className="text-gray-500 font-normal lowercase">(optional)</span>
+                  </label>
+                  {autoReferred && (
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      ✓ Friend Code Linked
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <Gift className="absolute left-3 top-3 w-4 h-4 text-[#d4af37]" />
+                  <input
+                    type="text"
+                    placeholder="Enter friend's code or username"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    className="w-full bg-[#131622] border border-[#d4af37]/35 focus:border-[#ffd700] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 font-mono tracking-wider transition"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* REGISTER STEP 2: OTP Verification */}
+          {tab === 'register' && regStep === 'otp' && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-[#131622] border border-[#d4af37]/30 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-gray-400 text-[11px] block">Sending code to:</span>
+                  <span className="font-mono text-[#ffd700] font-bold">{email}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegStep('details');
+                    setError(null);
+                  }}
+                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1.5 text-center">
+                  Enter 6-Digit Email Code (OTP)
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="RoyalKing99"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="123456"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-[#131622] border border-[#d4af37]/40 rounded-xl py-3 text-center text-xl font-mono font-black tracking-[0.35em] text-[#ffd700] placeholder-gray-600 focus:outline-none focus:border-[#ffd700] transition"
                 />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+                <span>Didn&apos;t receive code?</span>
+                <button
+                  type="button"
+                  disabled={resendCooldown > 0 || loading}
+                  onClick={handleRequestOtp}
+                  className={`font-bold transition flex items-center gap-1 ${
+                    resendCooldown > 0
+                      ? 'text-gray-500 cursor-not-allowed'
+                      : 'text-[#ffd700] hover:underline cursor-pointer'
+                  }`}
+                >
+                  <RotateCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                  <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
+                </button>
               </div>
             </div>
           )}
 
-          <div>
-            <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
-              <input
-                type="email"
-                required
-                placeholder="vip@zorraroyals.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
-              Secret Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
-              />
-            </div>
-          </div>
-
-          {tab === 'register' && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider">
-                  Referral / Friend Code <span className="text-gray-500 font-normal lowercase">(optional)</span>
-                </label>
-                {autoReferred && (
-                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    ✓ Friend Code Linked
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <Gift className="absolute left-3 top-3 w-4 h-4 text-[#d4af37]" />
-                <input
-                  type="text"
-                  placeholder="Enter friend's code or username"
-                  value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
-                  className="w-full bg-[#131622] border border-[#d4af37]/35 focus:border-[#ffd700] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 font-mono tracking-wider transition"
-                />
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1">
-                Both you and your friend unlock VIP bonus perks on your first deposit!
-              </p>
-            </div>
-          )}
-
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full btn-gold py-3 text-sm font-black flex items-center justify-center gap-2 mt-2"
+            disabled={loading || (tab === 'register' && regStep === 'otp' && otp.length !== 6)}
+            className="w-full btn-gold py-3 text-sm font-black flex items-center justify-center gap-2 mt-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-60 disabled:cursor-not-allowed transition"
           >
             {loading ? (
-              <span>Authenticating...</span>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Processing Royal Request...</span>
+              </>
             ) : tab === 'login' ? (
               <>
                 <span>Enter Royal Palace</span>
                 <ArrowRight className="w-4 h-4" />
               </>
+            ) : regStep === 'details' ? (
+              <>
+                <KeyRound className="w-4 h-4" />
+                <span>Send Security Code (OTP)</span>
+              </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>Claim $10 Bonus & Register</span>
+                <span>Verify & Claim $10 Bonus</span>
               </>
             )}
           </button>

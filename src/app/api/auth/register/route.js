@@ -1,15 +1,20 @@
 import { getDb, initDb } from '@/lib/db';
 import { signToken } from '@/lib/auth';
+import { sendEmail, getWelcomeEmailTemplate } from '@/lib/email';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 
 export async function POST(req) {
   try {
     await initDb();
-    const { username, email, password, referralCode, referredBy } = await req.json();
+    const { username, email, password, referralCode, referredBy, otp } = await req.json();
 
     if (!username || !email || !password) {
       return Response.json({ success: false, error: 'All fields are required' }, { status: 400 });
+    }
+
+    if (!otp) {
+      return Response.json({ success: false, error: 'Email verification code (OTP) is required.' }, { status: 400 });
     }
 
     if (password.length < 6) {
@@ -18,9 +23,39 @@ export async function POST(req) {
 
     const db = await getDb();
     const usersCol = db.collection('users');
+    const otpsCol = db.collection('otps');
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanUsername = username.trim();
+    const cleanOtp = String(otp).trim();
+
+    // 1. Verify OTP code
+    const otpRecord = await otpsCol.findOne({ email: cleanEmail });
+    if (!otpRecord) {
+      return Response.json(
+        { success: false, error: 'No verification code found for this email. Please request a new code.' },
+        { status: 400 }
+      );
+    }
+
+    if (new Date() > new Date(otpRecord.expiresAt)) {
+      await otpsCol.deleteOne({ _id: otpRecord._id });
+      return Response.json(
+        { success: false, error: 'Verification code has expired. Please request a new code.' },
+        { status: 400 }
+      );
+    }
+
+    if (otpRecord.code !== cleanOtp) {
+      await otpsCol.updateOne({ _id: otpRecord._id }, { $inc: { attempts: 1 } });
+      return Response.json(
+        { success: false, error: 'Invalid verification code. Please check your email and try again.' },
+        { status: 400 }
+      );
+    }
+
+    // OTP verified! Delete record to prevent replay
+    await otpsCol.deleteOne({ _id: otpRecord._id });
 
     const existing = await usersCol.findOne({
       $or: [{ email: cleanEmail }, { username: cleanUsername }]
@@ -105,6 +140,13 @@ export async function POST(req) {
       description: 'One-Time Signup Freeplay Bonus',
       createdAt: new Date(),
     });
+
+    // Send royal welcome email asynchronously
+    sendEmail({
+      to: cleanEmail,
+      subject: 'Welcome to Zorra Royals VIP Palace!',
+      html: getWelcomeEmailTemplate(cleanUsername),
+    }).catch((err) => console.error('[WELCOME EMAIL ERROR]', err));
 
     const tokenPayload = {
       id: userId,

@@ -92,12 +92,12 @@ export default function DownloadAppPage() {
             </div>
 
             <a
-              href="/download/zorra-royals.apk"
+              href="/api/download/apk"
               download="zorra-royals.apk"
-              className="w-full btn-gold py-3.5 text-sm font-black flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)]"
+              className="w-full btn-gold py-3.5 text-sm font-black flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] transition hover:brightness-110 active:scale-95"
             >
               <Download className="w-4 h-4" />
-              <span>Download Android APK</span>
+              <span>Download Android APK (v1.0 Stable)</span>
             </a>
           </div>
 

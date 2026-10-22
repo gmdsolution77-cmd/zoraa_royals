@@ -111,9 +111,33 @@ class FallbackCollection {
     return { insertedIds };
   }
 
-  async updateOne(query, update) {
+  async updateOne(query, update, options = {}) {
     const item = await this.findOne(query);
-    if (!item) return { matchedCount: 0, modifiedCount: 0 };
+    if (!item) {
+      if (options && options.upsert) {
+        const timestampHex = Math.floor(Date.now() / 1000).toString(16).padStart(8, '0');
+        const randomHex = Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        const hexId = (timestampHex + randomHex).toLowerCase();
+        const baseQuery = {};
+        if (query && typeof query === 'object') {
+          for (const [k, v] of Object.entries(query)) {
+            if (!k.startsWith('$') && typeof v !== 'object') {
+              baseQuery[k] = v;
+            }
+          }
+        }
+        const newDoc = {
+          _id: hexId,
+          ...baseQuery,
+          ...(update.$set || {}),
+          createdAt: new Date(),
+        };
+        this._getItems().unshift(newDoc);
+        this.saveStore();
+        return { matchedCount: 0, modifiedCount: 1, upsertedId: hexId };
+      }
+      return { matchedCount: 0, modifiedCount: 0 };
+    }
 
     if (update.$set) {
       Object.assign(item, update.$set);
