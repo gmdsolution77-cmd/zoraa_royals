@@ -5,21 +5,24 @@ const transporter = nodemailer.createTransport({
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: process.env.SMTP_SECURE === 'false' ? false : true,
   auth: {
-    user: process.env.SMTP_USER || 'verified@vegasone.games',
-    pass: process.env.SMTP_PASS || '',
+    user: process.env.SMTP_USER || 'verified@zoraaroyal.com',
+    pass: process.env.SMTP_PASS || '0761071Na@',
   },
 });
 
 export async function sendEmail({ to, subject, html }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const smtpUser = process.env.SMTP_USER || 'verified@zoraaroyal.com';
+  const smtpPass = process.env.SMTP_PASS || '0761071Na@';
+
+  if (!smtpUser || !smtpPass) {
     console.log(`[SMTP SIMULATED] To: ${to} | Subject: ${subject}`);
     return { success: true, simulated: true };
   }
 
   try {
-    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || 'verified@vegasone.games';
+    const fromAddress = process.env.SMTP_FROM || `"Zorra Royals" <${smtpUser}>`;
     const info = await transporter.sendMail({
-      from: `"Vegas One" <${fromAddress}>`,
+      from: fromAddress,
       to,
       subject,
       html,
@@ -33,24 +36,25 @@ export async function sendEmail({ to, subject, html }) {
 
 export function getWelcomeEmailTemplate(username) {
   return `
-    <div style="background-color: #070514; color: #ffffff; padding: 40px; font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: auto; border-radius: 16px; border: 1px solid rgba(0, 240, 255, 0.35); text-align: center;">
-      <img src="https://vegasone.games/images/logo.png" alt="Vegas One" style="height: 60px; margin-bottom: 12px;" />
-      <h1 style="color: #00F0FF; margin: 0 0 8px 0; font-size: 24px; font-weight: 900; letter-spacing: 1px;">VEGAS ONE</h1>
-      <p style="color: #E026D8; font-size: 13px; margin-top: 0; letter-spacing: 2px; text-transform: uppercase;">LUXURY SWEEPSTAKES LOUNGE</p>
-      <hr style="border-color: rgba(0, 240, 255, 0.15); margin: 24px 0;" />
-      <h2 style="font-size: 20px; color: #FFFFFF; text-align: left;">Welcome to the VIP High Rollers, ${username}!</h2>
-      <p style="font-size: 15px; color: #cbd5e1; line-height: 1.6; text-align: left;">
-        Your Vegas One account is ready. You have received your <strong>Welcome Sweep Coins &amp; Gold Coins</strong>.
-      </p>
-      <div style="background-color: #0E0A24; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid rgba(0, 240, 255, 0.3); text-align: left;">
-        <p style="margin: 0; font-size: 17px; color: #00F0FF; font-weight: bold;">Exclusive 300% Welcome Pack</p>
-        <p style="margin: 8px 0 0 0; font-size: 13px; color: #e2e8f0;">Deposit today to unlock instant free SC for real cash redemptions.</p>
+    <div style="background-color: #08090C; color: #FFFFFF; padding: 40px 24px; font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 540px; margin: auto; border-radius: 16px; border: 1px solid rgba(212, 175, 55, 0.4); text-align: center;">
+      <img src="https://zoraaroyal.com/apple-touch-icon.png" alt="Zorra Royals" style="height: 56px; margin-bottom: 8px;" />
+      <h1 style="color: #D4AF37; margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 2px;">ZORRA ROYALS</h1>
+      <p style="color: #F59E0B; font-size: 11px; margin: 4px 0 20px 0; letter-spacing: 2px; text-transform: uppercase;">VIP PALACE &amp; HIGH ROLLERS LOUNGE</p>
+      <div style="background: #11131A; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px; padding: 22px; text-align: left; margin: 20px 0;">
+        <h2 style="font-size: 18px; color: #FFFFFF; margin: 0 0 10px 0;">Welcome to the Royal Palace, ${username}!</h2>
+        <p style="font-size: 14px; color: #CBD5E1; line-height: 1.6; margin: 0 0 14px 0;">
+          Your official Zorra Royals account is active. Instant deposits, fast cashouts, and VIP game platforms await you.
+        </p>
+        <div style="background: rgba(212, 175, 55, 0.1); border-left: 3px solid #D4AF37; padding: 12px; border-radius: 4px;">
+          <p style="margin: 0; font-size: 13px; color: #FFD700; font-weight: bold;">Exclusive 100% First Deposit Match</p>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #E2E8F0;">Load coins today to receive royal bonuses and instant credits.</p>
+        </div>
       </div>
-      <a href="https://vegasone.games" style="display: inline-block; background: linear-gradient(135deg, #00F0FF 0%, #E026D8 100%); color: #070514; padding: 14px 32px; font-weight: 900; text-decoration: none; border-radius: 9999px; font-size: 15px; letter-spacing: 0.05em;">
-        PLAY NOW &amp; WIN
+      <a href="https://zoraaroyal.com" style="display: inline-block; background: linear-gradient(135deg, #FFD700 0%, #D4AF37 70%, #997B24 100%); color: #08090C; font-weight: 900; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);">
+        ACCESS VIP LOBBY
       </a>
-      <p style="margin-top: 36px; font-size: 11px; color: #64748b;">
-        No purchase necessary. Void where prohibited. Must be 18+ and a US resident.
+      <p style="margin-top: 28px; font-size: 11px; color: #64748B;">
+        Official Zorra Royals Broadcast • 24/7 VIP Concierge Support
       </p>
     </div>
   `;
@@ -58,18 +62,18 @@ export function getWelcomeEmailTemplate(username) {
 
 export function getOtpEmailTemplate(otp, purpose = 'Account Verification') {
   return `
-    <div style="background-color: #070514; color: #FFFFFF; padding: 40px 24px; font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 520px; margin: auto; border-radius: 16px; border: 1px solid rgba(0, 240, 255, 0.35); box-shadow: 0 20px 50px rgba(0,0,0,0.85); text-align: center;">
-      <div style="margin-bottom: 24px;">
-        <img src="https://vegasone.games/images/logo.png" alt="Vegas One" style="height: 56px; margin-bottom: 8px;" />
-        <h1 style="color: #00F0FF; margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px;">VEGAS ONE</h1>
-        <p style="color: #E026D8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 2px;">Luxury Sweepstakes Lounge</p>
+    <div style="background-color: #08090C; color: #FFFFFF; padding: 40px 24px; font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 520px; margin: auto; border-radius: 16px; border: 1px solid rgba(212, 175, 55, 0.4); text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.85);">
+      <div style="margin-bottom: 20px;">
+        <img src="https://zoraaroyal.com/apple-touch-icon.png" alt="Zorra Royals" style="height: 56px; margin-bottom: 8px;" />
+        <h1 style="color: #D4AF37; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 2px;">ZORRA ROYALS</h1>
+        <p style="color: #F59E0B; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 2px;">Royal Security Verification</p>
       </div>
-      <div style="background: #0E0A24; border: 1px solid rgba(0, 240, 255, 0.18); border-radius: 12px; padding: 24px; text-align: center;">
+      <div style="background: #11131A; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px; padding: 24px; text-align: center;">
         <h2 style="font-size: 17px; margin: 0 0 10px 0; color: #FFFFFF;">${purpose} Code</h2>
-        <p style="font-size: 13px; color: #9A91A8; margin: 0 0 22px 0; line-height: 1.5;">
+        <p style="font-size: 13px; color: #94A3B8; margin: 0 0 22px 0; line-height: 1.5;">
           Use the 6-digit one-time security code below to complete your action. This code will expire in <strong>10 minutes</strong>.
         </p>
-        <div style="display: inline-block; background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(224, 38, 216, 0.15)); border: 2px dashed #00F0FF; padding: 14px 28px; border-radius: 12px; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #00F0FF; font-family: monospace;">
+        <div style="display: inline-block; background: rgba(212, 175, 55, 0.1); border: 2px dashed #D4AF37; padding: 14px 28px; border-radius: 12px; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #FFD700; font-family: monospace;">
           ${otp}
         </div>
       </div>
@@ -79,3 +83,4 @@ export function getOtpEmailTemplate(otp, purpose = 'Account Verification') {
     </div>
   `;
 }
+
