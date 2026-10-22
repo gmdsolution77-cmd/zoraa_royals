@@ -25,3 +25,12 @@ yarn-error.log*
 /android/.gradle/
 /android/local.properties
 .gradle/
+
+# local environment & secret keys
+.env
+.env*.local
+.env.local
+firebase-service-account.json
+*.json.key
+.zorra_store.json
+
