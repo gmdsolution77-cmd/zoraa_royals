@@ -56,7 +56,8 @@ export default function HomePage() {
   const [user, setUser] = useState(null);
   const [currency, setCurrency] = useState('SC');
   const [activeCategory, setActiveCategory] = useState('all');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState('lobby');
   const [currentView, setCurrentView] = useState('lobby'); // 'lobby', 'deposit', 'withdraw', 'load', 'history'
 
@@ -184,59 +185,51 @@ export default function HomePage() {
   const featuredPlatforms = games.filter(g => g.isFeatured || !g.isHot).slice(0, 6);
 
   return (
-    <div className="h-screen flex flex-col bg-[#07080b] text-[#f8fafc] overflow-hidden">
-      {/* 1. Top Navbar */}
-      <RoyalNavbar
+    <div className="min-h-screen flex flex-col bg-[#07080b] text-[#f8fafc] font-sans">
+      {/* 1. Global Collapsible Royal Sidebar */}
+      <RoyalSidebar
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
         user={user}
-        currency={currency}
-        setCurrency={setCurrency}
-        onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
         onOpenCashier={(tab) => setCashierModal({ open: true, tab })}
         onOpenFreeplay={() => setFreeplayOpen(true)}
         onOpenGameVault={() => setGameVaultOpen(true)}
-        onOpenNotifications={() => setNotifsOpen(true)}
-        onOpenLedger={() => setLedgerOpen(true)}
-        onOpenKyc={() => setKycOpen(true)}
+        onOpenChat={() => setChatOpen(true)}
         onOpenReferral={() => setReferralOpen(true)}
-        onLogout={handleLogout}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* 2. Main Workspace: Static Left Sidebar + Scrollable Right Column */}
-      <div className="flex-1 flex w-full overflow-hidden relative">
-        {/* Sidebar Dock - Permanently Static Left Rail */}
-        <RoyalSidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          activeCategory={activeCategory}
-          currentView={currentView}
-          onSelectCategory={(cat) => {
-            handleSwitchView('lobby');
-            setActiveCategory(cat);
-            setMobileTab('games');
-            const el = document.getElementById('all-games-section');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-          }}
-          onSelectCashierTab={(tab) => handleSwitchView(tab)}
+      {/* 2. Main Content Layout with dynamic left padding on desktop */}
+      <div
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Top Navbar */}
+        <RoyalNavbar
           user={user}
-          onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
-          onOpenGameVault={() => handleSwitchView('load')}
+          currency={currency}
+          setCurrency={setCurrency}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
+          onOpenCashier={(tab) => setCashierModal({ open: true, tab })}
           onOpenFreeplay={() => setFreeplayOpen(true)}
-          onOpenLedger={() => handleSwitchView('history')}
+          onOpenGameVault={() => setGameVaultOpen(true)}
+          onOpenNotifications={() => setNotifsOpen(true)}
+          onOpenLedger={() => setLedgerOpen(true)}
           onOpenKyc={() => setKycOpen(true)}
-          onOpenChat={() => setChatOpen(true)}
           onOpenReferral={() => setReferralOpen(true)}
+          onLogout={handleLogout}
+          onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
 
-        {/* Right Column: Independently Scrollable Workspace */}
-        <div id="main-scroll-container" className="flex-1 min-w-0 h-full overflow-y-auto flex flex-col scrollbar-thin">
-          {/* Live Winners Marquee Ticker - Sticky at top of content stream */}
-          <div className="sticky top-0 z-20 shrink-0">
-            <WinnersTicker />
-          </div>
+        {/* Live Winners Marquee Ticker */}
+        <div className="sticky top-0 z-20 shrink-0">
+          <WinnersTicker />
+        </div>
 
-          {/* Main Content Sections */}
-          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-8 w-full max-w-full">
+        {/* Main Content Sections */}
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-8 w-full max-w-full">
             {currentView === 'lobby' ? (
               <>
                 {/* A. Hero Multi-Slide Showcase */}
@@ -303,7 +296,6 @@ export default function HomePage() {
           <RoyalFooter />
           <div className="h-16 md:hidden shrink-0" />
         </div>
-      </div>
 
       {/* Floating 24/7 Concierge Chat Button */}
       <button

@@ -16,10 +16,16 @@ import {
   ChevronUp,
   Zap,
 } from 'lucide-react';
+import RoyalNavbar from '@/components/common/RoyalNavbar';
+import RoyalSidebar from '@/components/common/RoyalSidebar';
+import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
 
 export default function DownloadAppPage() {
   const [activeFaq, setActiveFaq] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null);
 
   const faqs = [
     {
@@ -45,28 +51,34 @@ export default function DownloadAppPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-[#f8fafc] flex flex-col justify-between pb-24 md:pb-8">
-      {/* Top Header */}
-      <header className="p-4 sm:p-6 border-b border-[#d4af37]/20 bg-[#090b10] sticky top-0 z-30 backdrop-blur-md">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white transition"
-          >
-            <ArrowLeft className="w-4 h-4 text-[#ffd700]" />
-            <span>Back to Royal Palace</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full" />
-            <span className="font-serif font-black text-white text-sm tracking-wider">
-              ZORRA ROYALS
-            </span>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#07080b] text-[#f8fafc] flex flex-col justify-between font-sans">
+      {/* 1. Global Collapsible Royal Sidebar */}
+      <RoyalSidebar
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
+        user={user}
+        onOpenCashier={() => {}}
+        onOpenChat={() => {}}
+      />
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-10">
+      {/* 2. Main Content Layout with dynamic left padding on desktop */}
+      <div
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Top Navbar */}
+        <RoyalNavbar
+          user={user}
+          onOpenAuth={() => {}}
+          onOpenCashier={() => {}}
+          onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+        />
+
+        {/* Main Content */}
+        <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 space-y-10">
         {/* Title & Badge */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/35 text-[#ffd700] text-xs font-bold uppercase tracking-wider">
@@ -217,6 +229,10 @@ export default function DownloadAppPage() {
           </div>
         </div>
       </main>
+
+        {/* Royal Footer */}
+        <RoyalFooter />
+      </div>
 
       <MobileBottomNav />
     </div>

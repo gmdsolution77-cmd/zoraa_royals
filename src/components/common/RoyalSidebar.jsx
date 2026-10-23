@@ -2,237 +2,324 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import {
   Gamepad2,
-  Sparkles,
+  Trophy,
+  KeyRound,
   Wallet,
-  TrendingUp,
-  Key,
+  Receipt,
   Gift,
   Download,
-  Coins,
-  MessageSquare,
-  Shield,
-  Layers,
-  Crown,
-  X,
-  Flame,
-  Fish,
-  Home,
+  HelpCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Crown,
+  Users,
+  Headphones,
+  X
 } from 'lucide-react';
 
 export default function RoyalSidebar({
-  isOpen,
-  onClose,
+  collapsed: controlledCollapsed,
+  setCollapsed: controlledSetCollapsed,
+  mobileOpen: controlledMobileOpen,
+  setMobileOpen: controlledSetMobileOpen,
+  isOpen, // backwards compatibility
+  onClose, // backwards compatibility
+  user,
+  onOpenWallet,
+  onOpenCashier,
+  onOpenGameRequest,
+  onOpenChat,
+  onOpenDailyBonus,
+  onOpenFreeplay,
+  onOpenSpinWheel,
+  onOpenReferral,
+  currentView,
   activeCategory,
   onSelectCategory,
-  currentView = 'lobby',
   onSelectCashierTab,
-  user,
-  onOpenCashier,
-  onOpenGameVault,
-  onOpenFreeplay,
-  onOpenLedger,
-  onOpenKyc,
-  onOpenChat,
-  onOpenReferral,
 }) {
+  const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
 
-  const navCategories = [
-    { id: 'all', label: 'All Sweepstakes', icon: Home, path: '/' },
-    { id: 'games', label: 'Sweepstakes Catalog', icon: Gamepad2, path: '/games' },
-    { id: 'accounts', label: 'My Game Accounts', icon: Key, path: '/accounts' },
-    { id: 'promotions', label: 'Promotions & Drops', icon: Gift, path: '/promotions' },
-  ];
+  // Internal state fallback if not controlled by parent
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+  const setCollapsed = controlledSetCollapsed || setInternalCollapsed;
 
-  const quickServices = [
-    { id: 'deposit', label: 'Deposit & Bonus', icon: Wallet, color: 'text-[#ffd700]', tab: 'deposit', path: '/deposit' },
-    { id: 'withdraw', label: 'Redeem / Cashout', icon: TrendingUp, color: 'text-emerald-400', tab: 'withdraw', path: '/cashout' },
-    { id: 'referral', label: 'Invite Friends & Earn', icon: Gift, color: 'text-emerald-400', action: onOpenReferral },
-    { id: 'load', label: 'Load Game Credits', icon: Key, color: 'text-purple-400', tab: 'load', path: '/accounts' },
-    { id: 'history', label: 'Transaction History', icon: Coins, color: 'text-yellow-500', tab: 'history', path: '/history' },
-    { id: 'chat', label: 'VIP Concierge 24/7', icon: MessageSquare, color: 'text-blue-400', action: onOpenChat },
-    { id: 'kyc', label: 'Identity KYC', icon: Shield, color: 'text-emerald-300', action: onOpenKyc },
+  // Mobile open state: support mobileOpen or isOpen
+  const mobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : Boolean(isOpen);
+  const setMobileOpen = (open) => {
+    if (controlledSetMobileOpen) controlledSetMobileOpen(open);
+    if (!open && onClose) onClose();
+  };
+
+  const navItems = [
+    { label: 'Game Lobby', path: '/', icon: Gamepad2, badge: 'HOT' },
+    { label: 'All Games', path: '/games', icon: Trophy },
+    { label: 'My Game IDs', path: '/accounts', icon: KeyRound, highlight: true },
+    {
+      label: 'Deposit Funds',
+      path: '/deposit',
+      icon: Wallet,
+      action: onOpenCashier ? () => onOpenCashier('deposit') : (onOpenWallet ? () => onOpenWallet('deposit') : undefined)
+    },
+    {
+      label: 'Redeem Cashout',
+      path: '/cashout',
+      icon: Receipt,
+      action: onOpenCashier ? () => onOpenCashier('withdraw') : (onOpenWallet ? () => onOpenWallet('withdraw') : undefined)
+    },
+    {
+      label: 'Daily Spin',
+      path: '/promotions',
+      icon: Gift,
+      glow: true,
+      action: onOpenSpinWheel || onOpenDailyBonus || onOpenFreeplay
+    },
+    {
+      label: 'Refer & Earn',
+      path: '/referral',
+      icon: Users,
+      badge: 'REWARDS',
+      glow: true,
+      action: onOpenReferral
+    },
+    {
+      label: '24/7 Live Support',
+      path: '/chat',
+      icon: Headphones,
+      badge: 'ONLINE',
+      glow: true,
+      action: () => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('open-live-chat'));
+          if (typeof window.openLiveChat === 'function') window.openLiveChat();
+        }
+        if (onOpenChat) onOpenChat();
+      },
+    },
+    { label: 'Promotions & VIP', path: '/promotions', icon: Crown },
+    { label: 'Download App', path: '/download-app', icon: Download, badge: 'APK / iOS' },
+    { label: 'How To Play', path: '/how-to-play', icon: HelpCircle },
   ];
 
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
-      {isOpen && (
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
         <div
-          onClick={onClose}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 md:hidden animate-fade-in"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md lg:hidden transition-opacity"
         />
       )}
 
-      {/* Sidebar Container - Permanently Static Left Rail */}
+      {/* Sidebar Container */}
       <aside
-        className={`fixed md:relative top-0 left-0 bottom-0 z-50 md:z-20 bg-[#07090e]/95 border-r border-[#d4af37]/20 backdrop-blur-xl flex flex-col justify-between transition-all duration-300 shadow-2xl shrink-0 ${
-          // Desktop Width
-          collapsed ? 'md:w-20' : 'md:w-64'
-        } ${
-          // Mobile Visibility
-          isOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'
-        } h-screen md:h-full`}
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out border-r border-[#d4af37]/25 bg-[#07080b]/98 backdrop-blur-xl shadow-2xl ${
+          mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'
+        } ${collapsed ? 'lg:w-20' : 'lg:w-64'}`}
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+        }}
       >
-        {/* Mobile Top Header */}
-        <div className="p-4 border-b border-white/5 flex items-center justify-between md:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full p-0.5 bg-gradient-to-tr from-[#ffd700] to-[#b38f26]">
-              <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full bg-black" />
+        {/* Brand Header */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-[#d4af37]/20">
+          <div
+            onClick={() => {
+              router.push('/');
+              setMobileOpen(false);
+            }}
+            className="flex items-center gap-3 cursor-pointer overflow-hidden"
+          >
+            <div
+              className="relative w-11 h-11 shrink-0 rounded-xl overflow-hidden border-2 border-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.45)] p-0.5 bg-gradient-to-tr from-[#d4af37] via-[#fff0a8] to-[#997b24]"
+              style={{ position: 'relative', width: '44px', height: '44px', minWidth: '44px', flexShrink: 0 }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Zorra Royals VIP Palace"
+                fill
+                className="object-cover rounded-lg bg-black"
+                priority
+              />
             </div>
-            <span className="font-serif font-black text-sm text-gold-gradient">ZORRA ROYALS</span>
+            {(!collapsed || mobileOpen) && (
+              <div className="flex flex-col">
+                <span className="font-serif font-black text-sm tracking-wider leading-tight text-white">
+                  ZORRA <span className="text-[#ffd700]">ROYALS</span>
+                </span>
+                <span className="text-[10px] tracking-widest text-[#d4af37]/80 font-mono font-semibold uppercase">
+                  VIP PALACE
+                </span>
+              </div>
+            )}
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Desktop Collapse Toggle */}
-        <div className="hidden md:flex items-center justify-end p-2.5 border-b border-white/5">
+          {/* Desktop collapse button */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-[#ffd700] hover:bg-white/5 transition"
+            className="hidden lg:flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/80 border border-slate-700/60 text-slate-400 hover:text-[#ffd700] hover:border-[#ffd700] transition-colors"
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden p-1.5 text-gray-400 hover:text-white rounded-lg"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        {/* Scrollable Navigation List */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-none">
-          {/* Group 1: Game Categories */}
-          <div>
-            {!collapsed && (
-              <p className="px-3 pb-2 text-[10px] uppercase font-black tracking-widest text-gray-500 font-mono">
-                Game Categories
-              </p>
-            )}
-            <div className="space-y-1">
-              {navCategories.map((cat) => {
-                const Icon = cat.icon;
-                const isActive = currentView === 'lobby' && activeCategory === cat.id;
+        {/* Online Status Pill */}
+        {(!collapsed || mobileOpen) && (
+          <div className="px-4 py-2">
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-900/80 border border-[#d4af37]/20 text-xs shadow-inner">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-slate-300 font-mono text-[11px] font-bold">1,842 PLAYERS</span>
+              </div>
+              <span className="text-[10px] font-black text-[#ffd700] tracking-wider font-mono">ONLINE</span>
+            </div>
+          </div>
+        )}
 
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => {
-                      if (cat.path) {
-                        router.push(cat.path);
-                      } else if (onSelectCategory) {
-                        onSelectCategory(cat.id);
-                      }
-                      if (window.innerWidth < 768) onClose();
-                    }}
-                    title={collapsed ? cat.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#ffd700] via-[#d4af37] to-[#b38f26] text-black shadow-[0_4px_16px_rgba(212,175,55,0.4)] font-black'
-                        : 'text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/5'
-                    } ${collapsed ? 'justify-center px-0' : ''}`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-black stroke-[2.5]' : 'text-gray-400'}`} />
-                    {!collapsed && <span className="truncate">{cat.label}</span>}
-                    {isActive && !collapsed && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-black ml-auto shrink-0" />
+        {/* Navigation Items */}
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 scrollbar-thin">
+          {navItems.map((item, idx) => {
+            const Icon = item.icon;
+            const isActive = item.path ? pathname === item.path : false;
+
+            const content = (
+              <div
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative cursor-pointer ${
+                  isActive
+                    ? 'bg-gradient-to-r from-[#ffd700]/25 via-[#d4af37]/20 to-transparent text-white border border-[#ffd700] shadow-[0_0_15px_rgba(212,175,55,0.3)] font-black'
+                    : item.highlight
+                    ? 'bg-[#d4af37]/15 text-[#ffd700] border border-[#d4af37]/40 hover:bg-[#d4af37]/25'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-[#d4af37]/20'
+                } ${collapsed && !mobileOpen ? 'justify-center px-0' : ''}`}
+                title={collapsed && !mobileOpen ? item.label : undefined}
+              >
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                    isActive
+                      ? 'bg-gradient-to-tr from-[#ffd700] to-[#b38f26] text-black shadow-md'
+                      : item.highlight
+                      ? 'bg-[#d4af37]/25 text-[#ffd700]'
+                      : 'bg-slate-900/80 text-slate-400 group-hover:text-[#ffd700]'
+                  }`}
+                >
+                  <Icon size={18} className={isActive ? 'stroke-[2.5]' : ''} />
+                </div>
+
+                {(!collapsed || mobileOpen) && (
+                  <div className="flex items-center justify-between flex-1 overflow-hidden min-w-0">
+                    <span className="truncate text-xs font-bold">{item.label}</span>
+                    {item.badge && (
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ml-1 shrink-0 ${
+                        item.badge === 'ONLINE'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                          : 'bg-[#d4af37]/20 text-[#ffd700] border-[#d4af37]/40'
+                      }`}>
+                        {item.badge}
+                      </span>
                     )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                    {item.glow && (
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse ml-1 shrink-0">
+                        FREE
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
 
-          {/* Group 2: Services & Actions */}
-          <div>
-            {!collapsed && (
-              <p className="px-3 pb-2 text-[10px] uppercase font-black tracking-widest text-[#d4af37]/70 font-mono">
-                Cashier & Vault
-              </p>
-            )}
-            <div className="space-y-1">
-              {quickServices.map((svc, i) => {
-                const Icon = svc.icon;
-                const isTabActive = svc.tab && currentView === svc.tab;
+            if (item.action) {
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    item.action();
+                    setMobileOpen(false);
+                  }}
+                >
+                  {content}
+                </div>
+              );
+            }
 
-                if (svc.tab) {
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        if (svc.path) {
-                          router.push(svc.path);
-                        } else if (onSelectCashierTab) {
-                          onSelectCashierTab(svc.tab);
-                        }
-                        if (window.innerWidth < 768) onClose();
-                      }}
-                      title={collapsed ? svc.label : undefined}
-                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        isTabActive
-                          ? 'bg-gradient-to-r from-[#ffd700] via-[#d4af37] to-[#b38f26] text-black shadow-[0_4px_16px_rgba(212,175,55,0.4)] font-black'
-                          : 'text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/5'
-                      } ${collapsed ? 'justify-center px-0' : ''}`}
-                    >
-                      <div className={`p-1 rounded-md shrink-0 ${isTabActive ? 'bg-black/15' : 'bg-white/5'}`}>
-                        <Icon className={`w-3.5 h-3.5 ${isTabActive ? 'text-black stroke-[2.5]' : svc.color}`} />
-                      </div>
-                      {!collapsed && <span className="truncate">{svc.label}</span>}
-                      {isTabActive && !collapsed && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-black ml-auto shrink-0" />
-                      )}
-                    </button>
-                  );
-                }
-
-                return (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      if (svc.action) svc.action();
-                      if (window.innerWidth < 768) onClose();
-                    }}
-                    title={collapsed ? svc.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/5 transition-all ${
-                      collapsed ? 'justify-center px-0' : ''
-                    }`}
-                  >
-                    <div className="p-1 rounded-md bg-white/5 shrink-0">
-                      <Icon className={`w-3.5 h-3.5 ${svc.color}`} />
-                    </div>
-                    {!collapsed && <span className="truncate">{svc.label}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            return (
+              <div
+                key={idx}
+                onClick={() => {
+                  router.push(item.path);
+                  setMobileOpen(false);
+                }}
+              >
+                {content}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Bottom VIP Pill (Desktop & Mobile) */}
-        {!collapsed && (
-          <div className="p-3 border-t border-white/5">
-            <div className="p-3 rounded-2xl bg-gradient-to-b from-[#141824] to-[#0c0e16] border border-[#d4af37]/30 shadow-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Crown className="w-4 h-4 text-[#ffd700]" />
-                  <span className="text-xs font-black text-gold-gradient uppercase tracking-wider">
-                    {user?.vipTier || 'Bronze VIP'}
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono text-gray-400">Level {user?.streakDay || 1}</span>
-              </div>
-              <div className="w-full bg-black/60 rounded-full h-1.5 mt-2 overflow-hidden border border-white/5">
-                <div
-                  className="h-full bg-gradient-to-r from-[#ffd700] to-[#d4af37] rounded-full"
-                  style={{ width: `${Math.min(100, (user?.streakDay || 1) * 15)}%` }}
-                />
-              </div>
+        {/* Footer Quick Action */}
+        {(!collapsed || mobileOpen) ? (
+          <div className="p-3 border-t border-[#d4af37]/20 bg-black/40 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenCashier) onOpenCashier('deposit');
+                  else if (onOpenWallet) onOpenWallet('deposit');
+                  else router.push('/deposit');
+                  setMobileOpen(false);
+                }}
+                className="btn-gold text-[11px] py-2 font-black flex items-center justify-center gap-1 shadow-[0_0_12px_rgba(212,175,55,0.3)]"
+              >
+                <Wallet size={13} />
+                <span>DEPOSIT</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenCashier) onOpenCashier('withdraw');
+                  else if (onOpenWallet) onOpenWallet('withdraw');
+                  else router.push('/cashout');
+                  setMobileOpen(false);
+                }}
+                className="rounded-xl bg-slate-900 border border-slate-700 hover:border-[#ffd700]/50 text-slate-200 text-[11px] py-2 font-bold flex items-center justify-center gap-1 transition-all"
+              >
+                <span>REDEEM</span>
+              </button>
             </div>
+            <div className="text-[10px] text-center text-slate-500 font-mono">
+              ZORRA ROYALS v1.0 • 2026
+            </div>
+          </div>
+        ) : (
+          <div className="p-2 border-t border-[#d4af37]/20 flex justify-center">
+            <button
+              onClick={() => {
+                if (onOpenCashier) onOpenCashier('deposit');
+                else if (onOpenWallet) onOpenWallet('deposit');
+                else router.push('/deposit');
+              }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#ffd700] via-[#d4af37] to-[#b38f26] text-black flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 transition-transform"
+              title="Deposit Credits"
+            >
+              <Wallet size={18} />
+            </button>
           </div>
         )}
       </aside>

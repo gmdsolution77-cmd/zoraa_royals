@@ -24,7 +24,8 @@ export default function GamesPage() {
   const [cashierModal, setCashierModal] = useState({ open: false, tab: 'deposit' });
   const [selectedGameForModal, setSelectedGameForModal] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // 1. Fetch user session
   const refreshUser = async () => {
@@ -114,23 +115,29 @@ export default function GamesPage() {
 
   return (
     <div className="min-h-screen bg-[#07080b] text-white flex flex-col justify-between selection:bg-[#ffd700] selection:text-black font-sans">
-      {/* 1. Navbar */}
-      <RoyalNavbar
+      {/* 1. Global Collapsible Royal Sidebar */}
+      <RoyalSidebar
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
         user={user}
-        onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
         onOpenCashier={(tab) => setCashierModal({ open: true, tab: tab || 'deposit' })}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onOpenChat={() => setChatOpen(true)}
       />
 
-      <div className="flex-1 flex w-full">
-        {/* 2. Sidebar */}
-        <RoyalSidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          currentView="games"
+      {/* 2. Main Content Layout with dynamic left padding on desktop */}
+      <div
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Navbar */}
+        <RoyalNavbar
           user={user}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
           onOpenCashier={(tab) => setCashierModal({ open: true, tab: tab || 'deposit' })}
-          onOpenChat={() => setChatOpen(true)}
+          onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
 
         {/* 3. Main Games Content */}
@@ -263,10 +270,11 @@ export default function GamesPage() {
             </div>
           )}
         </main>
+        {/* Footer */}
+        <RoyalFooter />
       </div>
 
-      {/* Footer & Mobile Bottom Bar */}
-      <RoyalFooter />
+      {/* Mobile Bottom Bar */}
       <MobileBottomNav
         activeTab="games"
         onSelectTab={(tab) => {

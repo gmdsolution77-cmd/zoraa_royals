@@ -21,7 +21,8 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
   const [cashierModal, setCashierModal] = useState({ open: false, tab: 'deposit' });
   const [chatOpen, setChatOpen] = useState(false);
@@ -57,40 +58,46 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
 
   return (
     <div className="min-h-screen bg-[#07080b] text-white flex flex-col justify-between selection:bg-[#ffd700] selection:text-black font-sans">
-      {/* 1. Top Navbar */}
-      <RoyalNavbar
+      {/* 1. Global Collapsible Royal Sidebar */}
+      <RoyalSidebar
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
         user={user}
-        onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
-        onOpenCashier={(tab) => {
-          if (tab) setActiveTab(tab);
-          else setActiveTab('deposit');
-        }}
-        onOpenFreeplay={() => setFreeplayOpen(true)}
+        onSelectCategory={() => router.push('/')}
+        onOpenCashier={(tab) => setActiveTab(tab || 'deposit')}
         onOpenGameVault={() => router.push('/accounts')}
-        onOpenNotifications={() => setNotifsOpen(true)}
+        onOpenFreeplay={() => setFreeplayOpen(true)}
         onOpenLedger={() => setActiveTab('history')}
         onOpenKyc={() => setKycOpen(true)}
-        onLogout={handleLogout}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onOpenChat={() => setChatOpen(true)}
       />
 
-      <div className="flex-1 flex w-full">
-        {/* 2. Left Sidebar (Permanently static rail on desktop, drawer on mobile) */}
-        <RoyalSidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          currentView={activeTab}
+      {/* 2. Main Content Layout with dynamic left padding on desktop */}
+      <div
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Top Navbar */}
+        <RoyalNavbar
           user={user}
-          onSelectCategory={() => router.push('/')}
-          onOpenCashier={(tab) => setActiveTab(tab || 'deposit')}
-          onOpenGameVault={() => router.push('/accounts')}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
+          onOpenCashier={(tab) => {
+            if (tab) setActiveTab(tab);
+            else setActiveTab('deposit');
+          }}
           onOpenFreeplay={() => setFreeplayOpen(true)}
+          onOpenGameVault={() => router.push('/accounts')}
+          onOpenNotifications={() => setNotifsOpen(true)}
           onOpenLedger={() => setActiveTab('history')}
           onOpenKyc={() => setKycOpen(true)}
-          onOpenChat={() => setChatOpen(true)}
+          onLogout={handleLogout}
+          onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
 
-        {/* 3. Main Cashier Content */}
+        {/* Main Cashier Content */}
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full pb-24 md:pb-12 min-w-0">
           {/* Breadcrumb to lobby */}
           <div className="mb-4">
@@ -112,10 +119,10 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
             onBackToLobby={() => router.push('/')}
           />
         </main>
-      </div>
 
-      {/* 4. Royal Footer */}
-      <RoyalFooter />
+        {/* Royal Footer */}
+        <RoyalFooter />
+      </div>
 
       {/* 5. Mobile Bottom Navigation */}
       <MobileBottomNav
