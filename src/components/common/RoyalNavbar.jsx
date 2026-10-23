@@ -32,6 +32,7 @@ export default function RoyalNavbar({
   onOpenNotifications,
   onOpenKyc,
   onOpenReferral,
+  onOpenSpinWheel,
   onLogout,
   onToggleSidebar,
 }) {
@@ -130,21 +131,36 @@ export default function RoyalNavbar({
               {/* Quick Deposit Button */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold flex items-center gap-1.5"
+                className="btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <Wallet className="w-4 h-4" />
                 <span className="hidden sm:inline">Deposit</span>
               </button>
 
-              {/* Freeplay $3 Signup Reward Quick Button if not claimed */}
-              {!user.signupBonusClaimed && (
+              {/* Lucky Spin Wheel Button */}
+              <button
+                onClick={onOpenSpinWheel || (() => { if (typeof window !== 'undefined') window.location.href = '/spin-wheel'; })}
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-purple-950/70 via-slate-900 to-amber-950/60 border border-[#d4af37]/60 hover:border-[#ffd700] text-[#ffd700] hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
+                title="Daily Lucky Spin Wheel"
+              >
+                <Sparkles className="w-4 h-4 text-[#ffd700]" />
+                <span className="hidden md:inline font-mono">LUCKY SPIN</span>
+                {Number(user?.availableSpins || 0) > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#ffd700] to-[#b38f26] text-black text-[10px] font-black flex items-center justify-center font-mono shadow">
+                    {user.availableSpins}
+                  </span>
+                )}
+              </button>
+
+              {/* Freeplay $5 Signup Reward Quick Button if not claimed */}
+              {!user.freeplayClaimed && !user.signupBonusClaimed && (
                 <button
                   onClick={onOpenFreeplay}
-                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md"
-                  title="Claim $3 Signup Freeplay"
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
+                  title="Claim $5 Signup Freeplay"
                 >
                   <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span className="hidden md:inline">$3 Freeplay</span>
+                  <span className="hidden md:inline">$5 Freeplay</span>
                 </button>
               )}
 
@@ -222,6 +238,20 @@ export default function RoyalNavbar({
                         className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
                       >
                         <Key className="w-4 h-4 text-purple-400" /> My Game Accounts
+                      </Link>
+                      <Link
+                        href="/spin-wheel"
+                        onClick={() => setDropdownOpen(false)}
+                        className="w-full text-left px-4 py-2 text-xs text-amber-300 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center justify-between transition font-bold"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-[#ffd700]" /> Lucky Spin Wheel
+                        </span>
+                        {Number(user?.availableSpins || 0) > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#ffd700] text-[10px] font-mono">
+                            {user.availableSpins} Spins
+                          </span>
+                        )}
                       </Link>
                       <Link
                         href="/promotions"

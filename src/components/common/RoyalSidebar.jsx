@@ -18,6 +18,7 @@ import {
   Crown,
   Users,
   Headphones,
+  Sparkles,
   X
 } from 'lucide-react';
 
@@ -74,11 +75,11 @@ export default function RoyalSidebar({
       action: onOpenCashier ? () => onOpenCashier('withdraw') : (onOpenWallet ? () => onOpenWallet('withdraw') : undefined)
     },
     {
-      label: 'Daily Spin',
-      path: '/promotions',
-      icon: Gift,
+      label: 'Lucky Spin Wheel',
+      path: '/spin-wheel',
+      icon: Sparkles,
       glow: true,
-      action: onOpenSpinWheel || onOpenDailyBonus || onOpenFreeplay
+      action: onOpenSpinWheel || (() => router.push('/spin-wheel'))
     },
     {
       label: 'Refer & Earn',

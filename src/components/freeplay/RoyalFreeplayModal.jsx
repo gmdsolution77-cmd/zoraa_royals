@@ -64,7 +64,7 @@ export default function RoyalFreeplayModal({
       const res = await fetch('/api/freeplay', { method: 'POST' });
       const resData = await res.json();
       if (resData.success) {
-        setMessage(resData.message || 'Claimed $3.00 signup freeplay!');
+        setMessage(resData.message || 'Claimed $5.00 signup freeplay!');
         confetti({
           particleCount: 80,
           spread: 70,
@@ -74,7 +74,7 @@ export default function RoyalFreeplayModal({
         if (onBalanceUpdated) onBalanceUpdated();
         fetchFreeplay();
       } else {
-        setErrorMsg(resData.error || 'Failed to claim');
+        setErrorMsg(resData.error || resData.message || 'Failed to claim');
       }
     } catch {
       setErrorMsg('Network error claiming freeplay');
@@ -83,7 +83,8 @@ export default function RoyalFreeplayModal({
     }
   };
 
-  const isAlreadyClaimed = data?.signupBonusClaimed || user?.signupBonusClaimed;
+  const isAlreadyClaimed = data?.signupBonusClaimed || user?.signupBonusClaimed || user?.freeplayClaimed;
+  const bonusVal = data?.amount || data?.bonusAmount || 5.0;
 
   return (
     <div className="modal-overlay">
@@ -107,7 +108,7 @@ export default function RoyalFreeplayModal({
               ONE-TIME SIGNUP BONUS
             </span>
             <h2 className="text-2xl font-black font-serif text-white tracking-wide">
-              $3 Freeplay Welcome Bonus
+              ${bonusVal.toFixed(2)} Freeplay Welcome Bonus
             </h2>
             <p className="text-xs text-gray-300 max-w-xs">
               Complimentary starting credit added directly to your US Dollar wallet for all sweepstakes platforms.
@@ -122,7 +123,7 @@ export default function RoyalFreeplayModal({
               Freeplay Value
             </span>
             <strong className="text-4xl font-black font-mono text-gold-gradient block">
-              $3.00 USD
+              ${bonusVal.toFixed(2)} USD
             </strong>
             <span className="text-[11px] text-emerald-400 font-bold block">
               ✓ Ready for instant transfer to Orion Stars, Fire Kirin & more!
@@ -152,19 +153,19 @@ export default function RoyalFreeplayModal({
               }}
               className="w-full btn-gold py-3.5 text-sm font-black shadow-lg"
             >
-              Register & Claim $3 Freeplay
+              Register & Claim ${bonusVal.toFixed(2)} Freeplay
             </button>
           ) : isAlreadyClaimed ? (
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center text-xs text-gray-400">
-                You have already claimed your one-time $3.00 signup freeplay.
+                You have already claimed your one-time ${bonusVal.toFixed(2)} signup freeplay.
               </div>
               <Link
-                href="/cashier?tab=deposit"
+                href="/deposit"
                 onClick={onClose}
                 className="w-full btn-gold py-3.5 text-sm font-black shadow-lg flex items-center justify-center gap-2"
               >
-                <span>Deposit & Get +100% Match Bonus</span>
+                <span>Deposit & Get +300% Match Bonus</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -177,7 +178,7 @@ export default function RoyalFreeplayModal({
               {claimLoading ? (
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
               ) : (
-                <span>Claim $3 Freeplay Credit Now</span>
+                <span>Claim ${bonusVal.toFixed(2)} Freeplay Credit Now</span>
               )}
             </button>
           )}

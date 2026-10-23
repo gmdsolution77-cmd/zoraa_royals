@@ -247,6 +247,7 @@ export async function PUT(req) {
           balanceSC: creditedSC,
           balanceGC: creditedGC,
           totalDeposited: deposit.amount,
+          availableSpins: 2, // 2 Free Spins unlocked per approved deposit
         },
       };
 

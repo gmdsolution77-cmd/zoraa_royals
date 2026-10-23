@@ -50,6 +50,7 @@ import LiveChatModal from '@/components/support/LiveChatModal';
 import NotificationsModal from '@/components/common/NotificationsModal';
 import KycModal from '@/components/common/KycModal';
 import ReferralModal from '@/components/common/ReferralModal';
+import DailySpinWheelModal from '@/components/common/DailySpinWheelModal';
 
 export default function HomePage() {
   const [user, setUser] = useState(null);
@@ -102,6 +103,7 @@ export default function HomePage() {
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [kycOpen, setKycOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
+  const [spinWheelOpen, setSpinWheelOpen] = useState(false);
   const [activeInternalGame, setActiveInternalGame] = useState(null);
 
   const fetchVaultData = async () => {
@@ -193,6 +195,7 @@ export default function HomePage() {
         user={user}
         onOpenCashier={(tab) => setCashierModal({ open: true, tab })}
         onOpenFreeplay={() => setFreeplayOpen(true)}
+        onOpenSpinWheel={() => setSpinWheelOpen(true)}
         onOpenGameVault={() => setGameVaultOpen(true)}
         onOpenChat={() => setChatOpen(true)}
         onOpenReferral={() => setReferralOpen(true)}
@@ -212,6 +215,7 @@ export default function HomePage() {
           onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
           onOpenCashier={(tab) => setCashierModal({ open: true, tab })}
           onOpenFreeplay={() => setFreeplayOpen(true)}
+          onOpenSpinWheel={() => setSpinWheelOpen(true)}
           onOpenGameVault={() => setGameVaultOpen(true)}
           onOpenNotifications={() => setNotifsOpen(true)}
           onOpenKyc={() => setKycOpen(true)}
@@ -235,6 +239,8 @@ export default function HomePage() {
                   onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
                   onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
                   onOpenFreeplay={() => setFreeplayOpen(true)}
+                  onOpenSpinWheel={() => setSpinWheelOpen(true)}
+                  onBalanceUpdated={fetchUser}
                   onOpenVault={() => handleSwitchView('load')}
                   onOpenReferral={() => setReferralOpen(true)}
                 />
@@ -322,6 +328,15 @@ export default function HomePage() {
         }}
         onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
         onOpenFreeplay={() => setFreeplayOpen(true)}
+        onOpenSpinWheel={() => setSpinWheelOpen(true)}
+      />
+
+      {/* Daily Lucky Spin Wheel Modal */}
+      <DailySpinWheelModal
+        isOpen={spinWheelOpen}
+        onClose={() => setSpinWheelOpen(false)}
+        user={user}
+        onBalanceUpdated={fetchUser}
       />
 
       {/* Modals */}

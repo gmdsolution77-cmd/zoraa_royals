@@ -15,6 +15,7 @@ export default function MobileBottomNav({
   activeTab,
   onOpenCashier,
   onOpenFreeplay,
+  onOpenSpinWheel,
   onOpenAuth,
 }) {
   const pathname = usePathname();
@@ -55,13 +56,13 @@ export default function MobileBottomNav({
     },
     {
       id: 'spin',
-      label: 'Spin $50',
+      label: 'Lucky Spin',
       icon: Sparkles,
       action: () => {
-        if (onOpenFreeplay) onOpenFreeplay();
-        else router.push('/promotions');
+        if (onOpenSpinWheel) onOpenSpinWheel();
+        else router.push('/spin-wheel');
       },
-      isActive: pathname === '/promotions' || pathname === '/promos' || activeTab === 'promos',
+      isActive: pathname === '/spin-wheel' || activeTab === 'spin',
     },
   ];
 

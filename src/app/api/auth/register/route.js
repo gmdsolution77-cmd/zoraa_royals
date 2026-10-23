@@ -85,9 +85,9 @@ export async function POST(req) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Get signup bonus from settings ($3 default)
+    // Dynamic signup freeplay amount (default $5.00 to match Player Paradise)
     const settings = await db.collection('system_settings').findOne({ key: 'general' });
-    const signupBonus = settings?.signupBonusAmount !== undefined ? settings.signupBonusAmount : 3.0;
+    const signupBonus = Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0);
 
     const newUser = {
       username: cleanUsername,
@@ -95,13 +95,15 @@ export async function POST(req) {
       password: hashedPassword,
       role: 'player',
       vipTier: 'Bronze',
-      balance: parseFloat(signupBonus),
-      balanceSC: parseFloat(signupBonus),
+      balance: 0,
+      balanceSC: 0,
       balanceGC: 10000,
+      availableSpins: 0,
       referralCode: generatedReferralCode,
       referredBy: referrer ? referrer.username : null,
       totalReferralBonusEarned: 0,
-      signupBonusClaimed: true,
+      signupBonusClaimed: false,
+      freeplayClaimed: false,
       firstDepositMade: false,
       isVerified: false,
       createdAt: new Date(),
@@ -126,18 +128,9 @@ export async function POST(req) {
     await db.collection('notifications').insertOne({
       userId,
       title: '👑 Welcome to Zorra Royals!',
-      message: `Your account has been credited with $${signupBonus.toFixed(2)} instant signup freeplay! Enjoy VIP Sweepstakes gaming!`,
+      message: `Welcome! Click 'GET FREEPLAY' in the lobby to claim your complimentary $${signupBonus.toFixed(2)} welcome bonus!`,
       type: 'bonus',
       read: false,
-      createdAt: new Date(),
-    });
-
-    // Record welcome bonus in ledger
-    await db.collection('ledger').insertOne({
-      userId,
-      type: 'signup_bonus',
-      amount: parseFloat(signupBonus),
-      description: 'One-Time Signup Freeplay Bonus',
       createdAt: new Date(),
     });
 

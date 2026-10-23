@@ -12,8 +12,11 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import HeroBannerCard from './HeroBannerCard';
 
 export default function HeroShowcase({
@@ -23,15 +26,60 @@ export default function HeroShowcase({
   onOpenFreeplay,
   onOpenVault,
   onOpenReferral,
+  onOpenSpinWheel,
+  onBalanceUpdated,
 }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [jackpot, setJackpot] = useState(1842954.29);
+  const [claimingFreeplay, setClaimingFreeplay] = useState(false);
+  const [freeplayFeedback, setFreeplayFeedback] = useState(null);
   const [settings, setSettings] = useState({
-    welcomeBonusPercentage: 100,
-    regularBonusPercentage: 20,
+    welcomeBonusPercentage: 300,
+    regularBonusPercentage: 50,
     referralBonusPercentage: 50,
-    signupBonusAmount: 3.0,
+    freeplayAmountSC: 5.0,
+    signupBonusAmount: 5.0,
   });
+
+  const handleGetFreeplay = async () => {
+    if (!user) {
+      if (onOpenAuth) onOpenAuth('register');
+      return;
+    }
+
+    setClaimingFreeplay(true);
+    setFreeplayFeedback(null);
+
+    try {
+      const res = await fetch('/api/freeplay', { method: 'POST' });
+      const data = await res.json();
+      setClaimingFreeplay(false);
+
+      if (data.success) {
+        setFreeplayFeedback({
+          type: 'success',
+          message: data.message || `🎉 Successfully claimed $${data.amount || 5} Freeplay bonus!`,
+        });
+        confetti({
+          particleCount: 90,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#ffd700', '#d4af37', '#10b981', '#ffffff'],
+        });
+        if (onBalanceUpdated) onBalanceUpdated();
+      } else {
+        setFreeplayFeedback({
+          type: data.alreadyClaimed ? 'info' : 'error',
+          message: data.error || data.message || 'Unable to claim Freeplay.',
+        });
+        setTimeout(() => setFreeplayFeedback(null), 5000);
+      }
+    } catch (err) {
+      setClaimingFreeplay(false);
+      setFreeplayFeedback({ type: 'error', message: err.message || 'Error claiming Freeplay.' });
+      setTimeout(() => setFreeplayFeedback(null), 4000);
+    }
+  };
 
   // Fetch dynamic settings
   useEffect(() => {
@@ -55,8 +103,7 @@ export default function HeroShowcase({
 
   const welcomePct = settings.welcomeBonusPercentage || 100;
   const regularPct = settings.regularBonusPercentage || 20;
-  const hasDeposited = !!user?.firstDepositMade;
-
+  const hasDeposited = Boolean(user?.firstDepositMade);
   const slides = [
     hasDeposited ? {
       id: 0,
@@ -65,36 +112,36 @@ export default function HeroShowcase({
       subtitle: `UNLIMITED RELOAD BONUS • 24/7 INSTANT CREDITING`,
       desc: `Enjoy an extra +${regularPct}% bonus coins automatically added on every deposit. Fast processing via Cash App, Zelle & Crypto.`,
       ctaText: `Deposit & Get +${regularPct}%`,
-      ctaHref: '/cashier?tab=deposit',
-      secondaryText: 'Load into Games',
-      secondaryHref: '/cashier?tab=load',
+      ctaHref: '/deposit',
+      secondaryText: 'Lucky Spin Wheel',
+      secondaryAction: onOpenSpinWheel,
       imageBadge: `+${regularPct}% RELOAD`,
       glowColor: '#ffd700',
     } : {
       id: 0,
       badge: '👑 1ST DEPOSIT WELCOME BONUS',
       title: `${welcomePct}% FIRST DEPOSIT BONUS`,
-      subtitle: `DOUBLE YOUR BALANCE + $3 COMPLIMENTARY SIGNUP FREEPLAY`,
+      subtitle: `300% MATCH + $5 COMPLIMENTARY SIGNUP FREEPLAY`,
       desc: `Deposit via Cash App, Zelle or Crypto and get an instant +${welcomePct}% match bonus added directly to your dollar balance!`,
-      ctaText: user ? 'Deposit & Double Balance' : 'Claim $3 Freeplay & Join',
-      ctaHref: user ? '/cashier?tab=deposit' : null,
+      ctaText: user ? 'Deposit & Triple Balance' : 'Claim $5 Freeplay & Join',
+      ctaHref: user ? '/deposit' : null,
       ctaAction: user ? () => {} : () => onOpenAuth('register'),
-      secondaryText: 'Transfer to Games',
-      secondaryHref: '/cashier?tab=load',
+      secondaryText: 'Lucky Spin Wheel',
+      secondaryAction: onOpenSpinWheel,
       imageBadge: `+${welcomePct}% WELCOME`,
       glowColor: '#d4af37',
     },
     {
       id: 1,
-      badge: '🎁 $3 SIGNUP FREEPLAY',
-      title: '$3 FREEPLAY BONUS',
+      badge: '🎁 $5 SIGNUP FREEPLAY',
+      title: '$5 FREEPLAY BONUS',
       subtitle: 'COMPLIMENTARY CREDIT FOR NEW PLAYERS • NO DEPOSIT',
-      desc: 'Test any of our 11 sweepstakes platforms completely free! Claim your $3.00 instant starter credit and start playing.',
-      ctaText: user?.signupBonusClaimed ? 'Play Sweepstakes' : 'Claim $3 Freeplay',
-      ctaAction: onOpenFreeplay,
+      desc: 'Test any of our 11 sweepstakes platforms completely free! Claim your $5.00 instant starter credit and start playing.',
+      ctaText: (user?.freeplayClaimed || user?.signupBonusClaimed) ? 'Play Sweepstakes' : 'Claim $5 Freeplay',
+      ctaAction: handleGetFreeplay,
       secondaryText: 'Deposit & Get Bonus',
-      secondaryHref: '/cashier?tab=deposit',
-      imageBadge: '$3 COMPLIMENTARY',
+      secondaryHref: '/deposit',
+      imageBadge: '$5 COMPLIMENTARY',
       glowColor: '#10b981',
     },
     {
@@ -103,10 +150,10 @@ export default function HeroShowcase({
       title: '11 SWEEPSTAKES PLATFORMS',
       subtitle: 'ORION STARS • FIRE KIRIN • JUWA • GAME VAULT • ULTRA PANDA',
       desc: 'One single wallet for all platforms. Fast credentials generation and direct credit loading with 24/7 VIP assistance.',
-      ctaText: 'Load Game Credits',
-      ctaHref: '/cashier?tab=load',
-      secondaryText: 'Open Cashier Hub',
-      secondaryHref: '/cashier',
+      ctaText: 'View My Game IDs',
+      ctaHref: '/accounts',
+      secondaryText: 'Lucky Spin Wheel',
+      secondaryAction: onOpenSpinWheel,
       imageBadge: 'INSTANT TRANSFER',
       glowColor: '#a855f7',
     },
@@ -118,10 +165,10 @@ export default function HeroShowcase({
       desc: `Share your personal invite link. When friends make their first deposit, you instantly receive ${settings.referralBonusPercentage || 50}% bonus credited directly to your playable balance!`,
       ctaText: 'Invite Friends Now',
       ctaAction: user ? onOpenReferral : () => onOpenAuth('register'),
-      secondaryText: 'Deposit & Play',
-      secondaryHref: '/cashier?tab=deposit',
-      imageBadge: `${settings.referralBonusPercentage || 50}% REWARD`,
-      glowColor: '#10b981',
+      secondaryText: 'Deposit Funds',
+      secondaryHref: '/deposit',
+      imageBadge: '50% COMMISSION',
+      glowColor: '#3b82f6',
     },
   ];
 
@@ -174,8 +221,48 @@ export default function HeroShowcase({
             {slide.desc}
           </p>
 
+          {/* Freeplay Feedback Banner */}
+          {freeplayFeedback && (
+            <div
+              className={`p-3.5 rounded-2xl border flex items-center gap-2.5 text-xs font-bold transition-all ${
+                freeplayFeedback.type === 'success'
+                  ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                  : freeplayFeedback.type === 'info'
+                  ? 'bg-[#d4af37]/20 border-[#ffd700] text-[#ffd700]'
+                  : 'bg-red-950/80 border-red-500 text-red-200'
+              }`}
+            >
+              {freeplayFeedback.type === 'success' ? (
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+              ) : (
+                <AlertCircle size={16} className="text-[#ffd700] shrink-0" />
+              )}
+              <span>{freeplayFeedback.message}</span>
+            </div>
+          )}
+
           {/* Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
+            {(!user || (!user.freeplayClaimed && !user.signupBonusClaimed)) && (
+              <button
+                onClick={handleGetFreeplay}
+                disabled={claimingFreeplay}
+                className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_25px_rgba(212,175,55,0.5)] cursor-pointer"
+              >
+                {claimingFreeplay ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <span>CLAIMING...</span>
+                  </>
+                ) : (
+                  <>
+                    <Gift className="w-4 h-4 text-black stroke-[2.5]" />
+                    <span>GET $5.00 FREEPLAY</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {slide.ctaHref ? (
               <Link
                 href={slide.ctaHref}

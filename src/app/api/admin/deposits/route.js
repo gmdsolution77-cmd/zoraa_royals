@@ -56,7 +56,11 @@ export async function POST(req) {
       await db.collection('users').updateOne(
         { email: deposit.userEmail },
         {
-          $inc: { balance: totalToCredit },
+          $inc: {
+            balance: totalToCredit,
+            balanceSC: totalToCredit,
+            availableSpins: 2, // 2 Depositor Free Spins
+          },
           $set: { firstDepositMade: true },
         }
       );

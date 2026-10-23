@@ -1,107 +1,165 @@
+import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 
-export async function GET() {
+// GET - Check Freeplay eligibility and claim status
+export async function GET(req) {
   try {
     await initDb();
+    const db = await getDb();
+    const settingsDoc = await db.collection('system_settings').findOne({ key: 'general' });
+    const configuredAmount = Number(
+      settingsDoc?.freeplayAmountSC ?? settingsDoc?.signupBonusAmount ?? 5.0
+    );
+
     const session = await getSessionUser();
     if (!session) {
-      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({
+        success: true,
+        claimed: false,
+        canClaim: true,
+        amount: configuredAmount,
+        bonusAmount: configuredAmount,
+        title: '$5 One-Time Signup Freeplay',
+      });
     }
 
-    const db = await getDb();
-    const user = await db.collection('users').findOne({ email: session.email });
+    const usersCol = db.collection('users');
+    let user = null;
+    const userId = session.userId || session.id;
+    if (userId && ObjectId.isValid(userId)) {
+      user = await usersCol.findOne({ _id: new ObjectId(userId) });
+    }
+    if (!user && session.email) {
+      user = await usersCol.findOne({ email: session.email.toLowerCase().trim() });
+    }
 
     if (!user) {
-      return Response.json({ success: false, error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    const settings = await db.collection('system_settings').findOne({ key: 'general' });
-    const signupBonus = settings?.signupBonusAmount !== undefined ? settings.signupBonusAmount : 3.0;
+    const claimed = Boolean(user.freeplayClaimed || user.signupBonusClaimed);
+    const canClaim = !claimed;
 
-    const canClaim = !user.signupBonusClaimed;
-
-    return Response.json({
+    return NextResponse.json({
       success: true,
+      claimed,
       canClaim,
-      bonusAmount: signupBonus,
-      signupBonusClaimed: !!user.signupBonusClaimed,
-      title: '$3 One-Time Signup Freeplay',
+      amount: configuredAmount,
+      bonusAmount: configuredAmount,
+      signupBonusClaimed: claimed,
+      title: '$5 One-Time Signup Freeplay',
+      claimedAt: user.freeplayClaimedAt || null,
       message: canClaim
-        ? `Claim your complimentary $${signupBonus.toFixed(2)} signup freeplay now!`
-        : `You have already claimed your $${signupBonus.toFixed(2)} signup bonus.`,
+        ? `Claim your complimentary $${configuredAmount.toFixed(2)} signup freeplay now!`
+        : `You have already claimed your $${configuredAmount.toFixed(2)} signup freeplay bonus.`,
     });
   } catch (err) {
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
-export async function POST() {
+// POST - Claim Freeplay Bonus
+export async function POST(req) {
   try {
     await initDb();
     const session = await getSessionUser();
     if (!session) {
-      return Response.json({ success: false, error: 'Please log in to claim freeplay' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Please sign in to claim your Freeplay bonus.' },
+        { status: 401 }
+      );
     }
 
     const db = await getDb();
-    const user = await db.collection('users').findOne({ email: session.email });
+    const settingsDoc = await db.collection('system_settings').findOne({ key: 'general' });
+    const configuredAmount = Number(
+      settingsDoc?.freeplayAmountSC ?? settingsDoc?.signupBonusAmount ?? 5.0
+    );
+
+    const usersCol = db.collection('users');
+    let user = null;
+    const userId = session.userId || session.id;
+    if (userId && ObjectId.isValid(userId)) {
+      user = await usersCol.findOne({ _id: new ObjectId(userId) });
+    }
+    if (!user && session.email) {
+      user = await usersCol.findOne({ email: session.email.toLowerCase().trim() });
+    }
 
     if (!user) {
-      return Response.json({ success: false, error: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'User not found. Please log in again.' },
+        { status: 404 }
+      );
     }
 
-    if (user.signupBonusClaimed) {
-      return Response.json({
+    if (user.freeplayClaimed || user.signupBonusClaimed) {
+      return NextResponse.json({
         success: false,
-        error: 'You have already claimed your one-time $3.00 signup freeplay.',
-      }, { status: 400 });
+        alreadyClaimed: true,
+        error: 'You have already claimed your Freeplay bonus! Make a deposit to receive up to 300% match bonuses.',
+        message: 'You have already claimed your Freeplay bonus! Make a deposit to receive up to 300% match bonuses.',
+      });
     }
 
-    const settings = await db.collection('system_settings').findOne({ key: 'general' });
-    const signupBonus = settings?.signupBonusAmount !== undefined ? settings.signupBonusAmount : 3.0;
-
+    const awardSC = configuredAmount;
+    const oldBalance = Number(user.balanceSC ?? user.balance ?? 0);
+    const newBalance = Number((oldBalance + awardSC).toFixed(2));
     const now = new Date();
 
-    await db.collection('users').updateOne(
-      { email: session.email },
+    await usersCol.updateOne(
+      { _id: user._id },
       {
-        $inc: { balance: signupBonus },
+        $inc: {
+          balance: awardSC,
+          balanceSC: awardSC,
+        },
         $set: {
+          freeplayClaimed: true,
           signupBonusClaimed: true,
           freeplayClaimedAt: now,
         },
       }
     );
 
-    // Ledger entry
-    await db.collection('ledger').insertOne({
-      userId: user._id,
-      type: 'signup_bonus',
-      amount: signupBonus,
-      description: 'One-Time $3 Signup Freeplay Claimed',
+    // Record in ledger
+    const ledgerCol = db.collection('ledger');
+    await ledgerCol.insertOne({
+      userId: user._id.toString(),
+      userEmail: user.email,
+      username: user.username,
+      type: 'freeplay_bonus',
+      amount: awardSC,
+      currency: 'USD',
+      balanceBefore: oldBalance,
+      balanceAfter: newBalance,
+      description: `🎁 $${awardSC.toFixed(2)} Freeplay Bonus claimed from lobby`,
+      status: 'completed',
       createdAt: now,
     });
 
     // Notification
     await db.collection('notifications').insertOne({
       userId: user._id,
-      title: '🎁 $3 Signup Freeplay Claimed!',
-      message: `Your account has been credited with $${signupBonus.toFixed(2)} complimentary freeplay! Good luck!`,
+      title: '🎁 $5 Signup Freeplay Claimed!',
+      message: `Your account has been credited with $${awardSC.toFixed(2)} complimentary freeplay! Good luck at Zorra Royals!`,
       type: 'bonus',
       read: false,
       createdAt: now,
     });
 
-    const userBalance = user.balance !== undefined ? user.balance : (user.balanceSC || 0);
-
-    return Response.json({
+    return NextResponse.json({
       success: true,
-      message: `Claimed $${signupBonus.toFixed(2)} signup freeplay bonus!`,
-      bonusAmount: signupBonus,
-      newBalance: +(userBalance + signupBonus).toFixed(2),
+      message: `🎉 $${awardSC.toFixed(2)} Freeplay bonus credited to your wallet!`,
+      newBalance,
+      newBalanceSC: newBalance,
+      claimed: true,
+      amount: awardSC,
+      bonusAmount: awardSC,
     });
   } catch (err) {
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

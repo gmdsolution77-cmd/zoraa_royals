@@ -41,7 +41,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
             </div>
 
             <div className="text-4xl sm:text-5xl font-black font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-[#ffd700] to-emerald-200 drop-shadow-[0_2px_12px_rgba(212,175,55,0.5)] my-1">
-              $3.00 USD
+              $5.00 USD
             </div>
 
             <p className="text-[11px] text-gray-300 font-medium">
