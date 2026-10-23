@@ -48,7 +48,6 @@ import RoyalCrashModal from '@/components/games/RoyalCrashModal';
 import RoyalBlackjackModal from '@/components/games/RoyalBlackjackModal';
 import LiveChatModal from '@/components/support/LiveChatModal';
 import NotificationsModal from '@/components/common/NotificationsModal';
-import LedgerModal from '@/components/common/LedgerModal';
 import KycModal from '@/components/common/KycModal';
 import ReferralModal from '@/components/common/ReferralModal';
 
@@ -101,7 +100,6 @@ export default function HomePage() {
   const [freeplayOpen, setFreeplayOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [kycOpen, setKycOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
   const [activeInternalGame, setActiveInternalGame] = useState(null);
@@ -216,7 +214,6 @@ export default function HomePage() {
           onOpenFreeplay={() => setFreeplayOpen(true)}
           onOpenGameVault={() => setGameVaultOpen(true)}
           onOpenNotifications={() => setNotifsOpen(true)}
-          onOpenLedger={() => setLedgerOpen(true)}
           onOpenKyc={() => setKycOpen(true)}
           onOpenReferral={() => setReferralOpen(true)}
           onLogout={handleLogout}
@@ -372,12 +369,6 @@ export default function HomePage() {
       <NotificationsModal
         isOpen={notifsOpen}
         onClose={() => setNotifsOpen(false)}
-        user={user}
-      />
-
-      <LedgerModal
-        isOpen={ledgerOpen}
-        onClose={() => setLedgerOpen(false)}
         user={user}
       />
 

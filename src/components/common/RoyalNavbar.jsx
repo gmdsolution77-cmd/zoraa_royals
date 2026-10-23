@@ -30,7 +30,6 @@ export default function RoyalNavbar({
   onOpenFreeplay,
   onOpenGameVault,
   onOpenNotifications,
-  onOpenLedger,
   onOpenKyc,
   onOpenReferral,
   onLogout,
@@ -204,32 +203,32 @@ export default function RoyalNavbar({
 
                     <div className="py-1">
                       <Link
-                        href="/cashier?tab=deposit"
+                        href="/deposit"
                         onClick={() => setDropdownOpen(false)}
                         className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
                       >
                         <Wallet className="w-4 h-4 text-[#d4af37]" /> Deposit Balance
                       </Link>
                       <Link
-                        href="/cashier?tab=withdraw"
+                        href="/cashout"
                         onClick={() => setDropdownOpen(false)}
                         className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
                       >
                         <TrendingUp className="w-4 h-4 text-emerald-400" /> Cashout / Redeem
                       </Link>
                       <Link
-                        href="/cashier?tab=load"
+                        href="/accounts"
                         onClick={() => setDropdownOpen(false)}
                         className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
                       >
-                        <Key className="w-4 h-4 text-purple-400" /> Load Game Credits
+                        <Key className="w-4 h-4 text-purple-400" /> My Game Accounts
                       </Link>
                       <Link
-                        href="/cashier?tab=history"
+                        href="/promotions"
                         onClick={() => setDropdownOpen(false)}
                         className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
                       >
-                        <History className="w-4 h-4 text-amber-400" /> Transaction History
+                        <Sparkles className="w-4 h-4 text-amber-400" /> VIP &amp; Promotions
                       </Link>
                       <button
                         onClick={() => { setDropdownOpen(false); onOpenKyc(); }}

@@ -13,7 +13,6 @@ import AuthModal from '@/components/common/AuthModal';
 import CashierModal from '@/components/cashier/CashierModal';
 import RoyalFreeplayModal from '@/components/freeplay/RoyalFreeplayModal';
 import NotificationsModal from '@/components/common/NotificationsModal';
-import LedgerModal from '@/components/common/LedgerModal';
 import KycModal from '@/components/common/KycModal';
 import CashierHub from '@/components/cashier/CashierHub';
 
@@ -28,7 +27,6 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [freeplayOpen, setFreeplayOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [kycOpen, setKycOpen] = useState(false);
 
   const refreshUser = async () => {
@@ -91,7 +89,6 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
           onOpenFreeplay={() => setFreeplayOpen(true)}
           onOpenGameVault={() => router.push('/accounts')}
           onOpenNotifications={() => setNotifsOpen(true)}
-          onOpenLedger={() => setActiveTab('history')}
           onOpenKyc={() => setKycOpen(true)}
           onLogout={handleLogout}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -165,12 +162,6 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
       <NotificationsModal
         isOpen={notifsOpen}
         onClose={() => setNotifsOpen(false)}
-        user={user}
-      />
-
-      <LedgerModal
-        isOpen={ledgerOpen}
-        onClose={() => setLedgerOpen(false)}
         user={user}
       />
 
