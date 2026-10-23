@@ -54,6 +54,7 @@ import {
   Radio,
   Megaphone,
   Headphones,
+  Paperclip,
 } from 'lucide-react';
 import FinanceDepositsView from '@/components/admin/FinanceDepositsView';
 import FinanceRedemptionsView from '@/components/admin/FinanceRedemptionsView';
@@ -241,6 +242,10 @@ export default function AdminPortal({ initialTab }) {
   const [activeChatConv, setActiveChatConv] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatReplyText, setChatReplyText] = useState('');
+  const [chatAttachedImage, setChatAttachedImage] = useState(null);
+  const [isUploadingChatImage, setIsUploadingChatImage] = useState(false);
+  const [adminChatPreviewImage, setAdminChatPreviewImage] = useState(null);
+  const adminChatFileInputRef = useRef(null);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [chatFilterTab, setChatFilterTab] = useState('all');
   const [isSendingChat, setIsSendingChat] = useState(false);
@@ -1142,19 +1147,26 @@ export default function AdminPortal({ initialTab }) {
     );
   }
 
-  // Permitted Tabs (Affiliates removed per user explicit command)
+  // Permitted Tabs matching Player Paradise structure
   const allTabs = [
-    { id: 'overview', label: 'Command Center', icon: LayoutDashboard, category: 'Operations' },
+    { id: 'overview', label: 'Overview Analytics', icon: LayoutDashboard, category: 'Operations' },
     {
       id: 'account_requests',
-      label: 'Account Requests',
+      label: 'Game Requests',
       icon: Key,
       badge: accountRequests.filter(r => (r.status || '').toUpperCase() === 'PENDING').length,
       category: 'Operations',
     },
     {
+      id: 'finance',
+      label: 'Financial Ledger',
+      icon: CreditCard,
+      badge: (deposits.filter(d => d.status === 'pending').length + redemptions.filter(r => r.status === 'pending').length),
+      category: 'Operations',
+    },
+    {
       id: 'coins_allotment',
-      label: 'Coins Allotment Desk',
+      label: 'Coins Allotment Queue',
       icon: Coins,
       badge: (
         (redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification').length +
@@ -1163,21 +1175,14 @@ export default function AdminPortal({ initialTab }) {
       category: 'Operations',
     },
     {
-      id: 'finance',
-      label: 'Finance & Cashier',
-      icon: CreditCard,
-      badge: (deposits.filter(d => d.status === 'pending').length + redemptions.filter(r => r.status === 'pending').length),
-      category: 'Operations',
-    },
-    {
       id: 'chat',
-      label: 'Live VIP Support',
+      label: 'Live Support Chat',
       icon: MessageSquare,
       badge: chatConversations.filter(c => c.unreadStaff).length,
       category: 'Operations',
     },
-    { id: 'games', label: 'Game Platforms', icon: Gamepad2, category: 'Catalog & Players' },
-    { id: 'users', label: 'Patrons & Players', icon: Users, category: 'Catalog & Players' },
+    { id: 'games', label: 'Games Library', icon: Gamepad2, category: 'Catalog & Players' },
+    { id: 'users', label: 'Player Accounts', icon: Users, category: 'Catalog & Players' },
     {
       id: 'kyc',
       label: 'KYC Verification',
@@ -1185,9 +1190,9 @@ export default function AdminPortal({ initialTab }) {
       badge: kycRequests.filter(k => k.status === 'pending').length,
       category: 'Catalog & Players',
     },
-    { id: 'tx_search', label: 'Transaction Ledger', icon: FileSpreadsheet, category: 'Catalog & Players' },
-    { id: 'promos', label: 'Push & Promos', icon: Gift, category: 'Growth & Promos' },
+    { id: 'tx_search', label: 'Transaction Search', icon: FileSpreadsheet, category: 'Catalog & Players' },
     { id: 'gateways', label: 'Payment Gateways', icon: SlidersHorizontal, category: 'Growth & Promos' },
+    { id: 'promos', label: 'Push & Promos', icon: Gift, category: 'Growth & Promos' },
     { id: 'staff', label: 'Staff Management', icon: UserCheck, category: 'System & Security' },
     { id: 'settings', label: 'System Settings', icon: Settings, category: 'System & Security' },
   ];
@@ -1401,23 +1406,54 @@ export default function AdminPortal({ initialTab }) {
             })}
           </div>
 
-          {/* Luxury Support & Trust Footer */}
-          <div className="p-3 border-t border-white/10 bg-[#07080b] shrink-0">
+          {/* Sidebar Footer matching Player Paradise layout */}
+          <div className="p-3 border-t border-white/10 bg-[#07080b] shrink-0 space-y-2">
+            <div className="p-2.5 rounded-xl bg-[#121624] border border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#ffd700] to-[#997b24] text-black flex items-center justify-center font-black text-xs shrink-0">
+                  {user?.username ? user.username.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white truncate">
+                    {user?.username || 'Super Admin'}
+                  </div>
+                  <div className="text-[9px] text-[#ffd700] uppercase font-mono truncate">
+                    {user?.role?.replace('_', ' ') || 'Super Admin'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={() => {
                 setActiveTab('chat');
                 setMobileSidebarOpen(false);
               }}
-              className="w-full py-2.5 px-3 rounded-xl bg-[#10141e] border border-[rgba(212,175,55,0.35)] text-[#ffd700] text-xs font-black flex items-center justify-center gap-2 hover:bg-[#1a2030] transition shadow-md cursor-pointer"
+              className="w-full py-2 px-3 rounded-xl bg-[#10141e] border border-[rgba(212,175,55,0.35)] text-[#ffd700] text-xs font-black flex items-center justify-center gap-2 hover:bg-[#1a2030] transition shadow-md cursor-pointer"
             >
-              <Headphones size={15} />
+              <Headphones size={14} />
               <span>24/7 VIP LIVE SUPPORT</span>
             </button>
-            <div className="flex items-center justify-center gap-1.5 mt-2 opacity-70 text-[10px] text-gray-400">
-              <ShieldCheck size={12} className="text-emerald-400" />
-              <span>100% Legal US Sweepstakes</span>
-            </div>
+
+            <Link
+              href="/download-app"
+              target="_blank"
+              className="w-full py-2 px-3 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 hover:border-[#ffd700] text-[#ffd700] hover:text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Smartphone size={13} />
+              <span>Portal APK Shell</span>
+              <ExternalLink size={10} className="opacity-60" />
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full py-2 px-3 rounded-xl bg-red-950/40 border border-red-500/30 hover:bg-red-900/60 text-red-300 hover:text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <LogOut size={13} />
+              <span>Sign Out</span>
+            </button>
           </div>
         </aside>
 
@@ -2751,10 +2787,50 @@ export default function AdminPortal({ initialTab }) {
               "🎉 A VIP loyalty bonus has been awarded to your account!",
             ];
 
+            const handleAdminChatFileChange = (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (!file.type.startsWith('image/')) {
+                alert('Please select an image file (PNG, JPG, WEBP).');
+                return;
+              }
+              setIsUploadingChatImage(true);
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const img = new window.Image();
+                img.onload = () => {
+                  const maxDim = 1200;
+                  let w = img.width;
+                  let h = img.height;
+                  if (w > maxDim || h > maxDim) {
+                    if (w > h) {
+                      h = Math.round((h * maxDim) / w);
+                      w = maxDim;
+                    } else {
+                      w = Math.round((w * maxDim) / h);
+                      h = maxDim;
+                    }
+                  }
+                  const canvas = document.createElement('canvas');
+                  canvas.width = w;
+                  canvas.height = h;
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(img, 0, 0, w, h);
+                  const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                  setChatAttachedImage(compressed);
+                  setIsUploadingChatImage(false);
+                };
+                img.src = event.target.result;
+              };
+              reader.readAsDataURL(file);
+              e.target.value = '';
+            };
+
             const handleSendChatMessage = async (e, directText) => {
               if (e && e.preventDefault) e.preventDefault();
               const text = (directText !== undefined ? directText : chatReplyText).trim();
-              if (!text || !activeChatConv || isSendingChat) return;
+              const imagePayload = chatAttachedImage;
+              if ((!text && !imagePayload) || !activeChatConv || isSendingChat) return;
 
               setIsSendingChat(true);
               const optimisticMsg = {
@@ -2764,11 +2840,13 @@ export default function AdminPortal({ initialTab }) {
                 username: user?.username || 'Zorra Royals Support',
                 senderRole: 'staff',
                 text: text,
+                imageUrl: imagePayload,
                 read: true,
                 createdAt: new Date().toISOString(),
               };
               setChatMessages(prev => [...prev, optimisticMsg]);
               setChatReplyText('');
+              setChatAttachedImage(null);
 
               try {
                 await fetch('/api/chat', {
@@ -2779,6 +2857,8 @@ export default function AdminPortal({ initialTab }) {
                     targetUserId: activeChatConv.userId,
                     targetUsername: activeChatConv.username,
                     text: text,
+                    imageUrl: imagePayload,
+                    isStaffReply: true,
                   }),
                 });
                 const res = await fetch(`/api/chat?conversationId=${activeChatConv._id}`);
@@ -3093,12 +3173,32 @@ export default function AdminPortal({ initialTab }) {
 
                                     {/* Bubble */}
                                     <div>
-                                      <div className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-lg ${isStaff
-                                        ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-semibold rounded-tr-none shadow-[0_4px_15px_rgba(0,240,255,0.2)]'
-                                        : 'bg-[#181238] text-gray-100 border border-white/10 rounded-tl-none shadow-md'
-                                        }`}>
-                                        {m.text}
-                                      </div>
+                                      {m.imageUrl && (
+                                        <div className="mb-2 rounded-xl overflow-hidden border border-white/20 relative group max-w-xs shadow-md">
+                                          <img
+                                            src={m.imageUrl}
+                                            alt="Attachment"
+                                            className="w-full max-h-52 object-cover rounded-xl cursor-pointer hover:opacity-95 transition"
+                                            onClick={() => setAdminChatPreviewImage(m.imageUrl)}
+                                          />
+                                          <div
+                                            onClick={() => setAdminChatPreviewImage(m.imageUrl)}
+                                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 cursor-pointer"
+                                          >
+                                            <span className="px-2 py-1 rounded bg-black/80 text-white text-[10px] font-bold flex items-center gap-1">
+                                              <Eye size={12} /> View Full Size
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {m.text && (
+                                        <div className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-lg ${isStaff
+                                          ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-semibold rounded-tr-none shadow-[0_4px_15px_rgba(0,240,255,0.2)]'
+                                          : 'bg-[#181238] text-gray-100 border border-white/10 rounded-tl-none shadow-md'
+                                          }`}>
+                                          {m.text}
+                                        </div>
+                                      )}
                                       <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-gray-500 font-mono ${isStaff ? 'justify-end' : 'justify-start'}`}>
                                         <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         {isStaff && (
@@ -3134,6 +3234,39 @@ export default function AdminPortal({ initialTab }) {
                           ))}
                         </div>
 
+                        {/* Pending Image Attachment in Admin */}
+                        {chatAttachedImage && (
+                          <div className="px-3 py-2 bg-[#0c0e17] border-t border-[#ffd700]/30 flex items-center justify-between gap-2 shrink-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={chatAttachedImage}
+                                alt="Attachment preview"
+                                className="w-10 h-10 rounded-lg object-cover border border-[#ffd700] shrink-0"
+                              />
+                              <span className="text-xs text-[#ffd700] font-bold truncate">
+                                📷 Screenshot attached for {activeChatConv.username}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setChatAttachedImage(null)}
+                              className="p-1 rounded-lg text-gray-400 hover:text-red-400 transition"
+                              title="Remove attachment"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Hidden Admin Chat File Input */}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={adminChatFileInputRef}
+                          className="hidden"
+                          onChange={handleAdminChatFileChange}
+                        />
+
                         {/* Reply Input Form */}
                         <form
                           onSubmit={handleSendChatMessage}
@@ -3142,17 +3275,30 @@ export default function AdminPortal({ initialTab }) {
                           }}
                           className="p-3 bg-[#0d1017] border-t border-white/10 flex items-center gap-2 transition-all duration-150"
                         >
+                          <button
+                            type="button"
+                            onClick={() => adminChatFileInputRef.current?.click()}
+                            disabled={isSendingChat || isUploadingChatImage}
+                            className="p-2.5 rounded-xl text-gray-400 hover:text-[#ffd700] bg-white/5 hover:bg-white/10 transition shrink-0 cursor-pointer disabled:opacity-40"
+                            title="Attach screenshot or receipt"
+                          >
+                            {isUploadingChatImage ? (
+                              <span className="w-4 h-4 rounded-full border-2 border-t-[#ffd700] border-gray-600 animate-spin inline-block" />
+                            ) : (
+                              <Paperclip size={16} />
+                            )}
+                          </button>
                           <input
                             type="text"
-                            placeholder={`Reply to ${activeChatConv.username}...`}
+                            placeholder={chatAttachedImage ? `Add caption for ${activeChatConv.username}...` : `Reply to ${activeChatConv.username}...`}
                             value={chatReplyText}
                             onChange={(e) => setChatReplyText(e.target.value)}
                             className="flex-1 py-2.5 px-4 text-xs bg-[#10141e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#ffd700]/80 transition"
                           />
                           <button
                             type="submit"
-                            disabled={!chatReplyText.trim() || isSendingChat}
-                            className="btn-gold py-2.5 px-5 text-xs font-black flex items-center gap-1.5 shadow-md disabled:opacity-50 transition"
+                            disabled={(!chatReplyText.trim() && !chatAttachedImage) || isSendingChat}
+                            className="btn-gold py-2.5 px-5 text-xs font-black flex items-center gap-1.5 shadow-md disabled:opacity-50 transition cursor-pointer"
                           >
                             {isSendingChat ? (
                               <RefreshCw size={13} className="animate-spin" />
@@ -5143,6 +5289,46 @@ export default function AdminPortal({ initialTab }) {
               if (alert.targetSubTab) setFinanceSubTab(alert.targetSubTab);
             }}
           />
+
+          {/* Admin Chat Full-Screen Image Lightbox Modal */}
+          {adminChatPreviewImage && (
+            <div
+              onClick={() => setAdminChatPreviewImage(null)}
+              className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+            >
+              <div className="relative max-w-3xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => setAdminChatPreviewImage(null)}
+                  className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white"
+                >
+                  <X size={24} />
+                </button>
+                <img
+                  src={adminChatPreviewImage}
+                  alt="Enlarged chat attachment"
+                  className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/20 shadow-2xl"
+                />
+                <div className="mt-3 flex items-center gap-3">
+                  <a
+                    href={adminChatPreviewImage}
+                    download="chat-attachment.jpg"
+                    className="px-4 py-2 rounded-xl btn-gold text-xs font-black flex items-center gap-1.5 shadow-lg"
+                  >
+                    <Download size={14} />
+                    <span>Download Attachment</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setAdminChatPreviewImage(null)}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

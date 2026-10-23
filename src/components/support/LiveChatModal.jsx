@@ -5,11 +5,14 @@ import {
   X,
   Send,
   Sparkles,
-  Bot,
+  Paperclip,
   CheckCheck,
   ShieldCheck,
   ArrowLeft,
-  Headphones
+  Headphones,
+  Download,
+  ExternalLink,
+  Eye,
 } from 'lucide-react';
 
 export default function LiveChatModal({
@@ -20,10 +23,15 @@ export default function LiveChatModal({
 }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
+  const [attachedImage, setAttachedImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
   const endRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const containerRef = useRef(null);
 
   const fetchChat = async () => {
@@ -91,9 +99,53 @@ export default function LiveChatModal({
 
   if (!isOpen) return null;
 
+  // Handle client-side image compression
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload a valid image (PNG, JPG, WEBP).');
+      return;
+    }
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressed = canvas.toDataURL('image/jpeg', 0.82);
+        setAttachedImage(compressed);
+        setUploadingImage(false);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    // Reset file input value so user can pick the same file again if desired
+    e.target.value = '';
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() && !attachedImage) return;
 
     if (!user) {
       if (onOpenAuth) onOpenAuth('login');
@@ -101,13 +153,16 @@ export default function LiveChatModal({
     }
 
     const outgoing = text.trim();
+    const imagePayload = attachedImage;
     setText('');
+    setAttachedImage(null);
     setLoading(true);
 
     // Optimistic UI append
     const optimisticMsg = {
       sender: 'player',
       text: outgoing,
+      imageUrl: imagePayload,
       createdAt: new Date().toISOString(),
       optimistic: true,
     };
@@ -117,7 +172,10 @@ export default function LiveChatModal({
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: outgoing }),
+        body: JSON.stringify({
+          text: outgoing,
+          imageUrl: imagePayload,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -202,7 +260,7 @@ export default function LiveChatModal({
               <span>Official 24/7 VIP Live Concierge</span>
             </div>
             <p className="text-[10px] text-gray-400 leading-tight">
-              Instant assistance with Cash App/Zelle deposits, game load transfers, credentials, and withdrawals.
+              Instant assistance with Cash App/Zelle deposits, screenshots, game load transfers, credentials, and withdrawals.
             </p>
           </div>
 
@@ -211,12 +269,12 @@ export default function LiveChatModal({
               <Sparkles className="w-8 h-8 text-[#ffd700] mx-auto animate-pulse" />
               <p className="font-bold text-white text-sm">Welcome to Zorra Royals VIP Desk</p>
               <p className="text-[11px] text-gray-400 max-w-[240px] mx-auto">
-                Type your message below. A support officer is ready to assist you right now.
+                Type your message or attach a receipt screenshot below. A support officer is ready to assist you right now.
               </p>
             </div>
           ) : (
             messages.map((msg, i) => {
-              const isUser = msg.sender === 'player';
+              const isUser = msg.sender === 'player' || msg.senderRole === 'player';
               return (
                 <div
                   key={i}
@@ -231,10 +289,34 @@ export default function LiveChatModal({
                   >
                     {!isUser && (
                       <span className="text-[10px] font-black uppercase text-[#ffd700] block mb-0.5 tracking-wider">
-                        {msg.agentName || 'VIP Agent'}
+                        {msg.agentName || 'VIP Concierge'}
                       </span>
                     )}
-                    <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+
+                    {/* Image Attachment (if present) */}
+                    {msg.imageUrl && (
+                      <div className="mb-2 rounded-xl overflow-hidden border border-black/20 relative group">
+                        <img
+                          src={msg.imageUrl}
+                          alt="Attachment"
+                          className="w-full max-h-56 object-cover rounded-xl cursor-pointer hover:opacity-95 transition"
+                          onClick={() => setSelectedPreviewImage(msg.imageUrl)}
+                        />
+                        <div
+                          onClick={() => setSelectedPreviewImage(msg.imageUrl)}
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span className="px-2 py-1 rounded bg-black/80 text-white text-[10px] font-bold flex items-center gap-1">
+                            <Eye size={12} /> View Full Size
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {msg.text && (
+                      <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                    )}
+
                     <div
                       className={`flex items-center justify-end gap-1 mt-1 text-[9px] font-mono ${
                         isUser ? 'text-black/70 font-bold' : 'text-gray-400'
@@ -256,31 +338,126 @@ export default function LiveChatModal({
           <div ref={endRef} />
         </div>
 
+        {/* Pending Attachment Preview Bar */}
+        {attachedImage && (
+          <div className="px-4 py-2 bg-[#121626] border-t border-[#d4af37]/30 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img
+                src={attachedImage}
+                alt="Upload preview"
+                className="w-10 h-10 rounded-lg object-cover border border-[#ffd700] shrink-0"
+              />
+              <span className="text-xs text-[#ffd700] font-bold truncate">
+                📷 Screenshot attached (ready to send)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAttachedImage(null)}
+              className="p-1 rounded-lg text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
+              title="Remove screenshot"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* Hidden File Input for Image Attachments */}
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
         {/* Sticky Mobile-Optimized Input Bar */}
         <form
           onSubmit={handleSend}
           className="p-3 bg-[#0d0f19] border-t border-[#d4af37]/25 flex items-center gap-2 shrink-0 shadow-lg"
         >
+          {/* Attachment Paperclip Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!user || uploadingImage || loading}
+            className="p-2.5 rounded-xl text-gray-400 hover:text-[#ffd700] bg-white/5 hover:bg-white/10 transition shrink-0 cursor-pointer disabled:opacity-40"
+            title="Attach screenshot or proof"
+          >
+            {uploadingImage ? (
+              <span className="w-4 h-4 rounded-full border-2 border-t-[#ffd700] border-gray-600 animate-spin inline-block" />
+            ) : (
+              <Paperclip className="w-4 h-4" />
+            )}
+          </button>
+
           <input
             ref={inputRef}
             type="text"
-            placeholder={user ? 'Type your message...' : 'Please log in to chat...'}
+            placeholder={
+              user
+                ? attachedImage
+                  ? 'Add message caption (optional)...'
+                  : 'Type your message or attach screenshot...'
+                : 'Please log in to chat...'
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onFocus={handleFocus}
             disabled={!user || loading}
             className="flex-1 bg-[#151825] border border-white/10 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition shadow-inner"
           />
+
           <button
             type="submit"
-            disabled={!user || loading || !text.trim()}
-            className="p-3 rounded-2xl bg-gradient-to-r from-[#ffd700] to-[#d4af37] text-black hover:brightness-110 disabled:opacity-40 transition shadow-md shrink-0 flex items-center justify-center"
+            disabled={!user || loading || (!text.trim() && !attachedImage)}
+            className="p-3 rounded-2xl bg-gradient-to-r from-[#ffd700] to-[#d4af37] text-black hover:brightness-110 disabled:opacity-40 transition shadow-md shrink-0 flex items-center justify-center cursor-pointer"
             aria-label="Send message"
           >
             <Send className="w-4 h-4 stroke-[2.5]" />
           </button>
         </form>
       </div>
+
+      {/* Full-Screen Image Lightbox Modal */}
+      {selectedPreviewImage && (
+        <div
+          onClick={() => setSelectedPreviewImage(null)}
+          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+        >
+          <div className="relative max-w-3xl max-h-[85vh] flex flex-col items-center">
+            <button
+              onClick={() => setSelectedPreviewImage(null)}
+              className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={selectedPreviewImage}
+              alt="Enlarged attachment"
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/20 shadow-2xl"
+            />
+            <div className="mt-3 flex items-center gap-3">
+              <a
+                href={selectedPreviewImage}
+                download="zorra-chat-attachment.jpg"
+                onClick={(e) => e.stopPropagation()}
+                className="px-4 py-2 rounded-xl btn-gold text-xs font-black flex items-center gap-1.5 shadow-lg"
+              >
+                <Download size={14} />
+                <span>Download Attachment</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setSelectedPreviewImage(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
