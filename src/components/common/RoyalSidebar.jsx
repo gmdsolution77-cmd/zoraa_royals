@@ -89,20 +89,6 @@ export default function RoyalSidebar({
       glow: true,
       action: onOpenReferral
     },
-    {
-      label: '24/7 Live Support',
-      path: '/chat',
-      icon: Headphones,
-      badge: 'ONLINE',
-      glow: true,
-      action: () => {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('open-live-chat'));
-          if (typeof window.openLiveChat === 'function') window.openLiveChat();
-        }
-        if (onOpenChat) onOpenChat();
-      },
-    },
     { label: 'Promotions & VIP', path: '/promotions', icon: Crown },
     { label: 'Download App', path: '/download-app', icon: Download, badge: 'APK / iOS' },
     { label: 'How To Play', path: '/how-to-play', icon: HelpCircle },

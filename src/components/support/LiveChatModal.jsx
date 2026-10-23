@@ -197,16 +197,22 @@ export default function LiveChatModal({
   };
 
   return (
-    <div
-      data-royal-modal="true"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
-      style={{
-        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
-      }}
-    >
+    <>
+      {/* Mobile Backdrop Only */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-black/60 sm:hidden backdrop-blur-[2px] animate-fade-in"
+      />
+
+      {/* Floating Bottom-Right Chat Drawer Widget */}
       <div
         ref={containerRef}
-        className="w-full sm:max-w-md h-[92vh] sm:h-[620px] max-h-[100dvh] bg-[#090b12] border-t-2 sm:border-2 border-[#d4af37]/40 sm:rounded-3xl shadow-[0_20px_70px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden animate-slide-up"
+        data-royal-modal="true"
+        className="fixed z-50 bottom-0 sm:bottom-6 right-0 sm:right-6 w-full sm:w-[410px] h-[85vh] sm:h-[600px] max-h-[100dvh] bg-[#090b12] border-t-2 sm:border-2 border-[#d4af37]/40 rounded-t-3xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden animate-slide-up"
+        style={{
+          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(212, 175, 55, 0.2)',
+          ...(keyboardHeight > 0 ? { bottom: `${keyboardHeight + 8}px` } : {}),
+        }}
       >
         {/* WhatsApp-Style Royal Header */}
         <div className="px-4 py-3 bg-gradient-to-r from-[#141828] via-[#101320] to-[#0d0f19] border-b border-[#d4af37]/25 flex items-center justify-between shrink-0">
@@ -458,6 +464,6 @@ export default function LiveChatModal({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -71,7 +71,7 @@ export async function GET(req) {
   }
 }
 
-// POST: Execute a depositor free spin
+// POST: Execute a depositor free spin ($1 to $50 prize slices)
 export async function POST(req) {
   try {
     await initDb();
@@ -111,7 +111,7 @@ export async function POST(req) {
       );
     }
 
-    // STRICT PROBABILITY SPECIFICATION:
+    // STRICT USER PROBABILITY SPECIFICATION MATCHING PLAYER PARADISE:
     // 10% chance: 3 SC (Slice 3)
     // 20% chance: 2 SC (Slice 2 or 6)
     // 40% chance: 1 SC (Slice 0, 4, or 7)

@@ -4,17 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  Gift,
-  Flame,
+  Crown,
   Sparkles,
-  ExternalLink,
+  Zap,
+  Gift,
+  ShieldCheck,
+  Trophy,
   CheckCircle2,
-  AlertCircle,
-  Tag,
+  ArrowRight,
+  Flame,
   Coins,
-  Clock,
-  Send
+  AlertCircle
 } from 'lucide-react';
 import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
@@ -33,14 +33,11 @@ export default function PromotionsPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Promo Code State
-  const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [redeemingCode, setRedeemingCode] = useState(false);
   const [dailyClaiming, setDailyClaiming] = useState(false);
   const [promoMessage, setPromoMessage] = useState(null);
   const [promoError, setPromoError] = useState(null);
 
-  // 1. Fetch user session
+  // Fetch user session
   const refreshUser = async () => {
     try {
       const res = await fetch('/api/auth/me');
@@ -58,41 +55,6 @@ export default function PromotionsPage() {
   useEffect(() => {
     refreshUser();
   }, []);
-
-  // Redeem Promo Code
-  const handleRedeemCode = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      setAuthModal({ open: true, tab: 'login' });
-      return;
-    }
-    if (!promoCodeInput.trim()) return;
-
-    setRedeemingCode(true);
-    setPromoMessage(null);
-    setPromoError(null);
-
-    try {
-      const res = await fetch('/api/promos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: promoCodeInput.trim() }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setPromoMessage(data.message || '🎉 Promo code successfully claimed!');
-        setPromoCodeInput('');
-        refreshUser();
-      } else {
-        setPromoError(data.error || 'Invalid or expired promo code.');
-      }
-    } catch {
-      setPromoError('Network error while claiming promo code.');
-    } finally {
-      setRedeemingCode(false);
-    }
-  };
 
   // Claim Daily Palace Bonus
   const handleClaimDailyBonus = async () => {
@@ -114,7 +76,7 @@ export default function PromotionsPage() {
       const data = await res.json();
 
       if (data.success) {
-        setPromoMessage(data.message || `🎉 Claimed Day ${data.streak} Daily Reward: +$${data.rewardUSD}!`);
+        setPromoMessage(data.message || `🎉 Claimed Day ${data.streak || 1} Daily Reward: +$${data.rewardUSD || '1.00'}!`);
         refreshUser();
       } else {
         setPromoError(data.error || 'Daily bonus already claimed for today.');
@@ -126,40 +88,72 @@ export default function PromotionsPage() {
     }
   };
 
-  // Claim $3 Instant Signup Freeplay
-  const [freeplayClaiming, setFreeplayClaiming] = useState(false);
-  const handleClaimFreeplay = async () => {
-    if (!user) {
-      setAuthModal({ open: true, tab: 'register' });
-      return;
-    }
-
-    setFreeplayClaiming(true);
-    setPromoMessage(null);
-    setPromoError(null);
-
-    try {
-      const res = await fetch('/api/freeplay', {
-        method: 'POST',
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setPromoMessage(data.message || '🎉 Successfully claimed $3.00 Instant Freeplay Bonus!');
-        refreshUser();
-      } else {
-        setPromoError(data.error || 'Freeplay bonus already claimed.');
-      }
-    } catch {
-      setPromoError('Error claiming signup freeplay.');
-    } finally {
-      setFreeplayClaiming(false);
-    }
-  };
+  const tiers = [
+    {
+      name: 'Bronze Royal',
+      badge: 'TIER 1',
+      perks: [
+        'Free $3.00 Welcome Package',
+        'Daily Mystery Crate',
+        '24/7 Concierge Support',
+        'Standard Cashout Queue',
+      ],
+      scMin: '$0+',
+      border: 'border-slate-700',
+    },
+    {
+      name: 'Silver Knight',
+      badge: 'TIER 2',
+      perks: [
+        '5% Weekly Loss Rebate',
+        'Higher Daily Mystery Drops',
+        'Priority Game ID Release',
+        'Direct Cash App Desk',
+      ],
+      scMin: '$250+',
+      border: 'border-amber-600/40',
+    },
+    {
+      name: 'Gold Crown',
+      badge: 'TIER 3',
+      perks: [
+        '10% Weekly Loss Rebate',
+        'Personal VIP Host Access',
+        'Expedited 3-Min Cashouts',
+        'Monthly Level-up Gift',
+      ],
+      scMin: '$1,000+',
+      border: 'border-[#ffd700]/50',
+    },
+    {
+      name: 'Diamond Elite',
+      badge: 'TIER 4',
+      perks: [
+        '15% Instant Rakeback',
+        'No Cashout Limits',
+        'Private Discord & Telegram Desk',
+        'Custom Platform Bonus Codes',
+      ],
+      scMin: '$5,000+',
+      border: 'border-purple-500/50',
+    },
+    {
+      name: 'Palace Legend',
+      badge: 'TIER 5',
+      perks: [
+        '25% Exclusive VIP Rakeback',
+        'Dedicated 24/7 Account Executive',
+        'Instant Unlimited Redemptions',
+        'VIP Birthday & Holiday Trips',
+      ],
+      scMin: '$25,000+',
+      border: 'border-rose-500/60',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#07080b] text-white flex flex-col justify-between selection:bg-[#ffd700] selection:text-black font-sans">
-      {/* 1. Global Collapsible Royal Sidebar */}
+      {/* 1. Global Royal Sidebar */}
       <RoyalSidebar
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
@@ -170,7 +164,7 @@ export default function PromotionsPage() {
         onOpenChat={() => setChatOpen(true)}
       />
 
-      {/* 2. Main Content Layout with dynamic left padding on desktop */}
+      {/* 2. Main Content Layout */}
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ${
           sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
@@ -184,186 +178,145 @@ export default function PromotionsPage() {
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
 
-        {/* 3. Main Promo Content */}
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full pb-24 md:pb-12">
-          {/* Breadcrumb */}
-          <div className="mb-4">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ffd700] hover:text-[#fff0a8] transition"
-            >
-              <ArrowLeft size={14} />
-              <span>Back to Casino Lobby</span>
-            </Link>
+        {/* 3. VIP Lounge Main */}
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-10 space-y-10 pb-24 md:pb-12">
+          {/* Header Title */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-heading font-bold">
+              <Crown size={14} className="text-[#ffd700]" />
+              <span>CROWN VIP CLUB &amp; REWARDS</span>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-black font-serif text-white tracking-tight">
+              ZORRA ROYALS <span className="text-[#ffd700]">VIP LOUNGE</span>
+            </h1>
+            <p className="text-xs md:text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Every spin on Ultra Panda, Fire Kirin, Orion Stars, Game Vault, and our in-house games advances your VIP rank. Climb from Bronze Royal to Palace Legend!
+            </p>
           </div>
 
-          {/* Alert Messages */}
+          {/* Feedback alerts */}
           {promoMessage && (
-            <div className="p-4 mb-6 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
+            <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
               <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
               <span>{promoMessage}</span>
             </div>
           )}
 
           {promoError && (
-            <div className="p-4 mb-6 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
+            <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
               <AlertCircle size={18} className="text-rose-400 shrink-0" />
               <span>{promoError}</span>
             </div>
           )}
 
-          {/* Facebook Official VIP Promo Drop Highlight */}
-          <div className="rounded-3xl p-6 sm:p-8 mb-8 bg-gradient-to-r from-[#1877F2]/90 via-[#0D47A1] to-[#07080b] border border-[#1877F2]/40 shadow-[0_20px_50px_rgba(24,119,242,0.3)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-[11px] font-black uppercase tracking-wider mb-2.5">
-                <span>OFFICIAL FACEBOOK &amp; TELEGRAM PROMO HUB</span>
-              </div>
-              <h2 className="text-xl sm:text-3xl font-black text-white m-0 font-serif leading-tight">
-                Daily Freeplay Drops &amp; Exclusive Tournament Rewards
-              </h2>
-              <p className="text-xs sm:text-sm text-blue-100 mt-2 m-0 leading-relaxed">
-                Follow our official social channels and join the VIP royal palace circle. We drop exclusive <strong>$5 - $50 Instant Freeplay codes</strong> every 6 hours and host high-roller weekly cash giveaways!
-              </p>
-            </div>
-
-            <a
-              href="https://facebook.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3.5 rounded-full bg-white text-[#1877F2] font-black text-xs sm:text-sm flex items-center gap-2 shadow-2xl hover:scale-105 transition whitespace-nowrap"
-            >
-              <span>JOIN OFFICIAL GROUP</span>
-              <ExternalLink size={15} />
-            </a>
-          </div>
-
-          {/* Interactive Promo Code Box */}
-          <div className="p-6 rounded-3xl bg-[#10141e] border border-[rgba(212,175,55,0.35)] shadow-xl mb-10">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-                  <Tag size={22} />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-white m-0 font-serif">
-                    Redeem Palace Promo Code
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-0.5 m-0">
-                    Enter your VIP voucher or event coupon code to credit dollars directly to your wallet.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleRedeemCode} className="flex items-center gap-2 w-full sm:w-auto">
-                <input
-                  type="text"
-                  placeholder="e.g. ROYALVIP, BONUS100"
-                  value={promoCodeInput}
-                  onChange={(e) => setPromoCodeInput(e.target.value)}
-                  className="w-full sm:w-64 px-4 py-2.5 rounded-xl bg-[#07080b] border border-white/10 text-white text-xs font-mono placeholder-gray-500 uppercase focus:outline-none focus:border-[#ffd700] transition"
-                />
-                <button
-                  type="submit"
-                  disabled={redeemingCode || !promoCodeInput.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black shadow-md hover:scale-105 transition disabled:opacity-50 cursor-pointer shrink-0"
-                >
-                  {redeemingCode ? 'Redeeming...' : 'Apply Code'}
-                </button>
-              </form>
-            </div>
-          </div>
-
           {/* Active Promotions Grid */}
-          <div className="mb-8">
-            <h2 className="text-xl sm:text-2xl font-black text-white mb-5 font-serif flex items-center gap-2">
-              <Sparkles size={20} className="text-[#ffd700]" />
-              <span>Active Palace Promotions &amp; Privileges</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Card 1: 100% Match */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-950/60 to-slate-900 border border-purple-500/40 space-y-3 flex flex-col justify-between shadow-xl">
+              <div className="space-y-2.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500 text-white font-mono">
+                  100% MATCH
+                </span>
+                <h3 className="font-serif font-black text-lg text-white">
+                  FIRST DEPOSIT DOUBLE PACKAGE
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Deposit $20 or more via Cash App, Zelle, Venmo, or Crypto and get 100% bonus match credits + 10,000 free Game Coins!
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) setAuthModal({ open: true, tab: 'login' });
+                  else setCashierModal({ open: true, tab: 'deposit' });
+                }}
+                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black shadow-md hover:scale-102 transition text-center cursor-pointer"
+              >
+                LOAD WALLET
+              </button>
+            </div>
+
+            {/* Card 2: Daily Mystery Crate */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-950/60 to-slate-900 border border-[#ffd700]/40 space-y-3 flex flex-col justify-between shadow-xl">
+              <div className="space-y-2.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-[#ffd700] text-black font-mono font-bold">
+                  EVERY 24 HOURS
+                </span>
+                <h3 className="font-serif font-black text-lg text-white">
+                  DAILY PALACE MYSTERY CRATE
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Log in each day and unlock the gift box in your header bar for up to $10.00 in free SC credits and 50,000 GC.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleClaimDailyBonus}
+                disabled={dailyClaiming}
+                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black shadow-md transition text-center cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Coins size={14} className="text-[#ffd700]" />
+                <span>{dailyClaiming ? 'Claiming...' : 'CLAIM DAILY REWARD'}</span>
+              </button>
+            </div>
+
+            {/* Card 3: Depositor Lucky Spin Wheel */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-cyan-950/60 to-slate-900 border border-cyan-500/40 space-y-3 flex flex-col justify-between shadow-xl">
+              <div className="space-y-2.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-400 text-black font-mono font-bold">
+                  DEPOSITOR EXCLUSIVE
+                </span>
+                <h3 className="font-serif font-black text-lg text-white">
+                  LUCKY SPIN WHEEL
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Get 2 Free Spins on every approved deposit! Win real wallet cash directly credited with zero playthrough requirements.
+                </p>
+              </div>
+
+              <Link
+                href="/spin-wheel"
+                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-xs font-black shadow-md transition text-center flex items-center justify-center gap-1.5"
+              >
+                <Sparkles size={14} className="text-cyan-400" />
+                <span>SPIN LUCKY WHEEL</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* VIP Tiers */}
+          <div className="space-y-5">
+            <h2 className="font-serif font-black text-xl md:text-2xl text-white text-center tracking-wide">
+              LOYALTY TIERS &amp; REBATES
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Promo 1: Welcome Pack */}
-              <div className="p-6 rounded-3xl bg-[#10141e] border border-[rgba(212,175,55,0.3)] flex flex-col justify-between shadow-lg">
-                <div>
-                  <div className="flex items-center gap-2 text-[#ffd700] text-xs font-black uppercase tracking-wider mb-2">
-                    <Gift size={16} />
-                    <span>NEW SIGNUP PRIVILEGE</span>
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-2 font-serif">
-                    $3.00 Instant Freeplay Bonus
-                  </h3>
-                  <p className="text-xs text-gray-300 leading-relaxed mb-4">
-                    Create your royal account today and claim 3 Freeplay Dollars with zero deposit required. Keep what you win!
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!user) setAuthModal({ open: true, tab: 'register' });
-                    else handleClaimFreeplay();
-                  }}
-                  disabled={freeplayClaiming}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black shadow-md hover:scale-102 transition text-center disabled:opacity-50 cursor-pointer"
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {tiers.map((t, idx) => (
+                <div
+                  key={idx}
+                  className={`p-5 rounded-2xl bg-slate-900/80 border ${t.border} space-y-3 flex flex-col justify-between shadow-lg hover:border-[#ffd700]/70 transition`}
                 >
-                  {user ? (freeplayClaiming ? 'Claiming...' : (user.signupBonusClaimed ? 'FREEPLAY CLAIMED ✓' : 'CLAIM $3 FREEPLAY')) : 'REGISTER & CLAIM'}
-                </button>
-              </div>
-
-              {/* Promo 2: 300% Welcome Match */}
-              <div className="p-6 rounded-3xl bg-[#10141e] border border-amber-500/30 flex flex-col justify-between shadow-lg">
-                <div>
-                  <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider mb-2">
-                    <Flame size={16} />
-                    <span>FIRST PURCHASE BOOST</span>
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-mono font-bold text-slate-400">{t.badge}</span>
+                    <h4 className="font-serif font-bold text-sm text-white">{t.name}</h4>
+                    <span className="text-xs font-mono font-bold text-emerald-400 block">{t.scMin}</span>
+                    <div className="space-y-2 pt-2 border-t border-slate-800 text-[11px] text-slate-300">
+                      {t.perks.map((p, pIdx) => (
+                        <div key={pIdx} className="flex items-start gap-1.5">
+                          <CheckCircle2 size={12} className="text-[#ffd700] mt-0.5 shrink-0" />
+                          <span className="leading-tight">{p}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <h3 className="text-lg font-black text-white mb-2 font-serif">
-                    300% Bonus Up to $7,500
-                  </h3>
-                  <p className="text-xs text-gray-300 leading-relaxed mb-4">
-                    Deposit using Cash App, Zelle, Venmo, or Crypto to get 300% extra game dollars credited immediately upon deposit approval.
-                  </p>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!user) setAuthModal({ open: true, tab: 'login' });
-                    else setCashierModal({ open: true, tab: 'deposit' });
-                  }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-[#ffd700] to-yellow-200 text-black text-xs font-black shadow-md hover:scale-102 transition text-center"
-                >
-                  LOAD WALLET
-                </button>
-              </div>
-
-              {/* Promo 3: Daily Palace Streak Rewards */}
-              <div className="p-6 rounded-3xl bg-[#10141e] border border-purple-500/30 flex flex-col justify-between shadow-lg">
-                <div>
-                  <div className="flex items-center gap-2 text-purple-400 text-xs font-black uppercase tracking-wider mb-2">
-                    <Coins size={16} />
-                    <span>DAILY PALACE STREAK</span>
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-2 font-serif">
-                    Up to $5.00 Daily Reward
-                  </h3>
-                  <p className="text-xs text-gray-300 leading-relaxed mb-4">
-                    Log in every 24 hours to claim increasing daily loyalty coins. Maintain your 7-day streak to unlock maximum rewards!
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleClaimDailyBonus}
-                  disabled={dailyClaiming}
-                  className="w-full py-2.5 px-4 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-200 text-xs font-black shadow-md hover:bg-purple-500/30 transition text-center flex items-center justify-center gap-2"
-                >
-                  <Coins size={14} className="text-purple-400" />
-                  <span>{dailyClaiming ? 'Claiming...' : 'Claim Daily Reward'}</span>
-                </button>
-              </div>
+              ))}
             </div>
           </div>
         </main>
+
         {/* Footer */}
         <RoyalFooter />
       </div>
@@ -378,7 +331,7 @@ export default function PromotionsPage() {
         onOpenCashier={(tab) => setCashierModal({ open: true, tab: tab || 'deposit' })}
       />
 
-      {/* Modals */}
+      {/* Floating Support Modal */}
       <LiveChatModal
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
