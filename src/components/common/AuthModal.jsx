@@ -39,6 +39,15 @@ export default function AuthModal({
   const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
+    if (isOpen) {
+      setTab(initialTab || 'login');
+      setRegStep('details');
+      setOtp('');
+      setError(null);
+    }
+  }, [isOpen, initialTab]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get('ref') || params.get('referral');

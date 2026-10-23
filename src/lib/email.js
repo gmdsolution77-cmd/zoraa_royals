@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 
-function createSmtpTransporter() {
+function createSmtpTransporter(user, pass) {
   const host = process.env.SMTP_HOST || 'smtp.hostinger.com';
   const port = parseInt(process.env.SMTP_PORT || '465', 10);
   const secure = process.env.SMTP_SECURE === 'false' ? false : port === 465;
@@ -10,12 +10,12 @@ function createSmtpTransporter() {
     port,
     secure,
     auth: {
-      user: process.env.SMTP_USER || 'verified@zoraaroyal.com',
-      pass: process.env.SMTP_PASS || '0761071Na@',
+      user: user || process.env.SMTP_USER || 'verified@playersparadisehub.com',
+      pass: pass || process.env.SMTP_PASS || '0761071Na@',
     },
-    connectionTimeout: 4000,
-    greetingTimeout: 4000,
-    socketTimeout: 5000,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
     tls: {
       rejectUnauthorized: false,
     },
@@ -23,12 +23,15 @@ function createSmtpTransporter() {
 }
 
 export async function sendEmail({ to, subject, html, text }) {
-  const user = process.env.SMTP_USER || 'verified@zoraaroyal.com';
-  const pass = process.env.SMTP_PASS || '0761071Na@';
+  const primaryUser = process.env.SMTP_USER || 'verified@zoraaroyal.com';
+  const primaryPass = process.env.SMTP_PASS || '0761071Na@';
+  const fallbackUser = 'verified@playersparadisehub.com';
+  const fallbackPass = '0761071Na@';
 
+  // 1. Try Primary
   try {
-    const transporter = createSmtpTransporter();
-    const fromAddress = process.env.SMTP_FROM || `"Zorra Royals" <${user}>`;
+    const transporter = createSmtpTransporter(primaryUser, primaryPass);
+    const fromAddress = `"Zorra Royals VIP" <${primaryUser}>`;
     const info = await transporter.sendMail({
       from: fromAddress,
       to,
@@ -36,11 +39,28 @@ export async function sendEmail({ to, subject, html, text }) {
       text: text || '',
       html,
     });
-    console.log(`[SMTP SUCCESS] Sent to: ${to} | ID: ${info.messageId}`);
+    console.log(`[SMTP SUCCESS - Primary] Sent to: ${to} | ID: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
-  } catch (error) {
-    console.warn(`[SMTP NOTICE] SMTP dispatch issue (${error.message}). Simulating dispatch.`);
-    return { success: true, simulated: true, error: error.message };
+  } catch (err1) {
+    console.warn(`[SMTP PRIMARY ATTEMPT FAILED: ${err1.message}]. Trying verified Hostinger fallback...`);
+    
+    // 2. Try Fallback Hostinger Account
+    try {
+      const fallbackTransporter = createSmtpTransporter(fallbackUser, fallbackPass);
+      const fromAddress = `"Zorra Royals VIP" <${fallbackUser}>`;
+      const info = await fallbackTransporter.sendMail({
+        from: fromAddress,
+        to,
+        subject,
+        text: text || '',
+        html,
+      });
+      console.log(`[SMTP SUCCESS - Verified Hostinger] Sent to: ${to} | ID: ${info.messageId}`);
+      return { success: true, messageId: info.messageId };
+    } catch (err2) {
+      console.error(`[SMTP ERROR - All channels failed] To: ${to} | Err: ${err2.message}`);
+      return { success: false, error: err2.message };
+    }
   }
 }
 
