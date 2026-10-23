@@ -53,40 +53,30 @@ export default function RoyalNavbar({
       className="sticky top-0 z-40 w-full border-b border-[rgba(212,175,55,0.2)] bg-[#07080b]/90 backdrop-blur-md"
     >
       <div className="w-full px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-        {/* Left: Mobile Toggle & Logo */}
+        {/* Left: Mobile Toggle & Logo (Hidden on desktop since Sidebar already displays logo) */}
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleSidebar}
-            className="p-2 text-gray-300 hover:text-[#d4af37] md:hidden rounded-lg hover:bg-white/5 transition"
+            className="p-2 text-gray-300 hover:text-[#d4af37] lg:hidden rounded-lg hover:bg-white/5 transition"
             aria-label="Toggle Navigation Menu"
           >
             <Menu className="w-6 h-6" />
           </button>
 
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden p-0.5 bg-gradient-to-tr from-[#d4af37] via-[#fff0a8] to-[#997b24] shadow-[0_0_15px_rgba(212,175,55,0.4)] group-hover:shadow-[0_0_22px_rgba(212,175,55,0.7)] transition-all">
+          <Link href="/" className="flex items-center gap-2 group lg:hidden">
+            <div className="relative w-8 h-8 rounded-full overflow-hidden p-0.5 bg-gradient-to-tr from-[#d4af37] via-[#fff0a8] to-[#997b24] shadow-[0_0_12px_rgba(212,175,55,0.4)]">
               <Image
                 src="/logo.png"
                 alt="Zorra Royals Logo"
-                width={48}
-                height={48}
+                width={32}
+                height={32}
                 className="w-full h-full object-cover rounded-full bg-black"
                 priority
               />
             </div>
-            <div className="hidden sm:block">
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-wider text-gold-gradient font-serif">
-                  ZORRA ROYALS
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#d4af37]/15 text-[#ffd700] border border-[#d4af37]/30">
-                  VIP
-                </span>
-              </div>
-              <p className="text-[10px] tracking-widest uppercase text-gray-400 font-medium">
-                Crown Palace Casino
-              </p>
-            </div>
+            <span className="font-extrabold text-sm tracking-wider text-gold-gradient font-serif">
+              ZORRA ROYALS
+            </span>
           </Link>
         </div>
 
@@ -137,42 +127,17 @@ export default function RoyalNavbar({
                 <span className="hidden sm:inline">Deposit</span>
               </button>
 
-              {/* Lucky Spin Wheel Button */}
-              <button
-                onClick={onOpenSpinWheel || (() => { if (typeof window !== 'undefined') window.location.href = '/spin-wheel'; })}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-purple-950/70 via-slate-900 to-amber-950/60 border border-[#d4af37]/60 hover:border-[#ffd700] text-[#ffd700] hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
-                title="Daily Lucky Spin Wheel"
-              >
-                <Sparkles className="w-4 h-4 text-[#ffd700]" />
-                <span className="hidden md:inline font-mono">LUCKY SPIN</span>
-                {Number(user?.availableSpins || 0) > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#ffd700] to-[#b38f26] text-black text-[10px] font-black flex items-center justify-center font-mono shadow">
-                    {user.availableSpins}
-                  </span>
-                )}
-              </button>
-
-              {/* Freeplay $5 Signup Reward Quick Button if not claimed */}
-              {!user.freeplayClaimed && !user.signupBonusClaimed && (
+              {/* Freeplay $3 Signup Reward Quick Button if not claimed */}
+              {!user.signupBonusClaimed && !user.freeplayClaimed && (
                 <button
                   onClick={onOpenFreeplay}
                   className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
-                  title="Claim $5 Signup Freeplay"
+                  title="Claim $3 Signup Freeplay"
                 >
                   <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span className="hidden md:inline">$5 Freeplay</span>
+                  <span className="hidden md:inline">$3 Freeplay</span>
                 </button>
               )}
-
-              {/* Quick Invite & Earn Referral Bonus Button */}
-              <button
-                onClick={onOpenReferral}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500/15 to-emerald-400/10 border border-emerald-500/30 hover:border-emerald-400 text-emerald-300 hover:text-emerald-200 text-xs font-bold transition shadow-sm"
-                title="Invite Friends & Earn Referral Bonus"
-              >
-                <Gift className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden md:inline">Invite & Earn</span>
-              </button>
 
               {/* Notifications Button */}
               <button
@@ -238,20 +203,6 @@ export default function RoyalNavbar({
                         className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
                       >
                         <Key className="w-4 h-4 text-purple-400" /> My Game Accounts
-                      </Link>
-                      <Link
-                        href="/spin-wheel"
-                        onClick={() => setDropdownOpen(false)}
-                        className="w-full text-left px-4 py-2 text-xs text-amber-300 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center justify-between transition font-bold"
-                      >
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-[#ffd700]" /> Lucky Spin Wheel
-                        </span>
-                        {Number(user?.availableSpins || 0) > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#ffd700] text-[10px] font-mono">
-                            {user.availableSpins} Spins
-                          </span>
-                        )}
                       </Link>
                       <Link
                         href="/promotions"
