@@ -303,15 +303,6 @@ export default function HomePage() {
           <div className="h-16 md:hidden shrink-0" />
         </div>
 
-      {/* Floating 24/7 Concierge Chat Button */}
-      <button
-        onClick={() => setChatOpen(true)}
-        className="fixed bottom-20 md:bottom-6 right-6 z-40 p-3.5 rounded-full bg-gradient-to-tr from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black shadow-[0_0_20px_rgba(212,175,55,0.6)] hover:scale-105 active:scale-95 transition"
-        title="24/7 VIP Concierge"
-      >
-        <MessageSquare className="w-6 h-6 stroke-[2.5]" />
-      </button>
-
       {/* Mobile Bottom Dock */}
       <MobileBottomNav
         activeTab={mobileTab}
