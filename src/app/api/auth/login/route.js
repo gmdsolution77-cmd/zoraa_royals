@@ -50,7 +50,10 @@ export async function POST(req) {
     const isStaff = user.role && user.role !== 'player';
     const isExplicitAdminPortal = referer.includes('/admin') || body.adminPortal === true;
 
-    if (isStaff || isExplicitAdminPortal) {
+    if (isExplicitAdminPortal) {
+      if (!isStaff) {
+        return Response.json({ success: false, error: 'Access Denied: Not authorized for administration.' }, { status: 403 });
+      }
       // Independent cookie for admin portal: does NOT overwrite player session
       cookieStore.set('admin_session', token, {
         httpOnly: true,

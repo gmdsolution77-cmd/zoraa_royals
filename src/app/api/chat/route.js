@@ -3,15 +3,7 @@ import { getSessionUser } from '@/lib/auth';
 
 function isStaffRole(role) {
   const r = String(role || '').toLowerCase();
-  return (
-    r === 'super_admin' ||
-    r === 'admin' ||
-    r === 'support' ||
-    r === 'support_admin' ||
-    r === 'chat_support' ||
-    r === 'operations_manager' ||
-    r === 'finance_manager'
-  );
+  return Boolean(r && r !== 'player');
 }
 
 // Group messages into conversations for Staff Inbox
@@ -35,8 +27,9 @@ async function buildStaffInbox(chatCol) {
         msg.customerUserId || (msg.sender === 'player' ? msg.userId : null);
 
       const isUnreadPlayerMsg =
-        msg.read === false &&
+        msg.read !== true &&
         msg.sender !== 'support' &&
+        msg.sender !== 'staff' &&
         msg.senderRole !== 'staff';
 
       if (!convMap.has(cid)) {
@@ -99,33 +92,37 @@ export async function GET(req) {
 
     // 2. Staff Viewing Specific Conversation
     if (isStaff && conversationId && conversationId !== 'all') {
+      const orList = [
+        { conversationId: conversationId },
+        { userId: conversationId },
+        { userEmail: conversationId },
+      ];
+      if (/^[0-9a-fA-F]{24}$/.test(conversationId)) {
+        try {
+          const { ObjectId } = require('mongodb');
+          orList.push({ userId: new ObjectId(conversationId) });
+          orList.push({ conversationId: new ObjectId(conversationId) });
+        } catch {}
+      }
+
       const messages = await chatCol
-        .find({
-          $or: [
-            { conversationId: conversationId },
-            { userId: conversationId },
-            { userEmail: conversationId },
-          ],
-        })
+        .find({ $or: orList })
         .sort({ createdAt: 1 })
         .toArray();
 
-      // Mark staff-read
+      // Mark staff-read: unconditionally mark all player messages in thread as read
       try {
         await chatCol.updateMany(
           {
-            $or: [
-              { conversationId: conversationId },
-              { userId: conversationId },
-              { userEmail: conversationId },
-            ],
-            sender: { $ne: 'support' },
+            $or: orList,
+            sender: { $nin: ['support', 'staff'] },
             senderRole: { $ne: 'staff' },
-            read: false,
           },
           { $set: { read: true } }
         );
-      } catch {}
+      } catch (err) {
+        console.error('Mark read error:', err);
+      }
 
       return Response.json({ success: true, messages });
     }

@@ -91,7 +91,26 @@ export async function getSessionUser(preferredType = null) {
     const adminToken = cookieStore.get('admin_session')?.value;
     const playerToken = cookieStore.get('zorra_session')?.value || cookieStore.get('players_session')?.value || cookieStore.get('vegas_session')?.value;
 
-    if (preferredType === 'admin') {
+    let isAdminContext = preferredType === 'admin';
+    let isPlayerContext = preferredType === 'player';
+
+    if (!preferredType) {
+      try {
+        const { headers } = require('next/headers');
+        const reqHeaders = await headers();
+        const referer = reqHeaders.get('referer') || '';
+        const xPortal = reqHeaders.get('x-portal-mode') || '';
+        if (referer.includes('/admin') || xPortal === 'admin') {
+          isAdminContext = true;
+        } else {
+          isPlayerContext = true;
+        }
+      } catch {
+        isPlayerContext = true;
+      }
+    }
+
+    if (isAdminContext) {
       if (adminToken) {
         const decoded = verifyToken(adminToken);
         if (decoded) {
@@ -102,7 +121,7 @@ export async function getSessionUser(preferredType = null) {
       return null;
     }
 
-    if (preferredType === 'player') {
+    if (isPlayerContext) {
       if (playerToken) {
         const decoded = verifyToken(playerToken);
         if (decoded) {
@@ -111,40 +130,6 @@ export async function getSessionUser(preferredType = null) {
         }
       }
       return null;
-    }
-
-    // Auto-detect admin context from referer
-    try {
-      const { headers } = require('next/headers');
-      const reqHeaders = await headers();
-      const referer = reqHeaders.get('referer') || '';
-      if (referer.includes('/admin')) {
-        if (adminToken) {
-          const decoded = verifyToken(adminToken);
-          if (decoded) {
-            const uid = decoded.id || decoded.userId || decoded.sub;
-            return { ...decoded, id: uid, userId: uid };
-          }
-        }
-      }
-    } catch {}
-
-    // Default to player token if present
-    if (playerToken) {
-      const decoded = verifyToken(playerToken);
-      if (decoded) {
-        const uid = decoded.id || decoded.userId || decoded.sub;
-        return { ...decoded, id: uid, userId: uid };
-      }
-    }
-
-    // Fallback to admin session if present
-    if (adminToken) {
-      const decoded = verifyToken(adminToken);
-      if (decoded) {
-        const uid = decoded.id || decoded.userId || decoded.sub;
-        return { ...decoded, id: uid, userId: uid };
-      }
     }
 
     return null;

@@ -267,6 +267,22 @@ export default function AdminPortal({ initialTab }) {
   const [chatFilterTab, setChatFilterTab] = useState('all');
   const [isSendingChat, setIsSendingChat] = useState(false);
   const chatMessagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const activeChatConvRef = useRef(null);
+
+  useEffect(() => {
+    activeChatConvRef.current = activeChatConv;
+  }, [activeChatConv]);
+
+  const scrollToBottom = (smooth = true) => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto',
+      });
+    }
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  };
 
   const safeSetSortedMessages = (msgs) => {
     if (!Array.isArray(msgs)) return;
@@ -903,6 +919,7 @@ export default function AdminPortal({ initialTab }) {
 
   const handleSelectChat = async (c) => {
     setActiveChatConv(c);
+    activeChatConvRef.current = c;
     // Immediately clear unread counter in client state
     setChatConversations(prev =>
       prev.map(item =>
@@ -913,12 +930,9 @@ export default function AdminPortal({ initialTab }) {
       const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(c._id)}`);
       const d = await res.json();
       if (d.success && Array.isArray(d.messages)) {
-        const sorted = [...d.messages].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        setChatMessages(sorted);
+        safeSetSortedMessages(d.messages);
         setTimeout(() => {
-          chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          scrollToBottom(true);
         }, 60);
       }
     } catch (err) {
@@ -953,7 +967,13 @@ export default function AdminPortal({ initialTab }) {
         setAccountRequests(reqData.accountRequests || []);
       }
       if (chatData.success) {
-        setChatConversations(chatData.conversations || []);
+        const mappedConvs = (chatData.conversations || []).map(c => {
+          if (activeChatConvRef.current && (c._id === activeChatConvRef.current._id || c.userId === activeChatConvRef.current.userId)) {
+            return { ...c, unreadCount: 0, unreadStaff: false };
+          }
+          return c;
+        });
+        setChatConversations(mappedConvs);
       }
 
       const pendingDeps = (depData.deposits || []).filter(d => d.status === 'pending');
@@ -961,7 +981,12 @@ export default function AdminPortal({ initialTab }) {
       const pendingReqs = (reqData.accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING');
       const pendingCoinCashouts = (withData.redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification');
       
-      const unreadConvs = (chatData.conversations || []).filter(c => Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0)));
+      const unreadConvs = (chatData.conversations || []).filter(c => {
+        if (activeChatConvRef.current && (c._id === activeChatConvRef.current._id || c.userId === activeChatConvRef.current.userId)) {
+          return false;
+        }
+        return Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0));
+      });
       const unreadChatTotal = unreadConvs.reduce((acc, c) => acc + (c.unreadCount || 1), 0);
 
       const totalPending = pendingDeps.length + pendingWith.length + pendingReqs.length + pendingCoinCashouts.length + unreadChatTotal;
@@ -1155,7 +1180,7 @@ export default function AdminPortal({ initialTab }) {
   // Auto-scroll staff chat to bottom on new messages
   useEffect(() => {
     if (activeTab === 'chat' && activeChatConv) {
-      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom(true);
     }
   }, [chatMessages, activeTab, activeChatConv]);
 
@@ -1167,7 +1192,7 @@ export default function AdminPortal({ initialTab }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: loginId, password: loginPassword }),
+        body: JSON.stringify({ identifier: loginId, password: loginPassword, adminPortal: true }),
       });
       const data = await res.json();
       if (data.success && data.user && data.user.role !== 'player') {
@@ -3280,7 +3305,7 @@ export default function AdminPortal({ initialTab }) {
                         </div>
 
                         {/* Chat Messages Stream */}
-                        <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#07080b]/60">
+                        <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#07080b]/60">
                           {/* Session Notice */}
                           <div className="flex items-center justify-center my-1">
                             <span className="px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[10px] text-gray-400 font-medium flex items-center gap-1.5">
@@ -3328,6 +3353,7 @@ export default function AdminPortal({ initialTab }) {
                                             alt="Attachment"
                                             className="w-full max-h-52 object-cover rounded-xl cursor-pointer hover:opacity-95 transition"
                                             onClick={() => setAdminChatPreviewImage(m.imageUrl)}
+                                            onLoad={() => scrollToBottom(false)}
                                           />
                                           <div
                                             onClick={() => setAdminChatPreviewImage(m.imageUrl)}
