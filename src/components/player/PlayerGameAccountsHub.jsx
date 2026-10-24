@@ -20,7 +20,8 @@ import {
   ExternalLink,
   Coins,
   Lock,
-  Wallet
+  Wallet,
+  Gamepad2
 } from 'lucide-react';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
 
