@@ -75,6 +75,39 @@ class FallbackCollection {
     return createCursor(results);
   }
 
+  aggregate(pipeline = []) {
+    let items = [...this._getItems()];
+    for (const stage of pipeline) {
+      if (stage.$match) {
+        items = items.filter(item => this._matches(item, stage.$match));
+      }
+      if (stage.$group) {
+        let total = 0;
+        let count = items.length;
+        let totalBets = 0;
+        let totalWins = 0;
+        for (const item of items) {
+          if (stage.$group.total?.$sum) {
+            const rawField = String(stage.$group.total.$sum).replace('$', '');
+            total += Number(item[rawField]) || 0;
+          }
+          if (stage.$group.totalBets?.$sum) {
+            const rawField = String(stage.$group.totalBets.$sum).replace('$', '');
+            totalBets += Number(item[rawField]) || 0;
+          }
+          if (stage.$group.totalWins?.$sum) {
+            const rawField = String(stage.$group.totalWins.$sum).replace('$', '');
+            totalWins += Number(item[rawField]) || 0;
+          }
+        }
+        items = [{ _id: null, total, count, totalBets, totalWins, totalRounds: count }];
+      }
+    }
+    return {
+      toArray: async () => items,
+    };
+  }
+
   async insertOne(doc) {
     const items = this._getItems();
     const timestampHex = Math.floor(Date.now() / 1000).toString(16).padStart(8, '0');

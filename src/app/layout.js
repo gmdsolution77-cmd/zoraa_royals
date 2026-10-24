@@ -34,6 +34,7 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="theme-color" content="#d4af37" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="bg-[#07080b] text-[#f8fafc] antialiased selection:bg-[#d4af37] selection:text-black min-h-screen">

@@ -38,6 +38,24 @@ export default function PromotionsPage() {
   const [promoMessage, setPromoMessage] = useState(null);
   const [promoError, setPromoError] = useState(null);
 
+  // Dynamic system settings & running active promo campaigns
+  const [sysSettings, setSysSettings] = useState({
+    welcomeBonusPercent: 100,
+    welcomeBonusTitle: 'FIRST DEPOSIT DOUBLE PACKAGE',
+    welcomeBonusSubtitle: 'Claim a royal match on your first deposit! Fast credits & prompt payouts.',
+    regularBonusPercent: 20,
+    regularBonusTitle: 'REGULAR RELOAD BONUS',
+    regularBonusSubtitle: 'Enjoy bonus on every reload! Boost your palace treasury anytime.',
+    referralBonusPercent: 50,
+    referralBonusTitle: 'FRIEND REFERRAL BONUS',
+    referralBonusSubtitle: 'Earn instant % bonus directly into your wallet when friends join and complete their first deposit!',
+  });
+  const [runningPromos, setRunningPromos] = useState([]);
+  const [loadingPromos, setLoadingPromos] = useState(true);
+  const [couponInput, setCouponInput] = useState('');
+  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(null);
+
   // Fetch user session
   const refreshUser = async () => {
     try {
@@ -55,9 +73,92 @@ export default function PromotionsPage() {
     }
   };
 
+  // Fetch dynamic settings & running campaigns
+  const loadPromosAndSettings = async () => {
+    try {
+      // 1. Dynamic Settings
+      fetch('/api/settings')
+        .then(r => r.json())
+        .then(d => {
+          if (d.success && d.settings) {
+            setSysSettings(prev => ({
+              ...prev,
+              welcomeBonusPercent: Number(d.settings.welcomeBonusPercent ?? d.settings.welcomeBonusPercentage ?? 100),
+              welcomeBonusTitle: d.settings.welcomeBonusTitle || prev.welcomeBonusTitle,
+              welcomeBonusSubtitle: d.settings.welcomeBonusSubtitle || prev.welcomeBonusSubtitle,
+              regularBonusPercent: Number(d.settings.regularBonusPercent ?? d.settings.regularBonusPercentage ?? 20),
+              regularBonusTitle: d.settings.regularBonusTitle || prev.regularBonusTitle,
+              regularBonusSubtitle: d.settings.regularBonusSubtitle || prev.regularBonusSubtitle,
+              referralBonusPercent: Number(d.settings.referralBonusPercent ?? d.settings.referralBonusPercentage ?? 50),
+              referralBonusTitle: d.settings.referralBonusTitle || prev.referralBonusTitle,
+              referralBonusSubtitle: d.settings.referralBonusSubtitle || prev.referralBonusSubtitle,
+            }));
+          }
+        })
+        .catch(() => {});
+
+      // 2. Active Running Campaigns from Database
+      const promoRes = await fetch('/api/promos');
+      const promoData = await promoRes.json();
+      if (promoData.success && Array.isArray(promoData.promotions)) {
+        setRunningPromos(promoData.promotions.filter(p => p.isActive !== false));
+      }
+    } catch (err) {
+      console.error('Failed to load promotions:', err);
+    } finally {
+      setLoadingPromos(false);
+    }
+  };
+
   useEffect(() => {
     refreshUser();
+    loadPromosAndSettings();
   }, []);
+
+  // Redeem Promo Voucher Code
+  const handleRedeemCoupon = async (e) => {
+    if (e) e.preventDefault();
+    if (!couponInput.trim()) {
+      setPromoError('Please enter a promo coupon code.');
+      return;
+    }
+    if (!user) {
+      setAuthModal({ open: true, tab: 'login' });
+      return;
+    }
+
+    setRedeemingCoupon(true);
+    setPromoMessage(null);
+    setPromoError(null);
+
+    try {
+      const res = await fetch('/api/promos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPromoMessage(`🎉 Success! Redeemed "${couponInput.trim().toUpperCase()}": +$${Number(data.rewardUSD || 0).toFixed(2)} USD added to your wallet balance!`);
+        setCouponInput('');
+        refreshUser();
+      } else {
+        setPromoError(data.error || 'Invalid or expired promo code.');
+      }
+    } catch {
+      setPromoError('Network error while redeeming promo coupon.');
+    } finally {
+      setRedeemingCoupon(false);
+    }
+  };
+
+  const handleCopyCode = (code) => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2500);
+    }
+  };
 
   // Claim Daily Palace Bonus
   const handleClaimDailyBonus = async () => {
@@ -212,80 +313,210 @@ export default function PromotionsPage() {
             </div>
           )}
 
-          {/* Active Promotions Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Card 1: 100% Match */}
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-950/60 to-slate-900 border border-purple-500/40 space-y-3 flex flex-col justify-between shadow-xl">
-              <div className="space-y-2.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500 text-white font-mono">
-                  100% MATCH
-                </span>
-                <h3 className="font-serif font-black text-lg text-white">
-                  FIRST DEPOSIT DOUBLE PACKAGE
-                </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Deposit $20 or more via Cash App, Zelle, Venmo, or Crypto and get 100% bonus match credits + 10,000 free Game Coins!
-                </p>
+          {/* Quick Redeem Voucher Card */}
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#10141e] via-[#151a28] to-[#10141e] border border-[#d4af37]/35 shadow-2xl relative overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+                  <Gift size={24} />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-lg text-white">Have a Coupon or Promo Code?</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Enter your exclusive bonus code to receive instant wallet credits.
+                  </p>
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (!user) setAuthModal({ open: true, tab: 'login' });
-                  else setCashierModal({ open: true, tab: 'deposit' });
-                }}
-                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black shadow-md hover:scale-102 transition text-center cursor-pointer"
-              >
-                LOAD WALLET
-              </button>
+              <form onSubmit={handleRedeemCoupon} className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="ENTER PROMO CODE..."
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  className="bg-[#07080b] border border-[#d4af37]/35 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-white placeholder-gray-500 uppercase outline-none focus:border-[#ffd700] w-full sm:w-64"
+                />
+                <button
+                  type="submit"
+                  disabled={redeemingCoupon}
+                  className="btn-gold py-2.5 px-5 text-xs font-black uppercase tracking-wider shrink-0 cursor-pointer shadow-md hover:scale-102 transition disabled:opacity-50"
+                >
+                  {redeemingCoupon ? 'Redeeming...' : 'Redeem Code'}
+                </button>
+              </form>
             </div>
+          </div>
 
-            {/* Card 2: Daily Mystery Crate */}
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-950/60 to-slate-900 border border-[#ffd700]/40 space-y-3 flex flex-col justify-between shadow-xl">
-              <div className="space-y-2.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-[#ffd700] text-black font-mono font-bold">
-                  EVERY 24 HOURS
+          {/* Active Running Promotions From Database */}
+          {runningPromos.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400">
+                    <Flame size={16} />
+                  </div>
+                  <h2 className="font-serif font-black text-xl text-white tracking-wide">
+                    Active Bonus Campaigns &amp; Coupon Drops
+                  </h2>
+                </div>
+                <span className="text-[11px] font-bold text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">
+                  {runningPromos.length} Active Now
                 </span>
-                <h3 className="font-serif font-black text-lg text-white">
-                  DAILY PALACE MYSTERY CRATE
-                </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Log in each day and unlock the gift box in your header bar for up to $10.00 in free SC credits and 50,000 GC.
-                </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleClaimDailyBonus}
-                disabled={dailyClaiming}
-                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black shadow-md transition text-center cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                <Coins size={14} className="text-[#ffd700]" />
-                <span>{dailyClaiming ? 'Claiming...' : 'CLAIM DAILY REWARD'}</span>
-              </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {runningPromos.map((p) => {
+                  const pId = p.id || p._id || p.code;
+                  const reward = Number(p.rewardUSD || p.rewardSC || 0);
+                  return (
+                    <div
+                      key={pId}
+                      className="p-6 rounded-3xl bg-gradient-to-br from-[#10141e] to-[#07080b] border border-[#d4af37]/30 shadow-xl flex flex-col justify-between gap-4 hover:border-[#ffd700] transition duration-300 relative overflow-hidden"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30">
+                            {p.tag || 'EXCLUSIVE DROP'}
+                          </span>
+                          <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            +${reward.toFixed(2)} USD
+                          </span>
+                        </div>
+
+                        <h3 className="font-serif font-black text-lg text-white">
+                          {p.title}
+                        </h3>
+
+                        <p className="text-xs text-gray-300 leading-relaxed line-clamp-2">
+                          {p.description || 'Exclusive palace credit drop directly credited to your royal account.'}
+                        </p>
+
+                        {/* Coupon Code Pill */}
+                        <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Promo Code</span>
+                            <span className="text-sm font-mono font-black text-[#ffd700]">{p.code}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCode(p.code)}
+                            className="px-3 py-1 rounded-lg bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30 hover:bg-[#ffd700]/25 text-[11px] font-black transition cursor-pointer"
+                          >
+                            {copiedCode === p.code ? '✓ COPIED' : 'COPY'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-400 font-semibold">
+                          {p.minDeposit > 0 ? `$${p.minDeposit} Min Deposit` : 'Zero Deposit Required'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!user) {
+                              setAuthModal({ open: true, tab: 'login' });
+                            } else {
+                              setCouponInput(p.code);
+                              window.scrollTo({ top: 200, behavior: 'smooth' });
+                            }
+                          }}
+                          className="text-xs font-bold text-[#ffd700] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Claim Now</span>
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
 
-            {/* Card 3: Depositor Lucky Spin Wheel */}
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-cyan-950/60 to-slate-900 border border-cyan-500/40 space-y-3 flex flex-col justify-between shadow-xl">
-              <div className="space-y-2.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-400 text-black font-mono font-bold">
-                  DEPOSITOR EXCLUSIVE
-                </span>
-                <h3 className="font-serif font-black text-lg text-white">
-                  LUCKY SPIN WHEEL
-                </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Get 2 Free Spins on every approved deposit! Win real wallet cash directly credited with zero playthrough requirements.
-                </p>
+          {/* Dynamic Core Bonus Packages */}
+          <div className="space-y-4">
+            <h2 className="font-serif font-black text-xl text-white tracking-wide flex items-center gap-2">
+              <Crown size={18} className="text-[#ffd700]" />
+              <span>Palace Membership Packages</span>
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Card 1: Dynamic First Deposit Match */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-950/60 to-slate-900 border border-purple-500/40 space-y-3 flex flex-col justify-between shadow-xl">
+                <div className="space-y-2.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500 text-white font-mono">
+                    {sysSettings.welcomeBonusPercent}% MATCH BOOST
+                  </span>
+                  <h3 className="font-serif font-black text-lg text-white">
+                    {sysSettings.welcomeBonusTitle}
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {sysSettings.welcomeBonusSubtitle}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!user) setAuthModal({ open: true, tab: 'login' });
+                    else setCashierModal({ open: true, tab: 'deposit' });
+                  }}
+                  className="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black shadow-md hover:scale-102 transition text-center cursor-pointer"
+                >
+                  LOAD WALLET (+{sysSettings.welcomeBonusPercent}%)
+                </button>
               </div>
 
-              <Link
-                href="/spin-wheel"
-                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-xs font-black shadow-md transition text-center flex items-center justify-center gap-1.5"
-              >
-                <Sparkles size={14} className="text-cyan-400" />
-                <span>SPIN LUCKY WHEEL</span>
-              </Link>
+              {/* Card 2: Regular Reload Bonus */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-[#10141e] to-slate-900 border border-[#d4af37]/40 space-y-3 flex flex-col justify-between shadow-xl">
+                <div className="space-y-2.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-[#ffd700] text-black font-mono font-bold">
+                    +{sysSettings.regularBonusPercent}% EVERY RELOAD
+                  </span>
+                  <h3 className="font-serif font-black text-lg text-white">
+                    {sysSettings.regularBonusTitle}
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {sysSettings.regularBonusSubtitle}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!user) setAuthModal({ open: true, tab: 'login' });
+                    else setCashierModal({ open: true, tab: 'deposit' });
+                  }}
+                  className="mt-3 w-full py-2.5 px-4 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black shadow-md transition text-center cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Zap size={14} className="text-[#ffd700]" />
+                  <span>RELOAD TREASURY (+{sysSettings.regularBonusPercent}%)</span>
+                </button>
+              </div>
+
+              {/* Card 3: Depositor Lucky Spin Wheel */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-cyan-950/60 to-slate-900 border border-cyan-500/40 space-y-3 flex flex-col justify-between shadow-xl">
+                <div className="space-y-2.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-400 text-black font-mono font-bold">
+                    DEPOSITOR EXCLUSIVE
+                  </span>
+                  <h3 className="font-serif font-black text-lg text-white">
+                    LUCKY SPIN WHEEL
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Get 2 Free Spins on every approved deposit! Win real wallet cash directly credited with zero playthrough requirements.
+                  </p>
+                </div>
+
+                <Link
+                  href="/spin-wheel"
+                  className="mt-3 w-full py-2.5 px-4 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 text-xs font-black shadow-md transition text-center flex items-center justify-center gap-1.5"
+                >
+                  <Sparkles size={14} className="text-cyan-400" />
+                  <span>SPIN LUCKY WHEEL</span>
+                </Link>
+              </div>
             </div>
           </div>
 

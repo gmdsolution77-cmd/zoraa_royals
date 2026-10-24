@@ -93,8 +93,8 @@ export default function DepositPage() {
 
       if (sData.success && sData.settings) {
         setSettings({
-          welcomeBonusPercent: Number(sData.settings.welcomeBonusPercent ?? 300),
-          regularBonusPercent: Number(sData.settings.regularBonusPercent ?? 50),
+          welcomeBonusPercent: Number(sData.settings.welcomeBonusPercent ?? sData.settings.welcomeBonusPercentage ?? 100),
+          regularBonusPercent: Number(sData.settings.regularBonusPercent ?? sData.settings.regularBonusPercentage ?? 20),
         });
       }
     } catch (err) {

@@ -61,11 +61,11 @@ export default function CashierHub({
 
   // Settings & bonuses
   const [settings, setSettings] = useState({
-    welcomeBonusPercentage: 300,
-    regularBonusPercentage: 50,
+    welcomeBonusPercentage: 100,
+    regularBonusPercentage: 20,
     signupBonusAmount: 3.0,
     minDeposit: 10,
-    minWithdrawal: 10,
+    minWithdrawal: 50,
   });
 
   // Data states

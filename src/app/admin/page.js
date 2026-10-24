@@ -318,6 +318,8 @@ export default function AdminPortal({ initialTab }) {
           referralBonusPercent: Number(sysSettings?.referralBonusPercent ?? 50),
           referralBonusTitle: sysSettings?.referralBonusTitle || 'FRIEND REFERRAL BONUS',
           referralBonusSubtitle: sysSettings?.referralBonusSubtitle || 'Earn instant % bonus directly into your wallet when friends join and complete their first deposit!',
+          minCashoutThreshold: Number(sysSettings?.minCashoutThreshold ?? sysSettings?.minWithdrawal ?? 50),
+          minWithdrawal: Number(sysSettings?.minCashoutThreshold ?? sysSettings?.minWithdrawal ?? 50),
           geoRestrictionEnabled: Boolean(sysSettings?.geoRestrictionEnabled),
         }),
       });
@@ -378,36 +380,47 @@ export default function AdminPortal({ initialTab }) {
   };
 
   const handleTogglePromoActive = async (promo) => {
+    const promoId = promo.id || promo._id;
+    if (!promoId) return;
     try {
       const res = await fetch('/api/promos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: promo.id,
+          id: promoId,
           isActive: !promo.isActive,
         }),
       });
       const d = await res.json();
       if (d.success) {
         setPromos(prev =>
-          prev.map(p => (p.id === promo.id ? { ...p, isActive: !p.isActive } : p))
+          prev.map(p => ((p.id || p._id) === promoId ? { ...p, isActive: !p.isActive } : p))
         );
+      } else {
+        alert(d.error || 'Failed to update promo status');
       }
     } catch (err) {
-      console.error('Failed to toggle promo status:', err);
+      alert('Error updating promo: ' + err.message);
     }
   };
 
   const handleDeletePromo = async (promo) => {
-    if (!confirm(`Are you sure you want to delete promo code "${promo.code}"?`)) return;
+    const promoId = promo.id || promo._id;
+    if (!promoId) {
+      alert('Cannot delete: Promo ID is missing.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to permanently delete promotion "${promo.title || promo.code}"?`)) return;
     try {
-      const res = await fetch(`/api/promos?id=${promo.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/promos?id=${promoId}`, { method: 'DELETE' });
       const d = await res.json();
       if (d.success) {
-        setPromos(prev => prev.filter(p => p.id !== promo.id));
+        setPromos(prev => prev.filter(p => (p.id || p._id) !== promoId));
+      } else {
+        alert(d.error || 'Failed to delete promo');
       }
     } catch (err) {
-      console.error('Failed to delete promo:', err);
+      alert('Error deleting promo: ' + err.message);
     }
   };
 
@@ -651,7 +664,8 @@ export default function AdminPortal({ initialTab }) {
   };
 
   const handleOpenApproveModal = (req) => {
-    const cleanUser = (req.userName || req.userEmail.split('@')[0]).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const rawIdentifier = req.userName || (req.userEmail ? req.userEmail.split('@')[0] : 'royal');
+    const cleanUser = String(rawIdentifier).toLowerCase().replace(/[^a-z0-9]/g, '') || 'royal';
     const randSuf = Math.floor(100 + Math.random() * 900);
     const randPass = 'Royal' + Math.floor(1000 + Math.random() * 9000);
     setApprovalModal({
@@ -1225,7 +1239,7 @@ export default function AdminPortal({ initialTab }) {
             </span>
           </Link>
           <span className="px-2.5 py-1 rounded-full bg-[#d4af37]/15 border border-[#d4af37]/35 text-[#ffd700] text-[10px] font-black uppercase tracking-wider">
-            {user.role.replace('_', ' ')}
+            {user?.role ? user.role.replace('_', ' ') : 'STAFF'}
           </span>
         </div>
 
@@ -4205,7 +4219,7 @@ export default function AdminPortal({ initialTab }) {
                         <tr key={s.id || s._id} className="hover:bg-white/[0.02]">
                           <td className="p-3 font-bold text-white">{s.username}</td>
                           <td className="p-3 text-gray-300">{s.email}</td>
-                          <td className="p-3 font-bold text-[#ffd700] uppercase">{s.role.replace('_', ' ')}</td>
+                          <td className="p-3 font-bold text-[#ffd700] uppercase">{s?.role ? s.role.replace('_', ' ') : 'STAFF'}</td>
                           <td className="p-3">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                               s.isBanned ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
@@ -4314,174 +4328,378 @@ export default function AdminPortal({ initialTab }) {
             </div>
           )}
 
-          {/* TAB 13: SYSTEM SETTINGS */}
+          {/* TAB 13: SYSTEM SETTINGS (PLAYER PARADISE STANDARD) */}
           {activeTab === 'settings' && user.role === 'super_admin' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-black font-serif text-white">System Settings &amp; Dynamic Bonus Engine</h2>
-
-              {/* Dynamic Bonus Configuration */}
-              <div className="bg-[#10141e] border border-[#d4af37]/30 p-6 rounded-2xl space-y-6 max-w-4xl shadow-xl">
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="space-y-6 max-w-6xl">
+              {/* Header Card */}
+              <div className="relative overflow-hidden bg-gradient-to-r from-[#10141e] via-[#151a28] to-[#10141e] border border-[#d4af37]/35 rounded-2xl p-6 sm:p-7 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+                <div className="absolute -top-24 -right-24 w-72 h-72 bg-[#ffd700]/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                    <Settings size={28} />
+                  </div>
                   <div>
-                    <h3 className="text-lg font-black font-serif text-white flex items-center gap-2">
-                      <span className="text-[#ffd700]">🎁</span> Royal Player Bonus Engine
-                    </h3>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Configure first-deposit welcome bonus percentage vs subsequent regular reload bonus.
+                    <h2 className="text-xl sm:text-2xl font-black font-serif text-white tracking-wide">
+                      System &amp; Geo Access Policy
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-1 leading-relaxed max-w-2xl">
+                      Federal compliance, geo-blocking, cashout thresholds &amp; automated player / referral bonus parameters in real-time.
                     </p>
                   </div>
-                  {bonusSaveMessage && (
-                    <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
-                      ✓ {bonusSaveMessage}
+                </div>
+
+                {bonusSaveMessage && (
+                  <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-4 py-2.5 rounded-xl border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)] animate-in fade-in relative z-10">
+                    <CheckCircle2 size={16} />
+                    <span>{bonusSaveMessage}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Top 3 Compliance & Operational Status Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* 1. Platform Geo Access Policy */}
+                <div className="p-5 rounded-2xl bg-[#10141e] border border-[#d4af37]/30 shadow-xl flex flex-col justify-between gap-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#ffd700] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#ffd700] shadow-[0_0_8px_#ffd700]" />
+                      Platform Geo Access
                     </span>
-                  )}
+                    <div className="w-10 h-10 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] flex items-center justify-center shrink-0">
+                      <ShieldCheck size={18} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <select
+                      value={sysSettings?.geoRestrictionEnabled ? 'enabled' : 'disabled'}
+                      onChange={async (e) => {
+                        const enabled = e.target.value === 'enabled';
+                        await fetch('/api/admin/settings', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ geoRestrictionEnabled: enabled }),
+                        });
+                        setSysSettings(prev => ({ ...prev, geoRestrictionEnabled: enabled }));
+                        setBonusSaveMessage('Geo access policy updated!');
+                        setTimeout(() => setBonusSaveMessage(null), 3000);
+                      }}
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs text-white bg-[#07080b] border border-[#d4af37]/30 outline-none cursor-pointer font-bold"
+                    >
+                      <option value="disabled">All 50 US States Permitted (Open Access)</option>
+                      <option value="enabled">USA Standard Traffic (Restricted States)</option>
+                    </select>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      {sysSettings?.geoRestrictionEnabled
+                        ? 'Restricted states enforced according to state sweepstakes regulations.'
+                        : 'No state restrictions. Players from all regions have full access to play and redeem.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Minimum Cashout Threshold */}
+                <div className="p-5 rounded-2xl bg-[#10141e] border border-emerald-500/30 shadow-xl flex flex-col justify-between gap-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981]" />
+                      Minimum Cashout Threshold
+                    </span>
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                      <DollarSign size={18} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="5"
+                        max="1000"
+                        value={sysSettings?.minCashoutThreshold ?? sysSettings?.minWithdrawal ?? 50}
+                        onChange={(e) => setSysSettings(prev => ({
+                          ...prev,
+                          minCashoutThreshold: e.target.value,
+                          minWithdrawal: e.target.value,
+                        }))}
+                        className="w-full rounded-xl px-3.5 py-2 text-white font-mono font-black text-base bg-[#07080b] border border-emerald-500/30 outline-none pr-12"
+                      />
+                      <span className="absolute right-3.5 top-2.5 text-xs font-bold text-emerald-400">USD</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      Standard threshold verified against 1x coin rollover playthrough requirements before withdrawal.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Referral Commission Engine Status */}
+                <div className="p-5 rounded-2xl bg-[#10141e] border border-[#d4af37]/30 shadow-xl flex flex-col justify-between gap-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[#ffd700] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#ffd700] shadow-[0_0_8px_#ffd700]" />
+                      Referral Engine
+                    </span>
+                    <div className="w-10 h-10 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] flex items-center justify-center shrink-0">
+                      <Users size={18} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-300">Status</span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                        Active &amp; Automated
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 leading-relaxed pt-1">
+                      Referrers receive automatic direct-to-wallet credits the moment an invited friend's first deposit is approved.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Player & Referral Bonus Engine Container */}
+              <div className="bg-[#10141e] border border-[#d4af37]/35 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+                      <Gift size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black font-serif text-white flex items-center gap-2">
+                        Dynamic Player &amp; Referral Bonus Engine
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                        Configure first-deposit welcome boost, reload match, and friend referral commission rates in real-time.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveBonusSettings}
+                    disabled={savingBonusSettings}
+                    className="btn-gold py-2.5 px-6 text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer shadow-lg hover:scale-102 transition"
+                  >
+                    <Save size={15} />
+                    <span>{savingBonusSettings ? 'Saving...' : 'Save Bonus Configuration'}</span>
+                  </button>
                 </div>
 
                 <form onSubmit={handleSaveBonusSettings} className="space-y-6">
+                  {/* 3 Balanced Bonus Cards */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Welcome Bonus Card */}
-                    <div className="bg-[#07080b] border border-[#d4af37]/20 p-5 rounded-xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-serif font-black text-white text-sm">👑 FIRST DEPOSIT BONUS</span>
-                        <span className="text-xs font-mono font-black text-[#ffd700] bg-[#ffd700]/10 px-2 py-0.5 rounded">
-                          {sysSettings?.welcomeBonusPercent ?? 100}%
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Bonus Match %</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="1000"
-                          value={sysSettings?.welcomeBonusPercent ?? 100}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, welcomeBonusPercent: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white font-black text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Banner Title</label>
-                        <input
-                          type="text"
-                          value={sysSettings?.welcomeBonusTitle || 'WELCOME BONUS'}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, welcomeBonusTitle: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white font-bold text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Description</label>
-                        <textarea
-                          rows={2}
-                          value={sysSettings?.welcomeBonusSubtitle || 'Claim a 100% royal match on your first deposit! Fast credits & prompt payouts.'}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, welcomeBonusSubtitle: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white text-xs leading-relaxed"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Regular Reload Bonus Card */}
-                    <div className="bg-[#07080b] border border-purple-500/20 p-5 rounded-xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-serif font-black text-white text-sm">⚡ REGULAR RELOAD BONUS</span>
-                        <span className="text-xs font-mono font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">
-                          {sysSettings?.regularBonusPercent ?? 20}%
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Bonus Match %</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="500"
-                          value={sysSettings?.regularBonusPercent ?? 20}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, regularBonusPercent: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white font-black text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Banner Title</label>
-                        <input
-                          type="text"
-                          value={sysSettings?.regularBonusTitle || 'REGULAR RELOAD BONUS'}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, regularBonusTitle: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white font-bold text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Description</label>
-                        <textarea
-                          rows={2}
-                          value={sysSettings?.regularBonusSubtitle || 'Enjoy a 20% bonus on every reload! Boost your palace treasury anytime.'}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, regularBonusSubtitle: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white text-xs leading-relaxed"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Referral Bonus Card */}
-                    <div className="bg-[#07080b] border border-emerald-500/25 p-5 rounded-xl space-y-4 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
-                      <div className="flex items-center justify-between">
-                        <span className="font-serif font-black text-white text-sm flex items-center gap-1.5">
-                          <span>🤝</span>
-                          <span>FRIEND REFERRAL BONUS</span>
-                        </span>
-                        <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                          {sysSettings?.referralBonusPercent ?? 50}%
-                        </span>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[11px] font-bold text-gray-300 block">Referral Commission %</label>
-                          <span className="text-[10px] text-emerald-400 font-semibold">1st Deposit Trigger</span>
+                    {/* 1. Welcome Bonus Card */}
+                    <div className="bg-[#07080b] border border-[#d4af37]/30 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl relative overflow-hidden">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-[#ffd700] uppercase tracking-wider font-serif">
+                            1. Welcome Pack (First Deposit)
+                          </span>
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] font-black uppercase tracking-wider">
+                            New Players Only
+                          </span>
                         </div>
-                        <input
-                          type="number"
-                          min="0"
-                          max="200"
-                          value={sysSettings?.referralBonusPercent ?? 50}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusPercent: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-emerald-500/30 focus:border-emerald-400 rounded-lg px-3 py-2 text-emerald-300 font-black text-sm"
-                          placeholder="50"
-                          required
-                        />
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          When a referred friend makes their first deposit and it is approved, referrer gets this % directly into wallet balance!
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Bonus Match %
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="1000"
+                              value={sysSettings?.welcomeBonusPercent ?? 100}
+                              onChange={(e) => setSysSettings(prev => ({ ...prev, welcomeBonusPercent: e.target.value }))}
+                              className="w-full rounded-xl px-3.5 py-2 text-white font-mono font-black text-sm pr-8 bg-[#10141e] border border-[#d4af37]/25 outline-none focus:border-[#ffd700]"
+                              required
+                            />
+                            <span className="absolute right-3.5 top-2 text-xs font-bold text-[#ffd700]">%</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Banner Title
+                          </label>
+                          <input
+                            type="text"
+                            value={sysSettings?.welcomeBonusTitle || 'FIRST DEPOSIT BONUS'}
+                            onChange={(e) => setSysSettings(prev => ({ ...prev, welcomeBonusTitle: e.target.value }))}
+                            className="w-full rounded-xl px-3.5 py-2 text-white font-bold text-xs bg-[#10141e] border border-[#d4af37]/25 outline-none focus:border-[#ffd700]"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Banner Subtitle / Description
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={sysSettings?.welcomeBonusSubtitle || 'Claim a royal match on your first deposit! Fast credits & prompt payouts.'}
+                            onChange={(e) => setSysSettings(prev => ({ ...prev, welcomeBonusSubtitle: e.target.value }))}
+                            className="w-full rounded-xl px-3.5 py-2 text-white text-xs leading-relaxed bg-[#10141e] border border-[#d4af37]/25 outline-none focus:border-[#ffd700]"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Live Simulation Card */}
+                      <div className="pt-4 border-t border-white/10 space-y-1.5">
+                        <div className="rounded-xl p-3 text-[11px] bg-[#10141e] border border-[#d4af37]/25 text-[#ffd700] space-y-1">
+                          <span className="font-bold block text-white">Live Simulation:</span>
+                          <span>
+                            Deposit $50 → Base $50 + ${(50 * (Number(sysSettings?.welcomeBonusPercent || 100) / 100)).toFixed(0)} Bonus ={' '}
+                            <strong>${(50 + 50 * (Number(sysSettings?.welcomeBonusPercent || 100) / 100)).toFixed(0)} Total</strong>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-400">
+                          Automatically applied to player's 1st deposit on the site.
                         </p>
                       </div>
+                    </div>
 
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Feature Title</label>
-                        <input
-                          type="text"
-                          value={sysSettings?.referralBonusTitle || 'FRIEND REFERRAL BONUS'}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusTitle: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white font-bold text-sm"
-                          required
-                        />
+                    {/* 2. Regular Reload Bonus Card */}
+                    <div className="bg-[#07080b] border border-purple-500/30 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl relative overflow-hidden">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-purple-300 uppercase tracking-wider font-serif">
+                            2. Regular Reload Bonus
+                          </span>
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-black uppercase tracking-wider">
+                            Every Reload
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Bonus Match %
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="500"
+                              value={sysSettings?.regularBonusPercent ?? 20}
+                              onChange={(e) => setSysSettings(prev => ({ ...prev, regularBonusPercent: e.target.value }))}
+                              className="w-full rounded-xl px-3.5 py-2 text-white font-mono font-black text-sm pr-8 bg-[#10141e] border border-purple-500/25 outline-none focus:border-purple-400"
+                              required
+                            />
+                            <span className="absolute right-3.5 top-2 text-xs font-bold text-purple-400">%</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Banner Title
+                          </label>
+                          <input
+                            type="text"
+                            value={sysSettings?.regularBonusTitle || 'REGULAR RELOAD BONUS'}
+                            onChange={(e) => setSysSettings(prev => ({ ...prev, regularBonusTitle: e.target.value }))}
+                            className="w-full rounded-xl px-3.5 py-2 text-white font-bold text-xs bg-[#10141e] border border-purple-500/25 outline-none focus:border-purple-400"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Banner Subtitle / Description
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={sysSettings?.regularBonusSubtitle || 'Enjoy bonus on every reload! Boost your palace treasury anytime.'}
+                            onChange={(e) => setSysSettings(prev => ({ ...prev, regularBonusSubtitle: e.target.value }))}
+                            className="w-full rounded-xl px-3.5 py-2 text-white text-xs leading-relaxed bg-[#10141e] border border-purple-500/25 outline-none focus:border-purple-400"
+                            required
+                          />
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-300 block mb-1">Description</label>
-                        <textarea
-                          rows={2}
-                          value={sysSettings?.referralBonusSubtitle || 'Earn instant bonus directly into your wallet when your friends join and complete their first deposit!'}
-                          onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusSubtitle: e.target.value }))}
-                          className="w-full bg-[#10141e] border border-white/10 rounded-lg px-3 py-2 text-white text-xs leading-relaxed"
-                          required
-                        />
+                      {/* Live Simulation Card */}
+                      <div className="pt-4 border-t border-white/10 space-y-1.5">
+                        <div className="rounded-xl p-3 text-[11px] bg-[#10141e] border border-purple-500/25 text-purple-300 space-y-1">
+                          <span className="font-bold block text-white">Live Simulation:</span>
+                          <span>
+                            Deposit $50 → Base $50 + ${(50 * (Number(sysSettings?.regularBonusPercent || 20) / 100)).toFixed(0)} Bonus ={' '}
+                            <strong>${(50 + 50 * (Number(sysSettings?.regularBonusPercent || 20) / 100)).toFixed(0)} Total</strong>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-400">
+                          Automatically applied to 2nd deposit onward.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 3. Referral & Friend Bonus Card */}
+                    <div className="bg-[#07080b] border border-emerald-500/35 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl relative overflow-hidden">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-emerald-400 uppercase tracking-wider font-serif">
+                            3. Referral &amp; Friend Bonus
+                          </span>
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-black uppercase tracking-wider">
+                            Inviter Reward
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Referral Reward %
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={sysSettings?.referralBonusPercent ?? 50}
+                              onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusPercent: e.target.value }))}
+                              className="w-full rounded-xl px-3.5 py-2 text-emerald-300 font-mono font-black text-sm pr-8 bg-[#10141e] border border-emerald-500/30 outline-none focus:border-emerald-400"
+                              required
+                            />
+                            <span className="absolute right-3.5 top-2 text-xs font-bold text-emerald-400">%</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Banner / Badge Title
+                          </label>
+                          <input
+                            type="text"
+                            value={sysSettings?.referralBonusTitle || 'FRIEND REFERRAL BONUS'}
+                            onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusTitle: e.target.value }))}
+                            className="w-full rounded-xl px-3.5 py-2 text-white font-bold text-xs bg-[#10141e] border border-emerald-500/30 outline-none focus:border-emerald-400"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Reward Description / Policy
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={sysSettings?.referralBonusSubtitle || 'Earn instant bonus directly into your wallet when your friends join and complete their first deposit!'}
+                            onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusSubtitle: e.target.value }))}
+                            className="w-full rounded-xl px-3.5 py-2 text-white text-xs leading-relaxed bg-[#10141e] border border-emerald-500/30 outline-none focus:border-emerald-400"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Live Simulation Card */}
+                      <div className="pt-4 border-t border-white/10 space-y-2">
+                        <div className="rounded-xl p-3 text-[11px] bg-[#10141e] border border-emerald-500/30 text-emerald-300 space-y-1">
+                          <span className="font-bold block text-white">Live Simulation:</span>
+                          <span>
+                            Friend deposits $50 → Referrer receives{' '}
+                            <strong>+${(50 * (Number(sysSettings?.referralBonusPercent || 50) / 100)).toFixed(2)} USD</strong> directly in their wallet!
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 text-[10px] text-gray-400 font-semibold px-1">
+                          <span className="text-emerald-400">✓ Direct Wallet Credit (balance &amp; balanceSC)</span>
+                          <span className="text-emerald-400">✓ Instant In-App Player Notification</span>
+                          <span className="text-emerald-400">✓ Automated Ledger Audit Entry</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -4490,9 +4708,10 @@ export default function AdminPortal({ initialTab }) {
                     <button
                       type="submit"
                       disabled={savingBonusSettings}
-                      className="btn-gold py-2.5 px-6 text-xs font-black uppercase tracking-wider flex items-center gap-2"
+                      className="btn-gold py-2.5 px-8 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg hover:scale-102 transition"
                     >
-                      {savingBonusSettings ? 'Saving...' : '💾 Save Bonus Configuration'}
+                      <Save size={15} />
+                      <span>{savingBonusSettings ? 'Saving...' : '💾 Save All Bonus Settings'}</span>
                     </button>
                   </div>
                 </form>
