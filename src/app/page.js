@@ -51,9 +51,10 @@ import NotificationsModal from '@/components/common/NotificationsModal';
 import KycModal from '@/components/common/KycModal';
 import ReferralModal from '@/components/common/ReferralModal';
 import DailySpinWheelModal from '@/components/common/DailySpinWheelModal';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function HomePage() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [currency, setCurrency] = useState('SC');
   const [activeCategory, setActiveCategory] = useState('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -123,11 +124,13 @@ export default function HomePage() {
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
-      if (data.success && data.user) {
+      if ((data.success || data.authenticated) && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
         fetchVaultData();
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch {
       setUser(null);

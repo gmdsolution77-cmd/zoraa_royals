@@ -23,10 +23,11 @@ import RoyalFooter from '@/components/common/RoyalFooter';
 import LiveChatModal from '@/components/support/LiveChatModal';
 import AuthModal from '@/components/common/AuthModal';
 import CashierModal from '@/components/cashier/CashierModal';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function PromotionsPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
   const [cashierModal, setCashierModal] = useState({ open: false, tab: 'deposit' });
   const [chatOpen, setChatOpen] = useState(false);
@@ -44,8 +45,10 @@ export default function PromotionsPage() {
       const data = await res.json();
       if (data.authenticated && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch {
       setUser(null);

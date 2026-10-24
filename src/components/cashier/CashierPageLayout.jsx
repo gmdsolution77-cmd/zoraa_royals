@@ -15,10 +15,11 @@ import RoyalFreeplayModal from '@/components/freeplay/RoyalFreeplayModal';
 import NotificationsModal from '@/components/common/NotificationsModal';
 import KycModal from '@/components/common/KycModal';
 import CashierHub from '@/components/cashier/CashierHub';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function CashierPageLayout({ initialTab = 'deposit' }) {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -35,8 +36,10 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
       const data = await res.json();
       if ((data.authenticated || data.success) && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch {
       setUser(null);
@@ -51,6 +54,7 @@ export default function CashierPageLayout({ initialTab = 'deposit' }) {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      clearCachedUser();
     } catch {}
   };
 

@@ -23,12 +23,13 @@ import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
 import AuthModal from '@/components/common/AuthModal';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function ChatPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
   const [guestId, setGuestId] = useState('');
   const [messages, setMessages] = useState([]);
@@ -47,7 +48,12 @@ export default function ChatPage() {
     fetch('/api/auth/me')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d && d.authenticated && d.user) setUser(d.user);
+        if (d && (d.authenticated || d.success) && d.user) {
+          setUser(d.user);
+          saveCachedUser(d.user);
+        } else {
+          clearCachedUser();
+        }
       })
       .catch(() => {});
 

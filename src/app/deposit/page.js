@@ -31,10 +31,12 @@ import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalMobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
 
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
+
 export default function DepositPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [user, setUser] = useState(() => getCachedUser());
+  const [loadingUser, setLoadingUser] = useState(() => !getCachedUser());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -80,10 +82,12 @@ export default function DepositPage() {
 
       if (uData.authenticated && uData.user) {
         setUser(uData.user);
+        saveCachedUser(uData.user);
         if (uData.user.email) {
           setPlayerPaymentEmail((prev) => prev || uData.user.email);
         }
       } else if (!isSilent) {
+        clearCachedUser();
         router.push('/login?redirect=/deposit');
       }
 

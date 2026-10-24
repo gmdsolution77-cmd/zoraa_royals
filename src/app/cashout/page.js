@@ -26,11 +26,12 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalMobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function CashoutPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [user, setUser] = useState(() => getCachedUser());
+  const [loadingUser, setLoadingUser] = useState(() => !getCachedUser());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -66,7 +67,9 @@ export default function CashoutPage() {
       const data = await res.json();
       if (data.authenticated && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
       } else if (!isSilent) {
+        clearCachedUser();
         router.push('/login?redirect=/cashout');
       }
     } catch (err) {

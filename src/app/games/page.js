@@ -12,10 +12,11 @@ import LiveChatModal from '@/components/support/LiveChatModal';
 import AuthModal from '@/components/common/AuthModal';
 import CashierModal from '@/components/cashier/CashierModal';
 import GameCredentialsModal from '@/components/games/GameCredentialsModal';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function GamesPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [games, setGames] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
@@ -32,10 +33,12 @@ export default function GamesPage() {
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
-      if (data.authenticated && data.user) {
+      if ((data.authenticated || data.success) && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch {
       setUser(null);

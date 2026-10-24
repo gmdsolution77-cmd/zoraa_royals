@@ -29,13 +29,14 @@ import MobileBottomNav from '@/components/common/MobileBottomNav';
 import AuthModal from '@/components/common/AuthModal';
 import LiveChatModal from '@/components/support/LiveChatModal';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function GameStationPage() {
   const params = useParams();
   const router = useRouter();
   const gameId = params?.id;
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [game, setGame] = useState(null);
   const [loadingGame, setLoadingGame] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -58,10 +59,12 @@ export default function GameStationPage() {
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
-      if (data.success && data.user) {
+      if ((data.success || data.authenticated) && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch {
       setUser(null);

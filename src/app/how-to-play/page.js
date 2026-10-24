@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -18,11 +18,27 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function HowToPlayPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [user, setUser] = useState(() => getCachedUser());
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && (d.authenticated || d.success) && d.user) {
+          setUser(d.user);
+          saveCachedUser(d.user);
+        } else {
+          clearCachedUser();
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const steps = [
     {
@@ -76,7 +92,7 @@ export default function HowToPlayPage() {
       >
         {/* Top Navbar */}
         <RoyalNavbar
-          user={null}
+          user={user}
           onOpenAuth={() => router.push('/')}
           onOpenCashier={() => router.push('/deposit')}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}

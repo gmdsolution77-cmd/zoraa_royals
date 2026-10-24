@@ -12,10 +12,11 @@ import LiveChatModal from '@/components/support/LiveChatModal';
 import AuthModal from '@/components/common/AuthModal';
 import CashierModal from '@/components/cashier/CashierModal';
 import PlayerGameAccountsHub from '@/components/player/PlayerGameAccountsHub';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function AccountsPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [games, setGames] = useState([]);
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
   const [cashierModal, setCashierModal] = useState({ open: false, tab: 'deposit' });
@@ -28,10 +29,12 @@ export default function AccountsPage() {
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
-      if (data.authenticated && data.user) {
+      if ((data.authenticated || data.success) && data.user) {
         setUser(data.user);
+        saveCachedUser(data.user);
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch {
       setUser(null);

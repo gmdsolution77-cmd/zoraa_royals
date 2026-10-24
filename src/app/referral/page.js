@@ -22,10 +22,11 @@ import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
 import AuthModal from '@/components/common/AuthModal';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function ReferralPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -43,6 +44,7 @@ export default function ReferralPage() {
       const authData = await authRes.json();
       if (authData.authenticated && authData.user) {
         setUser(authData.user);
+        saveCachedUser(authData.user);
         const refRes = await fetch('/api/affiliates');
         const refData = await refRes.json();
         if (refData.success && refData.stats) {
@@ -50,6 +52,7 @@ export default function ReferralPage() {
         }
       } else {
         setUser(null);
+        clearCachedUser();
       }
     } catch (e) {
       console.error(e);

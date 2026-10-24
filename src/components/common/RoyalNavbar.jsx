@@ -20,6 +20,7 @@ import {
   Key,
   History
 } from 'lucide-react';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function RoyalNavbar({
   user,
@@ -38,6 +39,39 @@ export default function RoyalNavbar({
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [tickerAmount, setTickerAmount] = useState(1842950.45);
+
+  // Persistent Client-Side Cached User (Eliminates login/signup flicker on tab switches)
+  const [cachedUser, setCachedUser] = useState(() => getCachedUser());
+
+  useEffect(() => {
+    if (user) {
+      setCachedUser(user);
+      saveCachedUser(user);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleSync = (e) => {
+      setCachedUser(e.detail || null);
+    };
+    window.addEventListener('royal-user-sync', handleSync);
+    return () => window.removeEventListener('royal-user-sync', handleSync);
+  }, []);
+
+  const activeUser = user || cachedUser;
+
+  const handleLogoutClick = () => {
+    setDropdownOpen(false);
+    setCachedUser(null);
+    clearCachedUser();
+    if (onLogout) {
+      onLogout();
+    } else {
+      fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+        window.location.href = '/';
+      });
+    }
+  };
 
   // Progressive jackpot ticker micro-increment
   useEffect(() => {
@@ -90,13 +124,13 @@ export default function RoyalNavbar({
 
         {/* Right: Actions, Currency, Balance & User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {user ? (
+          {activeUser ? (
             <>
               {/* Single Dollar Balance ($ USD) */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
                 className="flex items-center gap-2 bg-[#0d0f17] border border-[#d4af37]/35 hover:border-[#ffd700] rounded-xl px-3 py-1.5 shadow-md transition group text-left"
-                title={`Total Balance: $${(user.balance || 0).toFixed(2)} USD • Available: $${((user.availableBalance !== undefined ? user.availableBalance : user.balance) || 0).toFixed(2)}`}
+                title={`Total Balance: $${(activeUser.balance || 0).toFixed(2)} USD • Available: $${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}`}
               >
                 <div className="p-1 rounded-md bg-[#d4af37]/15 text-[#ffd700]">
                   <Wallet className="w-3.5 h-3.5" />
@@ -104,16 +138,16 @@ export default function RoyalNavbar({
                 <div>
                   <div className="flex items-center gap-1 mb-0.5">
                     <span className="text-[9px] uppercase tracking-wider text-gray-400 block font-bold leading-none">
-                      {user.frozenBalance > 0 ? 'Available' : 'Balance'}
+                      {activeUser.frozenBalance > 0 ? 'Available' : 'Balance'}
                     </span>
-                    {user.frozenBalance > 0 && (
+                    {activeUser.frozenBalance > 0 && (
                       <span className="text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold px-1 rounded font-mono">
-                        ❄️ ${user.frozenBalance.toFixed(2)}
+                        ❄️ ${activeUser.frozenBalance.toFixed(2)}
                       </span>
                     )}
                   </div>
                   <span className="text-xs sm:text-sm font-mono font-black text-gold-gradient group-hover:brightness-110 leading-none">
-                    ${((user.availableBalance !== undefined ? user.availableBalance : user.balance) || 0).toFixed(2)}
+                    ${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}
                   </span>
                 </div>
               </button>
@@ -128,7 +162,7 @@ export default function RoyalNavbar({
               </button>
 
               {/* Freeplay $3 Signup Reward Quick Button if not claimed */}
-              {!user.signupBonusClaimed && !user.freeplayClaimed && (
+              {!activeUser.signupBonusClaimed && !activeUser.freeplayClaimed && (
                 <button
                   onClick={onOpenFreeplay}
                   className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
@@ -157,10 +191,10 @@ export default function RoyalNavbar({
                   className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 border border-[#d4af37]/30 hover:border-[#d4af37] transition"
                 >
                   <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#131622] flex items-center justify-center text-xs font-black text-black">
-                    {user.username ? user.username[0].toUpperCase() : 'U'}
+                    {activeUser.username ? activeUser.username[0].toUpperCase() : 'U'}
                   </div>
                   <span className="text-xs font-bold text-gray-200 hidden md:inline max-w-[90px] truncate">
-                    {user.username}
+                    {activeUser.username}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                 </button>
@@ -168,15 +202,15 @@ export default function RoyalNavbar({
                 {dropdownOpen && (
                   <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0f121b] border border-[#d4af37]/30 shadow-2xl py-2 z-50 animate-slide-up">
                     <div className="px-4 py-2 border-b border-white/10">
-                      <p className="text-xs font-bold text-white truncate">{user.username}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                      <p className="text-xs font-bold text-white truncate">{activeUser.username}</p>
+                      <p className="text-[10px] text-gray-400 truncate">{activeUser.email}</p>
                       <div className="mt-1 flex items-center gap-1.5">
                         <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#ffd700] border border-[#d4af37]/40">
-                          {user.vipTier || 'VIP Tier'}
+                          {activeUser.vipTier || 'VIP Tier'}
                         </span>
-                        {user.role && user.role !== 'player' && (
+                        {activeUser.role && activeUser.role !== 'player' && (
                           <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                            {user.role}
+                            {activeUser.role}
                           </span>
                         )}
                       </div>
@@ -224,7 +258,7 @@ export default function RoyalNavbar({
                         <Gift className="w-4 h-4 text-emerald-400" /> Invite Friends & Earn Bonus
                       </button>
 
-                      {user.role && user.role !== 'player' && (
+                      {activeUser.role && activeUser.role !== 'player' && (
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
@@ -237,8 +271,8 @@ export default function RoyalNavbar({
 
                     <div className="pt-1 border-t border-white/10">
                       <button
-                        onClick={() => { setDropdownOpen(false); onLogout(); }}
-                        className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition"
+                        onClick={handleLogoutClick}
+                        className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>

@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   RotateCw,
 } from 'lucide-react';
+import { saveCachedUser } from '@/lib/userSession';
 
 export default function AuthModal({
   isOpen,
@@ -141,6 +142,7 @@ export default function AuthModal({
           throw new Error(data.error || 'Authentication failed');
         }
 
+        saveCachedUser(data.user);
         onSuccess(data.user);
         onClose();
       } else {
@@ -166,6 +168,7 @@ export default function AuthModal({
           throw new Error(data.error || 'Registration failed');
         }
 
+        saveCachedUser(data.user);
         onSuccess(data.user);
         onClose();
       }

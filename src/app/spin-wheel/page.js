@@ -19,10 +19,11 @@ import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
 import { WHEEL_SLICES } from '@/lib/wheelConstants';
+import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function SpinWheelPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUser());
   const [canSpin, setCanSpin] = useState(false);
   const [availableSpins, setAvailableSpins] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -41,13 +42,17 @@ export default function SpinWheelPage() {
         const d = await res.json();
         if (d.user) {
           setUser(d.user);
+          saveCachedUser(d.user);
         } else {
+          clearCachedUser();
           router.push('/login?redirect=/spin-wheel');
         }
       } else {
+        clearCachedUser();
         router.push('/login?redirect=/spin-wheel');
       }
     } catch {
+      clearCachedUser();
       router.push('/login?redirect=/spin-wheel');
     }
   };
