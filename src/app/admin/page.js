@@ -266,7 +266,40 @@ export default function AdminPortal({ initialTab }) {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [chatFilterTab, setChatFilterTab] = useState('all');
   const [isSendingChat, setIsSendingChat] = useState(false);
-  const messagesEndRef = useRef(null);
+  const chatMessagesEndRef = useRef(null);
+
+  const [adminChatKeyboardOffset, setAdminChatKeyboardOffset] = useState(0);
+
+  const compressImage = (file, callback, maxDim = 800) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // KYC state
   const [kycRequests, setKycRequests] = useState([]);
@@ -1057,6 +1090,13 @@ export default function AdminPortal({ initialTab }) {
     const interval = setInterval(fetchChatMsgs, 3000);
     return () => clearInterval(interval);
   }, [activeChatConv]);
+
+  // Auto-scroll staff chat to bottom on new messages
+  useEffect(() => {
+    if (activeTab === 'chat' && activeChatConv) {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, activeTab, activeChatConv]);
 
   // Handle Admin Staff Login
   const handleAdminLogin = async (e) => {
