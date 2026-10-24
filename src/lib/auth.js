@@ -27,6 +27,8 @@ export const ROLE_PERMISSIONS = {
     'chat',
     'kyc',
     'promos',
+    'affiliates',
+    'affiliate_commissions',
     'staff',
     'settings',
   ],
@@ -44,6 +46,8 @@ export const ROLE_PERMISSIONS = {
     'chat',
     'kyc',
     'promos',
+    'affiliates',
+    'affiliate_commissions',
   ],
   [ROLES.FINANCIAL_MANAGER]: [
     'overview',
@@ -52,6 +56,7 @@ export const ROLE_PERMISSIONS = {
     'ledger',
     'gateways',
     'tx_search',
+    'affiliate_commissions',
     'kyc',
   ],
   [ROLES.COIN_MANAGER]: [
@@ -102,4 +107,41 @@ export function hasPermission(role, section) {
   if (role === ROLES.SUPER_ADMIN) return true;
   const allowed = ROLE_PERMISSIONS[role] || [];
   return allowed.includes(section);
+}
+
+export function getUserFilter(sessionUser) {
+  if (!sessionUser) return { _id: null };
+  const uid = typeof sessionUser === 'object' ? (sessionUser.userId || sessionUser.id) : sessionUser;
+  const strId = String(uid || '');
+  const or = [];
+  if (strId) {
+    or.push({ _id: strId });
+    if (/^[0-9a-fA-F]{24}$/.test(strId)) {
+      try {
+        const { ObjectId } = require('mongodb');
+        or.push({ _id: new ObjectId(strId) });
+      } catch {}
+    }
+  }
+  if (typeof sessionUser === 'object') {
+    if (sessionUser.username) or.push({ username: sessionUser.username });
+    if (sessionUser.email) or.push({ email: sessionUser.email });
+  }
+  return or.length > 0 ? { $or: or } : { _id: strId };
+}
+
+export function safeIdFilter(id, extraFields = []) {
+  if (!id) return { _id: null };
+  const strId = String(id);
+  const or = [{ _id: strId }, { id: strId }];
+  if (/^[0-9a-fA-F]{24}$/.test(strId)) {
+    try {
+      const { ObjectId } = require('mongodb');
+      or.push({ _id: new ObjectId(strId) });
+    } catch {}
+  }
+  for (const field of extraFields) {
+    or.push({ [field]: strId });
+  }
+  return { $or: or };
 }

@@ -179,19 +179,6 @@ export default function AuthModal({
     }
   };
 
-  const handleDemoFill = (role) => {
-    setError(null);
-    setTab('login');
-    setRegStep('details');
-    if (role === 'admin') {
-      setEmail('admin@zorraroyals.com');
-      setPassword('RoyalAdmin2026!');
-    } else {
-      setEmail('player@zorraroyals.com');
-      setPassword('Player123!');
-    }
-  };
-
   return (
     <div className="modal-overlay">
       <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto scrollbar-none rounded-2xl bg-[#0d0f17] border border-[#d4af37]/35 shadow-[0_15px_50px_rgba(0,0,0,0.85)] p-5 sm:p-8 animate-slide-up">
@@ -480,29 +467,6 @@ export default function AuthModal({
             )}
           </button>
         </form>
-
-        {/* 1-Click Demo Accounts */}
-        <div className="mt-6 pt-5 border-t border-white/10">
-          <p className="text-[10px] text-center text-gray-400 uppercase tracking-wider font-semibold mb-2.5">
-            Quick 1-Click Demo Logins
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleDemoFill('player')}
-              className="py-1.5 px-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#d4af37]/50 text-[11px] text-gray-300 hover:text-white transition"
-            >
-              👑 Demo VIP Player
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoFill('admin')}
-              className="py-1.5 px-2 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 text-[11px] text-amber-300 transition"
-            >
-              🛡️ Super Admin
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

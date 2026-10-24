@@ -27,8 +27,8 @@ export default function RoyalSidebar({
   setCollapsed: controlledSetCollapsed,
   mobileOpen: controlledMobileOpen,
   setMobileOpen: controlledSetMobileOpen,
-  isOpen, // backwards compatibility
-  onClose, // backwards compatibility
+  isOpen,
+  onClose,
   user,
   onOpenWallet,
   onOpenCashier,

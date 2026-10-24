@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getSessionUser, ROLES } from '@/lib/auth';
+import { getSessionUser, ROLES, safeIdFilter } from '@/lib/auth';
 import { getDb, toIdQuery } from '@/lib/mongodb';
 
 // GET: List Player Accounts (Staff only)
@@ -21,7 +21,7 @@ export async function GET(req) {
 
     // 1. Single User 360° Intelligence Profile
     if (userId) {
-      const u = await usersCol.findOne(toIdQuery(userId), { projection: { passwordHash: 0 } });
+      const u = await usersCol.findOne(safeIdFilter(userId, ['username', 'email']), { projection: { passwordHash: 0 } });
       if (!u) {
         return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
       }
@@ -306,15 +306,16 @@ export async function PUT(req) {
 
     const db = await getDb();
     const usersCol = db.collection('users');
-    const uQuery = toIdQuery(userId);
+    const uFilter = safeIdFilter(userId, ['username', 'email']);
+    const targetUser = await usersCol.findOne(uFilter);
+    if (!targetUser) return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
+    const targetFilter = safeIdFilter(targetUser._id);
+    const uQuery = targetFilter;
 
     if (action === 'toggleBan') {
-      const targetUser = await usersCol.findOne(uQuery);
-      if (!targetUser) return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
-
       const newBannedState = !targetUser.isBanned;
       await usersCol.updateOne(
-        uQuery,
+        targetFilter,
         {
           $set: {
             isBanned: newBannedState,

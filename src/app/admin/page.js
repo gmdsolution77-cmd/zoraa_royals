@@ -64,6 +64,8 @@ import CoinOperationsDesk from '@/components/admin/CoinOperationsDesk';
 import SoundSettingsModal from '@/components/admin/SoundSettingsModal';
 import IncomingRequestToast from '@/components/admin/IncomingRequestToast';
 import Patron360ProfileModal from '@/components/admin/Patron360ProfileModal';
+import Player360ProfileModal from '@/components/admin/Player360ProfileModal';
+import AffiliateManagementHub from '@/components/admin/AffiliateManagementHub';
 import {
   playTune,
   unlockAudioContext,
@@ -89,6 +91,12 @@ export default function AdminPortal({ initialTab }) {
 
   const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
 
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(normalizeTab(initialTab));
+    }
+  }, [initialTab]);
+
   // Audio Alerts State
   const [audioAlertsEnabled, setAudioAlertsEnabled] = useState(true);
   const [alertTune, setAlertTune] = useState('chaching');
@@ -96,6 +104,11 @@ export default function AdminPortal({ initialTab }) {
   const [soundModalOpen, setSoundModalOpen] = useState(false);
   const [activeAlertToast, setActiveAlertToast] = useState(null);
   const [refreshingFinance, setRefreshingFinance] = useState(false);
+
+  // Affiliates state
+  const [affiliates, setAffiliates] = useState([]);
+  const [affiliateSummary, setAffiliateSummary] = useState(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
   // Load sound settings from localStorage on mount & request desktop notifications
   useEffect(() => {
@@ -999,6 +1012,13 @@ export default function AdminPortal({ initialTab }) {
       } else if (activeTab === 'promos') {
         fetch('/api/promos?all=true').then(r => r.json()).then(d => { if (d.success) setPromos(d.promotions || []); });
         fetch('/api/notifications?admin=true').then(r => r.json()).then(d => { if (d.success) setBroadcastLogs(d.broadcasts || []); });
+      } else if (activeTab === 'affiliates' || activeTab === 'affiliate_commissions') {
+        fetch('/api/affiliates?mode=admin', { cache: 'no-store' }).then(r => r.json()).then(d => {
+          if (d.success) {
+            setAffiliates(d.affiliates || []);
+            setAffiliateSummary(d.summary || null);
+          }
+        });
       } else if (activeTab === 'staff') {
         fetch('/api/admin/staff').then(r => r.json()).then(d => { if (d.success) setStaffList(d.staff || []); });
       } else if (activeTab === 'account_requests') {
@@ -1060,24 +1080,34 @@ export default function AdminPortal({ initialTab }) {
     setUser(null);
   };
 
-  // Staff Permissions check (Affiliates removed)
+  // Staff Permissions check matching Player Paradise
   const isAllowed = (tabId) => {
     if (!user) return false;
     const r = (user.role || '').toLowerCase();
 
+    // Super Admin has full unrestricted access
     if (r === 'super_admin' || r === 'admin') return true;
+
+    // Operations Manager has access to ALL tabs EXCEPT staff and settings
     if (r === 'operation_admin') {
       return !['staff', 'settings'].includes(tabId);
     }
+
+    // Financial Manager
     if (r === 'financial_manager' || r === 'financial_admin') {
-      return ['overview', 'finance', 'coins_allotment', 'gateways', 'tx_search', 'kyc'].includes(tabId);
+      return ['overview', 'finance', 'coins_allotment', 'gateways', 'tx_search', 'affiliate_commissions', 'kyc'].includes(tabId);
     }
+
+    // Coins Staff
     if (r === 'coin_manager' || r === 'coins_admin') {
       return ['overview', 'account_requests', 'coins_allotment', 'tx_search'].includes(tabId);
     }
+
+    // Live Support Staff
     if (r === 'chat_support' || r === 'support_admin') {
       return ['overview', 'chat'].includes(tabId);
     }
+
     return false;
   };
 
@@ -1161,26 +1191,19 @@ export default function AdminPortal({ initialTab }) {
     );
   }
 
-  // Permitted Tabs matching Player Paradise structure
+  // Permitted Tabs matching Player Paradise structure (all 14 core tabs)
   const allTabs = [
-    { id: 'overview', label: 'Overview Analytics', icon: LayoutDashboard, category: 'Operations' },
+    { id: 'overview', label: 'Command Center', icon: LayoutDashboard, category: 'Operations' },
     {
       id: 'account_requests',
-      label: 'Game Requests',
+      label: 'Account Requests',
       icon: Key,
-      badge: accountRequests.filter(r => (r.status || '').toUpperCase() === 'PENDING').length,
-      category: 'Operations',
-    },
-    {
-      id: 'finance',
-      label: 'Financial Ledger',
-      icon: CreditCard,
-      badge: (deposits.filter(d => d.status === 'pending').length + redemptions.filter(r => r.status === 'pending').length),
+      badge: (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING').length,
       category: 'Operations',
     },
     {
       id: 'coins_allotment',
-      label: 'Coins Allotment Queue',
+      label: 'Coins Allotment',
       icon: Coins,
       badge: (
         (redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification').length +
@@ -1189,26 +1212,28 @@ export default function AdminPortal({ initialTab }) {
       category: 'Operations',
     },
     {
+      id: 'finance',
+      label: 'Finance & Cashier',
+      icon: CreditCard,
+      badge: (deposits.filter(d => d.status === 'pending').length + redemptions.filter(r => r.status === 'pending').length),
+      category: 'Operations',
+    },
+    {
       id: 'chat',
-      label: 'Live Support Chat',
+      label: 'Live Support Desk',
       icon: MessageSquare,
-      badge: chatConversations.filter(c => c.unreadStaff).length,
+      badge: chatConversations.filter(c => Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0))).length,
       category: 'Operations',
     },
     { id: 'games', label: 'Games Library', icon: Gamepad2, category: 'Catalog & Players' },
     { id: 'users', label: 'Player Accounts', icon: Users, category: 'Catalog & Players' },
-    {
-      id: 'kyc',
-      label: 'KYC Verification',
-      icon: ShieldCheck,
-      badge: kycRequests.filter(k => k.status === 'pending').length,
-      category: 'Catalog & Players',
-    },
-    { id: 'tx_search', label: 'Transaction Search', icon: FileSpreadsheet, category: 'Catalog & Players' },
-    { id: 'gateways', label: 'Payment Gateways', icon: SlidersHorizontal, category: 'Growth & Promos' },
-    { id: 'promos', label: 'Push & Promos', icon: Gift, category: 'Growth & Promos' },
+    { id: 'tx_search', label: 'Transaction Logs', icon: FileSpreadsheet, category: 'Catalog & Players' },
+    { id: 'promos', label: 'Push & Broadcasts', icon: Megaphone, category: 'Growth & Promos' },
+    { id: 'affiliates', label: 'Affiliates 50%', icon: Users, category: 'Growth & Promos' },
+    { id: 'affiliate_commissions', label: 'Affiliate Commissions', icon: DollarSign, category: 'Growth & Promos' },
+    { id: 'gateways', label: 'Payment Gateways', icon: SlidersHorizontal, category: 'System & Security' },
     { id: 'staff', label: 'Staff Management', icon: UserCheck, category: 'System & Security' },
-    { id: 'settings', label: 'System Settings', icon: Settings, category: 'System & Security' },
+    { id: 'settings', label: 'System & Geo Access', icon: Settings, category: 'System & Security' },
   ];
 
   const visibleTabs = allTabs.filter(t => isAllowed(t.id));
@@ -4127,6 +4152,52 @@ export default function AdminPortal({ initialTab }) {
             );
           })()}
 
+          {/* TAB 10: AFFILIATES 50% */}
+          {activeTab === 'affiliates' && (
+            <AffiliateManagementHub
+              activeTab="affiliates"
+              affiliates={affiliates}
+              summary={affiliateSummary}
+              onRefresh={() => {
+                fetch('/api/affiliates?mode=admin')
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d.success) {
+                      setAffiliates(d.affiliates || []);
+                      setAffiliateSummary(d.summary || null);
+                    }
+                  });
+              }}
+              onOpenPlayerProfile={(uid) => {
+                setSelectedPlayerId(uid);
+                setSelectedPatronId(uid);
+              }}
+            />
+          )}
+
+          {/* TAB 11: AFFILIATE COMMISSIONS */}
+          {activeTab === 'affiliate_commissions' && (
+            <AffiliateManagementHub
+              activeTab="affiliate_commissions"
+              affiliates={affiliates}
+              summary={affiliateSummary}
+              onRefresh={() => {
+                fetch('/api/affiliates?mode=admin')
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d.success) {
+                      setAffiliates(d.affiliates || []);
+                      setAffiliateSummary(d.summary || null);
+                    }
+                  });
+              }}
+              onOpenPlayerProfile={(uid) => {
+                setSelectedPlayerId(uid);
+                setSelectedPatronId(uid);
+              }}
+            />
+          )}
+
           {/* TAB 12: STAFF MANAGEMENT */}
           {activeTab === 'staff' && (
             <div className="space-y-6">
@@ -5475,13 +5546,21 @@ export default function AdminPortal({ initialTab }) {
             </div>
           )}
 
-          {/* Patron 360° Profile Modal */}
-          {selectedPatronId && (
-            <Patron360ProfileModal
-              userId={selectedPatronId}
-              onClose={() => setSelectedPatronId(null)}
+          {/* Player / Patron 360° Profile Modal */}
+          {(selectedPlayerId || selectedPatronId) && (
+            <Player360ProfileModal
+              userId={selectedPlayerId || selectedPatronId}
+              onClose={() => {
+                setSelectedPlayerId(null);
+                setSelectedPatronId(null);
+              }}
               onUserUpdated={(uid, newBal) => {
                 setUsersList(prev => prev.map(item => (item.id === uid || item._id === uid) ? { ...item, balance: newBal, balanceSC: newBal } : item));
+              }}
+              onOpenChat={() => {
+                setSelectedPlayerId(null);
+                setSelectedPatronId(null);
+                setActiveTab('chat');
               }}
             />
           )}

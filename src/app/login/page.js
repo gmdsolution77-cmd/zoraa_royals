@@ -63,17 +63,6 @@ function LoginForm() {
     }
   };
 
-  const handleDemoFill = (role) => {
-    setError('');
-    if (role === 'admin') {
-      setIdentifier('admin@zorraroyals.com');
-      setPassword('RoyalAdmin2026!');
-    } else {
-      setIdentifier('player@zorraroyals.com');
-      setPassword('Player123!');
-    }
-  };
-
   return (
     <div className="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-[#0c0e17]/95 border border-[#d4af37]/35 shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-xl space-y-6">
       {/* Brand Header */}
@@ -188,28 +177,7 @@ function LoginForm() {
         </button>
       </form>
 
-      {/* Quick Demo Logins */}
-      <div className="pt-4 border-t border-white/10">
-        <p className="text-[10px] text-center text-gray-400 uppercase tracking-wider font-semibold mb-2.5">
-          Quick 1-Click Demo Logins
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleDemoFill('player')}
-            className="py-2 px-3 rounded-xl bg-white/5 border border-white/10 hover:border-[#d4af37]/50 text-xs text-gray-300 hover:text-white transition"
-          >
-            👑 Demo VIP Player
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDemoFill('admin')}
-            className="py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 text-xs text-amber-300 transition"
-          >
-            🛡️ Super Admin
-          </button>
-        </div>
-      </div>
+      {/* Footer Navigation */}
 
       {/* Footer Navigation */}
       <div className="pt-2 text-center text-xs text-gray-400 border-t border-white/10 space-y-2">
