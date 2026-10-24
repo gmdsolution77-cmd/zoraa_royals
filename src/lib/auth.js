@@ -85,22 +85,80 @@ export function verifyToken(token) {
   }
 }
 
-export async function getSessionUser() {
+export async function getSessionUser(preferredType = null) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('zorra_session')?.value || cookieStore.get('vegas_session')?.value;
-    if (!token) return null;
-    const decoded = verifyToken(token);
-    if (!decoded) return null;
-    const uid = decoded.id || decoded.userId || decoded.sub;
-    return {
-      ...decoded,
-      id: uid,
-      userId: uid,
-    };
+    const adminToken = cookieStore.get('admin_session')?.value;
+    const playerToken = cookieStore.get('zorra_session')?.value || cookieStore.get('players_session')?.value || cookieStore.get('vegas_session')?.value;
+
+    if (preferredType === 'admin') {
+      if (adminToken) {
+        const decoded = verifyToken(adminToken);
+        if (decoded) {
+          const uid = decoded.id || decoded.userId || decoded.sub;
+          return { ...decoded, id: uid, userId: uid };
+        }
+      }
+      return null;
+    }
+
+    if (preferredType === 'player') {
+      if (playerToken) {
+        const decoded = verifyToken(playerToken);
+        if (decoded) {
+          const uid = decoded.id || decoded.userId || decoded.sub;
+          return { ...decoded, id: uid, userId: uid };
+        }
+      }
+      return null;
+    }
+
+    // Auto-detect admin context from referer
+    try {
+      const { headers } = require('next/headers');
+      const reqHeaders = await headers();
+      const referer = reqHeaders.get('referer') || '';
+      if (referer.includes('/admin')) {
+        if (adminToken) {
+          const decoded = verifyToken(adminToken);
+          if (decoded) {
+            const uid = decoded.id || decoded.userId || decoded.sub;
+            return { ...decoded, id: uid, userId: uid };
+          }
+        }
+      }
+    } catch {}
+
+    // Default to player token if present
+    if (playerToken) {
+      const decoded = verifyToken(playerToken);
+      if (decoded) {
+        const uid = decoded.id || decoded.userId || decoded.sub;
+        return { ...decoded, id: uid, userId: uid };
+      }
+    }
+
+    // Fallback to admin session if present
+    if (adminToken) {
+      const decoded = verifyToken(adminToken);
+      if (decoded) {
+        const uid = decoded.id || decoded.userId || decoded.sub;
+        return { ...decoded, id: uid, userId: uid };
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
+}
+
+export async function getAdminSessionUser() {
+  return getSessionUser('admin');
+}
+
+export async function getPlayerSessionUser() {
+  return getSessionUser('player');
 }
 
 export function hasPermission(role, section) {

@@ -46,12 +46,29 @@ export async function POST(req) {
 
     const token = signToken(tokenPayload);
     const cookieStore = await cookies();
-    cookieStore.set('zorra_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 3600,
-      path: '/',
-    });
+    const referer = req.headers.get('referer') || '';
+    const isStaff = user.role && user.role !== 'player';
+    const isExplicitAdminPortal = referer.includes('/admin') || body.adminPortal === true;
+
+    if (isStaff || isExplicitAdminPortal) {
+      // Independent cookie for admin portal: does NOT overwrite player session
+      cookieStore.set('admin_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 3600,
+        path: '/',
+        sameSite: 'lax',
+      });
+    } else {
+      // Independent cookie for player: does NOT overwrite admin session
+      cookieStore.set('zorra_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 3600,
+        path: '/',
+        sameSite: 'lax',
+      });
+    }
 
     const safeUser = {
       id: user._id,

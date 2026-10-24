@@ -268,6 +268,14 @@ export default function AdminPortal({ initialTab }) {
   const [isSendingChat, setIsSendingChat] = useState(false);
   const chatMessagesEndRef = useRef(null);
 
+  const safeSetSortedMessages = (msgs) => {
+    if (!Array.isArray(msgs)) return;
+    const sorted = [...msgs].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    setChatMessages(sorted);
+  };
+
   const [adminChatKeyboardOffset, setAdminChatKeyboardOffset] = useState(0);
 
   const compressImage = (file, callback, maxDim = 800) => {
@@ -862,7 +870,7 @@ export default function AdminPortal({ initialTab }) {
   // Check current session
   const fetchSession = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me?admin=true');
       const data = await res.json();
       if ((data.authenticated || data.success) && data.user && data.user.role !== 'player') {
         setUser(data.user);
@@ -889,23 +897,50 @@ export default function AdminPortal({ initialTab }) {
     fetchSession();
   }, []);
 
-  // Persistent background sync: deposits, redemptions, and game account requests are ALWAYS monitored
-  const prevCountsRef = useRef({ requests: 0, deposits: 0, redemptions: 0, coinCashouts: 0 });
+  // Persistent background sync: deposits, redemptions, game account requests, and live chat are ALWAYS monitored
+  const prevCountsRef = useRef({ requests: 0, deposits: 0, redemptions: 0, coinCashouts: 0, chat: 0 });
   const isInitialLoadRef = useRef(true);
+
+  const handleSelectChat = async (c) => {
+    setActiveChatConv(c);
+    // Immediately clear unread counter in client state
+    setChatConversations(prev =>
+      prev.map(item =>
+        item._id === c._id ? { ...item, unreadCount: 0, unreadStaff: false } : item
+      )
+    );
+    try {
+      const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(c._id)}`);
+      const d = await res.json();
+      if (d.success && Array.isArray(d.messages)) {
+        const sorted = [...d.messages].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        setChatMessages(sorted);
+        setTimeout(() => {
+          chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 60);
+      }
+    } catch (err) {
+      console.error('Error fetching chat messages:', err);
+    }
+  };
 
   const syncRequestsAndAlerts = async () => {
     if (!user) return;
     try {
-      const [depRes, withRes, reqRes] = await Promise.all([
+      const [depRes, withRes, reqRes, chatRes] = await Promise.all([
         fetch('/api/payments/deposit?status=all'),
         fetch('/api/payments/withdraw?status=all'),
         fetch('/api/account-requests?status=all'),
+        fetch('/api/chat?inbox=true', { cache: 'no-store' }),
       ]);
 
-      const [depData, withData, reqData] = await Promise.all([
-        depRes.json(),
-        withRes.json(),
-        reqRes.json(),
+      const [depData, withData, reqData, chatData] = await Promise.all([
+        depRes.json().catch(() => ({ success: false })),
+        withRes.json().catch(() => ({ success: false })),
+        reqRes.json().catch(() => ({ success: false })),
+        chatRes.json().catch(() => ({ success: false })),
       ]);
 
       if (depData.success) {
@@ -917,13 +952,19 @@ export default function AdminPortal({ initialTab }) {
       if (reqData.success) {
         setAccountRequests(reqData.accountRequests || []);
       }
+      if (chatData.success) {
+        setChatConversations(chatData.conversations || []);
+      }
 
       const pendingDeps = (depData.deposits || []).filter(d => d.status === 'pending');
       const pendingWith = (withData.redemptions || []).filter(r => r.status === 'pending');
       const pendingReqs = (reqData.accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING');
       const pendingCoinCashouts = (withData.redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification');
+      
+      const unreadConvs = (chatData.conversations || []).filter(c => Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0)));
+      const unreadChatTotal = unreadConvs.reduce((acc, c) => acc + (c.unreadCount || 1), 0);
 
-      const totalPending = pendingDeps.length + pendingWith.length + pendingReqs.length + pendingCoinCashouts.length;
+      const totalPending = pendingDeps.length + pendingWith.length + pendingReqs.length + pendingCoinCashouts.length + unreadChatTotal;
       updateFaviconBadge(totalPending);
 
       if (isInitialLoadRef.current) {
@@ -932,13 +973,32 @@ export default function AdminPortal({ initialTab }) {
           redemptions: pendingWith.length,
           requests: pendingReqs.length,
           coinCashouts: pendingCoinCashouts.length,
+          chat: unreadChatTotal,
         };
         isInitialLoadRef.current = false;
         return;
       }
 
+      // 0. Check for incoming new live chat messages
+      if (unreadChatTotal > (prevCountsRef.current.chat || 0)) {
+        const newestChat = unreadConvs[0];
+        playAdminChime();
+        sendDesktopNotification(
+          '💬 New Live Chat Support Message!',
+          `${newestChat?.username || 'VIP Patron'}: ${newestChat?.lastMessage || 'Sent a new message'}`,
+          '/admin?tab=chat'
+        );
+        setActiveAlertToast({
+          type: 'chat',
+          title: '💬 New Live Chat Message!',
+          message: `${newestChat?.username || 'VIP Patron'} needs assistance`,
+          subtext: newestChat?.lastMessage || 'Active inquiry received',
+          targetTab: 'chat',
+          targetConv: newestChat,
+        });
+      }
       // 1. Check for incoming new deposits (Finance)
-      if (pendingDeps.length > (prevCountsRef.current.deposits || 0)) {
+      else if (pendingDeps.length > (prevCountsRef.current.deposits || 0)) {
         const newest = pendingDeps[0];
         playAdminChime();
         sendDesktopNotification(
@@ -1015,6 +1075,7 @@ export default function AdminPortal({ initialTab }) {
         redemptions: pendingWith.length,
         requests: pendingReqs.length,
         coinCashouts: pendingCoinCashouts.length,
+        chat: unreadChatTotal,
       };
     } catch (err) {
       console.warn('Background sync error:', err);
@@ -1082,9 +1143,9 @@ export default function AdminPortal({ initialTab }) {
   useEffect(() => {
     if (!activeChatConv) return;
     const fetchChatMsgs = () => {
-      fetch(`/api/chat?conversationId=${activeChatConv._id}`)
+      fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`)
         .then(r => r.json())
-        .then(d => { if (d.success) setChatMessages(d.messages || []); });
+        .then(d => { if (d.success) safeSetSortedMessages(d.messages); });
     };
     fetchChatMsgs();
     const interval = setInterval(fetchChatMsgs, 3000);
@@ -1120,7 +1181,11 @@ export default function AdminPortal({ initialTab }) {
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAdminLogout: true }),
+    });
     setUser(null);
   };
 
@@ -2944,9 +3009,9 @@ export default function AdminPortal({ initialTab }) {
                     isStaffReply: true,
                   }),
                 });
-                const res = await fetch(`/api/chat?conversationId=${activeChatConv._id}`);
+                const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`);
                 const d = await res.json();
-                if (d.success) setChatMessages(d.messages);
+                if (d.success) safeSetSortedMessages(d.messages);
                 const cRes = await fetch('/api/chat?inbox=true');
                 const cD = await cRes.json();
                 if (cD.success) setChatConversations(cD.conversations);
@@ -2994,7 +3059,7 @@ export default function AdminPortal({ initialTab }) {
                       onClick={() => {
                         fetch('/api/chat?inbox=true').then(r => r.json()).then(d => { if (d.success) setChatConversations(d.conversations); });
                         if (activeChatConv) {
-                          fetch(`/api/chat?conversationId=${activeChatConv._id}`).then(r => r.json()).then(d => { if (d.success) setChatMessages(d.messages); });
+                          fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`).then(r => r.json()).then(d => { if (d.success) safeSetSortedMessages(d.messages); });
                         }
                       }}
                       className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white flex items-center gap-1.5 text-xs font-bold transition"
@@ -3092,7 +3157,7 @@ export default function AdminPortal({ initialTab }) {
                           return (
                             <div
                               key={c._id}
-                              onClick={() => setActiveChatConv(c)}
+                              onClick={() => handleSelectChat(c)}
                               className={`p-3 rounded-xl cursor-pointer transition-all duration-200 border ${isSelected
                                 ? 'bg-gradient-to-r from-cyan-950/60 via-[#1a2030] to-[#121622] border-[#ffd700]/60 shadow-[0_0_15px_rgba(212,175,55,0.15)] ring-1 ring-[#ffd700]/30'
                                 : hasUnread
@@ -3196,7 +3261,7 @@ export default function AdminPortal({ initialTab }) {
                             <button
                               type="button"
                               onClick={() => {
-                                fetch(`/api/chat?conversationId=${activeChatConv._id}`).then(r => r.json()).then(d => { if (d.success) setChatMessages(d.messages); });
+                                fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`).then(r => r.json()).then(d => { if (d.success) safeSetSortedMessages(d.messages); });
                               }}
                               className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition"
                               title="Refresh Chat"

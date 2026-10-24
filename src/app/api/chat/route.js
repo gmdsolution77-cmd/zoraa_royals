@@ -34,7 +34,10 @@ async function buildStaffInbox(chatCol) {
       const customerUid =
         msg.customerUserId || (msg.sender === 'player' ? msg.userId : null);
 
-      const isUnreadPlayerMsg = msg.read === false && msg.sender === 'player';
+      const isUnreadPlayerMsg =
+        msg.read === false &&
+        msg.sender !== 'support' &&
+        msg.senderRole !== 'staff';
 
       if (!convMap.has(cid)) {
         convMap.set(cid, {
@@ -43,7 +46,7 @@ async function buildStaffInbox(chatCol) {
           username: customerName || msg.username || 'VIP Patron',
           lastMessage:
             msg.text || (msg.imageUrl ? '📷 [Image Attachment]' : 'Active inquiry'),
-          lastSenderRole: msg.sender === 'player' ? 'player' : 'staff',
+          lastSenderRole: (msg.senderRole === 'staff' || msg.sender === 'support') ? 'staff' : 'player',
           updatedAt: msg.createdAt || new Date(),
           unreadCount: isUnreadPlayerMsg ? 1 : 0,
           unreadStaff: isUnreadPlayerMsg,
@@ -116,7 +119,8 @@ export async function GET(req) {
               { userId: conversationId },
               { userEmail: conversationId },
             ],
-            sender: 'player',
+            sender: { $ne: 'support' },
+            senderRole: { $ne: 'staff' },
             read: false,
           },
           { $set: { read: true } }

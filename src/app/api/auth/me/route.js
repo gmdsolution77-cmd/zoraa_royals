@@ -3,9 +3,13 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { getSessionUser } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const session = await getSessionUser();
+    const { searchParams } = new URL(req.url);
+    const referer = req.headers.get('referer') || '';
+    const isAdminQuery = searchParams.get('admin') === 'true' || referer.includes('/admin');
+
+    const session = await getSessionUser(isAdminQuery ? 'admin' : 'player');
     if (!session) {
       return NextResponse.json({ success: false, authenticated: false, user: null });
     }

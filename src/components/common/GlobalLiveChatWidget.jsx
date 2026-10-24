@@ -53,6 +53,31 @@ export default function GlobalLiveChatWidget() {
     };
   }, []);
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Poll for unread messages sent to the player
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    const checkUnread = async () => {
+      try {
+        const res = await fetch('/api/chat', { cache: 'no-store' });
+        const d = await res.json();
+        if (d.success && Array.isArray(d.messages)) {
+          const unread = d.messages.filter(
+            m => m.read === false && (m.sender === 'support' || m.senderRole === 'staff')
+          ).length;
+          setUnreadCount(unread);
+        }
+      } catch {}
+    };
+    checkUnread();
+    const interval = setInterval(checkUnread, 10000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Do NOT render on Admin Portal or dedicated full-screen /chat page
   if (pathname && (pathname.startsWith('/admin') || pathname === '/chat')) {
     return null;
@@ -63,12 +88,20 @@ export default function GlobalLiveChatWidget() {
       {/* Floating 24/7 VIP Concierge Chat Button on bottom-right */}
       <button
         type="button"
-        onClick={() => setChatOpen(true)}
-        className="fixed bottom-20 md:bottom-6 right-6 z-40 p-3.5 rounded-full bg-gradient-to-tr from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black shadow-[0_0_20px_rgba(212,175,55,0.6)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer group"
+        onClick={() => {
+          setChatOpen(true);
+          setUnreadCount(0);
+        }}
+        className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 p-3.5 rounded-full bg-gradient-to-tr from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black shadow-[0_0_25px_rgba(212,175,55,0.7)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer group"
         title="24/7 VIP Concierge Support"
         aria-label="24/7 VIP Concierge Support"
       >
         <MessageSquare className="w-6 h-6 stroke-[2.5]" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white font-black text-[10px] flex items-center justify-center shadow-lg border-2 border-black animate-bounce">
+            {unreadCount}
+          </span>
+        )}
         <span className="sr-only">Live Chat Support</span>
       </button>
 

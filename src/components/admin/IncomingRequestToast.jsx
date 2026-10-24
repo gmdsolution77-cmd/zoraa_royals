@@ -1,18 +1,20 @@
 'use client';
 
 import React from 'react';
-import { Bell, ArrowRight, X, DollarSign, Wallet, Gamepad2 } from 'lucide-react';
+import { Bell, ArrowRight, X, DollarSign, Wallet, Gamepad2, MessageSquare } from 'lucide-react';
 
 export default function IncomingRequestToast({ alert, onDismiss, onViewRequest }) {
   if (!alert) return null;
 
   const getIcon = () => {
+    if (alert.type === 'chat') return <MessageSquare size={18} className="text-cyan-400" />;
     if (alert.type === 'deposit') return <DollarSign size={18} className="text-amber-400" />;
     if (alert.type === 'redemption') return <Wallet size={18} className="text-purple-400" />;
     return <Gamepad2 size={18} className="text-[#ffd700]" />;
   };
 
   const getBorderColor = () => {
+    if (alert.type === 'chat') return 'border-cyan-500/60 shadow-cyan-500/25 ring-1 ring-cyan-400/30';
     if (alert.type === 'deposit') return 'border-amber-500/50 shadow-amber-500/20';
     if (alert.type === 'redemption') return 'border-purple-500/50 shadow-purple-500/20';
     return 'border-[#d4af37]/50 shadow-cyan-500/20';
@@ -55,7 +57,7 @@ export default function IncomingRequestToast({ alert, onDismiss, onViewRequest }
             }}
             className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-amber-500/20"
           >
-            <span>Review Request</span>
+            <span>{alert.type === 'chat' ? 'Open Chat Desk' : 'Review Request'}</span>
             <ArrowRight size={13} />
           </button>
         </div>
@@ -63,3 +65,4 @@ export default function IncomingRequestToast({ alert, onDismiss, onViewRequest }
     </div>
   );
 }
+
