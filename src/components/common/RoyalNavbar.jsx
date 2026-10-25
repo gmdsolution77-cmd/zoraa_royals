@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -38,7 +38,21 @@ export default function RoyalNavbar({
   onToggleSidebar,
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const [tickerAmount, setTickerAmount] = useState(1842950.45);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
 
   // Persistent Client-Side Cached User (Eliminates login/signup flicker on tab switches)
   const [cachedUser, setCachedUser] = useState(() => getCachedUser());
@@ -185,10 +199,10 @@ export default function RoyalNavbar({
               </button>
 
               {/* User Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 border border-[#d4af37]/30 hover:border-[#d4af37] transition"
+                  className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 border border-[#d4af37]/30 hover:border-[#d4af37] transition cursor-pointer"
                 >
                   <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#131622] flex items-center justify-center text-xs font-black text-black">
                     {activeUser.username ? activeUser.username[0].toUpperCase() : 'U'}
@@ -196,83 +210,35 @@ export default function RoyalNavbar({
                   <span className="text-xs font-bold text-gray-200 hidden md:inline max-w-[90px] truncate">
                     {activeUser.username}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0f121b] border border-[#d4af37]/30 shadow-2xl py-2 z-50 animate-slide-up">
-                    <div className="px-4 py-2 border-b border-white/10">
+                  <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-[#0f121b] border border-[#d4af37]/30 shadow-2xl py-2 z-50 animate-slide-up">
+                    <div className="px-4 py-2.5 border-b border-white/10">
                       <p className="text-xs font-bold text-white truncate">{activeUser.username}</p>
                       <p className="text-[10px] text-gray-400 truncate">{activeUser.email}</p>
                       <div className="mt-1 flex items-center gap-1.5">
                         <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#ffd700] border border-[#d4af37]/40">
                           {activeUser.vipTier || 'VIP Tier'}
                         </span>
-                        {activeUser.role && activeUser.role !== 'player' && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                            {activeUser.role}
-                          </span>
-                        )}
                       </div>
                     </div>
 
                     <div className="py-1">
                       <Link
-                        href="/deposit"
-                        onClick={() => setDropdownOpen(false)}
-                        className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
-                      >
-                        <Wallet className="w-4 h-4 text-[#d4af37]" /> Deposit Balance
-                      </Link>
-                      <Link
-                        href="/cashout"
-                        onClick={() => setDropdownOpen(false)}
-                        className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
-                      >
-                        <TrendingUp className="w-4 h-4 text-emerald-400" /> Cashout / Redeem
-                      </Link>
-                      <Link
-                        href="/accounts"
-                        onClick={() => setDropdownOpen(false)}
-                        className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
-                      >
-                        <Key className="w-4 h-4 text-purple-400" /> My Game Accounts
-                      </Link>
-                      <Link
                         href="/promotions"
                         onClick={() => setDropdownOpen(false)}
-                        className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
+                        className="w-full text-left px-4 py-2.5 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2.5 transition font-semibold"
                       >
                         <Sparkles className="w-4 h-4 text-amber-400" /> VIP &amp; Promotions
                       </Link>
-                      <button
-                        onClick={() => { setDropdownOpen(false); onOpenKyc(); }}
-                        className="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2 transition"
-                      >
-                        <Shield className="w-4 h-4 text-blue-400" /> VIP Identity Verification
-                      </button>
-                      <button
-                        onClick={() => { setDropdownOpen(false); onOpenReferral && onOpenReferral(); }}
-                        className="w-full text-left px-4 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-2 font-bold transition border-t border-white/5"
-                      >
-                        <Gift className="w-4 h-4 text-emerald-400" /> Invite Friends & Earn Bonus
-                      </button>
-
-                      {activeUser.role && activeUser.role !== 'player' && (
-                        <Link
-                          href="/admin"
-                          onClick={() => setDropdownOpen(false)}
-                          className="w-full text-left px-4 py-2 text-xs text-amber-300 hover:bg-amber-500/20 flex items-center gap-2 font-bold border-t border-white/5 transition"
-                        >
-                          <Shield className="w-4 h-4 text-amber-400" /> Admin Command Portal
-                        </Link>
-                      )}
                     </div>
 
                     <div className="pt-1 border-t border-white/10">
                       <button
                         onClick={handleLogoutClick}
-                        className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition cursor-pointer"
+                        className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition cursor-pointer font-bold"
                       >
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
