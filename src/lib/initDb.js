@@ -12,13 +12,13 @@ export async function ensureDbInitialized() {
 
     if (!existingAdmin) {
       console.log('Seeding initial administrators and staff...');
-      const adminPasswordHash = await bcrypt.hash('VegasOne@2026!', 10);
+      const adminPasswordHash = await bcrypt.hash('RoyalAdmin2026!', 10);
       const staffPasswordHash = await bcrypt.hash('Staff@2026!', 10);
 
       await usersCol.insertMany([
         {
           username: 'superadmin',
-          email: 'admin@vegasone.games',
+          email: 'superadmin@zoraaroyal.com',
           passwordHash: adminPasswordHash,
           role: ROLES.SUPER_ADMIN,
           balanceSC: 10000.0,
@@ -28,7 +28,7 @@ export async function ensureDbInitialized() {
         },
         {
           username: 'financemanager',
-          email: 'finance@vegasone.games',
+          email: 'finance@zoraaroyal.com',
           passwordHash: staffPasswordHash,
           role: ROLES.FINANCIAL_MANAGER,
           balanceSC: 0,
@@ -38,7 +38,7 @@ export async function ensureDbInitialized() {
         },
         {
           username: 'coinofficer',
-          email: 'coins@vegasone.games',
+          email: 'coins@zoraaroyal.com',
           passwordHash: staffPasswordHash,
           role: ROLES.COIN_MANAGER,
           balanceSC: 0,
@@ -48,7 +48,7 @@ export async function ensureDbInitialized() {
         },
         {
           username: 'operationadmin',
-          email: 'ops@vegasone.games',
+          email: 'ops@zoraaroyal.com',
           passwordHash: staffPasswordHash,
           role: ROLES.OPERATION_ADMIN,
           balanceSC: 0,
@@ -58,7 +58,7 @@ export async function ensureDbInitialized() {
         },
         {
           username: 'chatsupport',
-          email: 'support@vegasone.games',
+          email: 'support@zoraaroyal.com',
           passwordHash: staffPasswordHash,
           role: ROLES.CHAT_SUPPORT,
           balanceSC: 0,
@@ -77,9 +77,9 @@ export async function ensureDbInitialized() {
       await gamesCol.insertMany([
         {
           gameId: 'vegas-777',
-          title: 'Vegas 777 Deluxe',
+          title: 'Royal 777 Deluxe',
           category: 'slots',
-          provider: 'Vegas One Studio',
+          provider: 'Zorra Royals Studio',
           thumbnail: '/images/vegas-777.webp',
           type: 'internal',
           minBetSC: 0.2,
@@ -97,7 +97,7 @@ export async function ensureDbInitialized() {
           gameId: 'neon-crash',
           title: 'Neon Rocket Crash',
           category: 'crash',
-          provider: 'Vegas One Studio',
+          provider: 'Zorra Royals Studio',
           thumbnail: '/images/neon-crash.webp',
           type: 'internal',
           minBetSC: 0.5,
@@ -115,7 +115,7 @@ export async function ensureDbInitialized() {
           gameId: 'royal-roulette',
           title: 'Royal European Roulette',
           category: 'roulette',
-          provider: 'Vegas One Studio',
+          provider: 'Zorra Royals Studio',
           thumbnail: '/images/royal-roulette.webp',
           type: 'internal',
           minBetSC: 1.0,
@@ -133,7 +133,7 @@ export async function ensureDbInitialized() {
           gameId: 'vegas-blackjack',
           title: 'Blackjack High Roller',
           category: 'blackjack',
-          provider: 'Vegas One Studio',
+          provider: 'Zorra Royals Studio',
           thumbnail: '/images/vegas-blackjack.webp',
           type: 'internal',
           minBetSC: 1.0,
@@ -253,7 +253,7 @@ export async function ensureDbInitialized() {
           gameId: 'vegas-keno',
           title: 'Neon Keno Numbers',
           category: 'keno',
-          provider: 'Vegas One Studio',
+          provider: 'Zorra Royals Studio',
           thumbnail: '/images/vegas-keno.webp',
           type: 'internal',
           minBetSC: 0.5,
@@ -279,8 +279,8 @@ export async function ensureDbInitialized() {
           name: 'Cash App',
           tag: 'Instant',
           type: 'cashapp',
-          accountDetails: '$VegasOnePay',
-          instructions: 'Send payment with your Vegas One username as note. Take a screenshot of the confirmation screen.',
+          accountDetails: '$ZorraRoyalsPay',
+          instructions: 'Send payment with your Zorra Royals username as note. Take a screenshot of the confirmation screen.',
           minDeposit: 10.0,
           maxDeposit: 1500.0,
           isActive: true,
@@ -291,7 +291,7 @@ export async function ensureDbInitialized() {
           name: 'Zelle Pay',
           tag: 'Zero Fee',
           type: 'zelle',
-          accountDetails: 'pay@vegasone.games',
+          accountDetails: 'pay@zoraaroyal.com',
           instructions: 'Send payment via your bank app. Include your account email in memo.',
           minDeposit: 20.0,
           maxDeposit: 2500.0,
@@ -303,7 +303,7 @@ export async function ensureDbInitialized() {
           name: 'Venmo',
           tag: 'Popular',
           type: 'venmo',
-          accountDetails: '@VegasOneGames',
+          accountDetails: '@ZorraRoyals',
           instructions: 'Turn off "purchase protection" for instant crediting. Add username in note.',
           minDeposit: 10.0,
           maxDeposit: 1000.0,
@@ -315,7 +315,7 @@ export async function ensureDbInitialized() {
           name: 'USDT (TRC-20)',
           tag: 'Fast Crypto',
           type: 'crypto',
-          accountDetails: 'TJqV7R8W4nKm8VegasOneTRC20Address99X',
+          accountDetails: 'TJqV7R8W4nKm8ZorraRoyalsTRC20Address9X',
           instructions: 'Transfer USDT on Tron (TRC-20) network only. Submit TXID hash after transfer.',
           minDeposit: 20.0,
           maxDeposit: 10000.0,
@@ -327,7 +327,7 @@ export async function ensureDbInitialized() {
           name: 'Bitcoin (BTC)',
           tag: 'Crypto',
           type: 'crypto',
-          accountDetails: 'bc1qvegasonecasinopayments99999xxxx',
+          accountDetails: 'bc1qzorraroyalspayments999999xxxxx',
           instructions: 'Send exact BTC amount. Funds credit immediately upon 1 network confirmation.',
           minDeposit: 30.0,
           maxDeposit: 10000.0,
@@ -343,8 +343,8 @@ export async function ensureDbInitialized() {
     if (!settings) {
       await settingsCol.insertOne({
         key: 'general',
-        siteName: 'Vegas One',
-        domain: 'vegasone.games',
+        siteName: 'Zorra Royals',
+        domain: 'zoraaroyal.com',
         currencyRate: '1 USD = 1 SC',
         signupBonusSC: 5.0,
         signupBonusGC: 50000,
@@ -363,8 +363,8 @@ export async function ensureDbInitialized() {
     if (promoCount === 0) {
       await promosCol.insertMany([
         {
-          promoId: 'VEGAS140',
-          code: 'VEGAS140',
+          promoId: 'ROYAL140',
+          code: 'ROYAL140',
           title: '140% Welcome Boost',
           rewardSC: 10.0,
           rewardGC: 100000,
@@ -391,7 +391,7 @@ export async function ensureDbInitialized() {
       ]);
     }
 
-    console.log('✅ Vegas One database verified & initial records populated.');
+    console.log('✅ Zorra Royals database verified & initial records populated.');
     return true;
   } catch (error) {
     console.error('Init DB warning:', error.message);

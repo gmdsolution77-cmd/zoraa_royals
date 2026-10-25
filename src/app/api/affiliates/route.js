@@ -169,7 +169,7 @@ export async function GET(req) {
       success: true,
       stats: {
         referralCode: user.referralCode || user.username || '',
-        referralLink: `https://playersparadisehub.com/register?ref=${user.referralCode || user.username || ''}`,
+        referralLink: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://zoraaroyal.com'}/?ref=${user.referralCode || user.username || ''}`,
         commissionRate: user.affiliateRate || defaultReferralPercent,
         totalReferrals: referredUsers.length,
         activeDepositors: referredUsers.filter(u => (u.totalDeposited || 0) > 0).length,

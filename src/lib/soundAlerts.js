@@ -1,4 +1,4 @@
-// Web Audio API Sound Synthesizer for Vegas One Admin Notifications
+// Web Audio API Sound Synthesizer for Zorra Royals Admin Notifications
 // Zero external file dependencies - 100% reliable in all browsers
 
 let audioCtx = null;
@@ -29,7 +29,7 @@ export const AVAILABLE_TUNES = [
     id: 'jackpot',
     name: 'Casino Jackpot Fanfare',
     desc: 'Ascending high-energy victory arpeggio',
-    badge: 'Vegas',
+    badge: 'Royal',
     icon: '🎰',
   },
   {

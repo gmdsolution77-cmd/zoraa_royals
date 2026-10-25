@@ -58,7 +58,7 @@ export default function AffiliateManagementHub({
 
   const handleCopyCode = (code) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(`https://vegasone.games/ref/${code}`);
+      navigator.clipboard.writeText(`${window.location.origin}/?ref=${code}`);
       setCopiedCode(code);
       setTimeout(() => setCopiedCode(null), 2000);
     }

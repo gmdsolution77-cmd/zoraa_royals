@@ -1,4 +1,4 @@
-// USA Geo-compliance and State verification for Vegas One Sweepstakes
+// USA Geo-compliance and State verification for Zorra Royals Sweepstakes
 
 export const RESTRICTED_US_STATES = ['WA', 'ID', 'NV', 'MI'];
 
@@ -53,7 +53,7 @@ export function checkGeoAccess(req) {
       allowed: false,
       reason: 'NON_USA_IP',
       country,
-      message: 'Vegas One sweepstakes are strictly available to residents within the United States.',
+      message: 'Zorra Royals sweepstakes are strictly available to residents within the United States.',
     };
   }
 
