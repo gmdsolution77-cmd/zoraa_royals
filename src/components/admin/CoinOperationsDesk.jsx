@@ -36,8 +36,29 @@ export default function CoinOperationsDesk({ sessionUser }) {
   const [cashoutFilter, setCashoutFilter] = useState('all');
 
   // Modals State
-  const [approveLoadModal, setApproveLoadModal] = useState({ open: false, item: null, username: '', password: '' });
+  const [approveLoadModal, setApproveLoadModal] = useState({ open: false, item: null, username: '', password: '', transferAmount: '' });
   const [rejectLoadModal, setRejectLoadModal] = useState({ open: false, item: null, reason: '' });
+
+  // Generate clean credentials: all lowercase, no spaces, appended with 3-digit number, unique password
+  const generateCreds = (item) => {
+    if (!item) return { username: '', password: '' };
+    const rawIdentifier = item.userName || (item.userEmail ? item.userEmail.split('@')[0] : 'royal');
+    const cleanUser = String(rawIdentifier).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'royal';
+    const randSuf = Math.floor(100 + Math.random() * 900);
+    const username = item.gameAccountUsername
+      ? String(item.gameAccountUsername).toLowerCase().replace(/\s+/g, '')
+      : `${cleanUser}${randSuf}`;
+
+    const passPrefixes = ['Zr', 'Rz', 'Vip', 'Roy', 'Zor', 'Kng'];
+    const prefix = passPrefixes[Math.floor(Math.random() * passPrefixes.length)];
+    const randAlpha = Math.random().toString(36).substring(2, 5);
+    const randNum = Math.floor(1000 + Math.random() * 9000);
+    const password = item.gameAccountPassword && item.gameAccountPassword !== 'RoyalWin777!'
+      ? item.gameAccountPassword
+      : `${prefix}@${randAlpha}${randNum}`;
+
+    return { username, password };
+  };
   const [rejectCashoutModal, setRejectCashoutModal] = useState({ open: false, item: null, reason: '' });
   const [screenshotModal, setScreenshotModal] = useState({ open: false, src: null, title: '' });
 
@@ -146,6 +167,10 @@ export default function CoinOperationsDesk({ sessionUser }) {
     if (!approveLoadModal.item) return;
 
     try {
+      const finalAmount = approveLoadModal.transferAmount !== undefined && approveLoadModal.transferAmount !== ''
+        ? Number(approveLoadModal.transferAmount)
+        : Number(approveLoadModal.item.transferAmount || 0);
+
       const res = await fetch('/api/account-requests', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -153,14 +178,15 @@ export default function CoinOperationsDesk({ sessionUser }) {
           id: approveLoadModal.item.id,
           action: 'approve',
           username: approveLoadModal.username.trim() || approveLoadModal.item.userName,
-          password: approveLoadModal.password.trim() || 'RoyalWin777!',
+          password: approveLoadModal.password.trim(),
+          transferAmount: finalAmount,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
         showAlert('success', data.message || 'Game load approved and balance deducted!');
-        setApproveLoadModal({ open: false, item: null, username: '', password: '' });
+        setApproveLoadModal({ open: false, item: null, username: '', password: '', transferAmount: '' });
         fetchData();
       } else {
         showAlert('error', data.message || 'Failed to approve load.');
@@ -675,14 +701,16 @@ export default function CoinOperationsDesk({ sessionUser }) {
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            const { username, password } = generateCreds(item);
                             setApproveLoadModal({
                               open: true,
                               item,
-                              username: item.gameAccountUsername || item.userName || item.userEmail?.split('@')[0],
-                              password: item.gameAccountPassword || 'RoyalWin777!',
-                            })
-                          }
+                              username,
+                              password,
+                              transferAmount: Number(item.transferAmount || 0),
+                            });
+                          }}
                           className="py-2.5 px-3 rounded-xl text-[#07080b] font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
                           style={{
                             background: 'linear-gradient(135deg, #ffd700 0%, #00d0e8 40%, #d4af37 100%)',
@@ -821,14 +849,16 @@ export default function CoinOperationsDesk({ sessionUser }) {
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                               <button
                                 type="button"
-                                onClick={() =>
+                                onClick={() => {
+                                  const { username, password } = generateCreds(item);
                                   setApproveLoadModal({
                                     open: true,
                                     item,
-                                    username: item.gameAccountUsername || item.userName || item.userEmail?.split('@')[0],
-                                    password: item.gameAccountPassword || 'RoyalWin777!',
-                                  })
-                                }
+                                    username,
+                                    password,
+                                    transferAmount: Number(item.transferAmount || 0),
+                                  });
+                                }}
                                 style={{
                                   padding: '8px 16px',
                                   borderRadius: '10px',
@@ -1967,15 +1997,43 @@ export default function CoinOperationsDesk({ sessionUser }) {
                 <span className="text-gray-400">Game Platform:</span>
                 <strong className="text-[#ffd700]">{approveLoadModal.item?.gameTitle}</strong>
               </div>
-              <div className="flex justify-between pt-1 border-t border-white/10">
-                <span className="text-gray-300 font-bold">Transfer Deduct Amount:</span>
-                <strong className="text-[#ffd700] text-sm font-mono">
+              <div className="flex justify-between items-center pt-1 border-t border-white/10">
+                <span className="text-gray-300 font-bold text-xs">Requested Load Amount:</span>
+                <span className="text-gray-400 text-xs font-mono">
                   ${Number(approveLoadModal.item?.transferAmount || 0).toFixed(2)} SC
-                </strong>
+                </span>
               </div>
             </div>
 
             <form onSubmit={handleApproveLoadSubmit} className="space-y-4">
+              {/* Editable Coin Transfer Amount */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-300 mb-1 uppercase tracking-wider flex items-center justify-between">
+                  <span>Approved Coins / Transfer (SC)</span>
+                  <span className="text-[10px] text-amber-400 font-normal">✏️ Editable before approving</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-mono font-bold text-xs">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={approveLoadModal.transferAmount !== undefined ? approveLoadModal.transferAmount : Number(approveLoadModal.item?.transferAmount || 0)}
+                    onChange={(e) => setApproveLoadModal({ ...approveLoadModal, transferAmount: e.target.value })}
+                    required
+                    className="w-full rounded-xl pl-8 pr-3.5 py-2.5 text-[#ffd700] text-sm font-mono font-black outline-none transition-all"
+                    style={{
+                      backgroundColor: '#07080b',
+                      border: '1px solid rgba(212, 175, 55, 0.45)',
+                    }}
+                  />
+                </div>
+                {approveLoadModal.item?.transferAmount !== undefined && Number(approveLoadModal.item.transferAmount) !== Number(approveLoadModal.transferAmount) && (
+                  <p className="text-[10.5px] text-amber-300 mt-1">
+                    ⚡ Original: ${Number(approveLoadModal.item.transferAmount).toFixed(2)} SC ➔ Adjusted to ${Number(approveLoadModal.transferAmount || 0).toFixed(2)} SC
+                  </p>
+                )}
+              </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-300 mb-1 uppercase tracking-wider">
                   Game Account Username / ID

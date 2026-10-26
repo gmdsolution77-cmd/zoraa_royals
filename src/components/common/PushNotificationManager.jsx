@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Bell, X, ExternalLink, Sparkles, Crown } from 'lucide-react';
+import { Bell, X, ExternalLink, Sparkles, Crown, MessageSquare } from 'lucide-react';
 import { playTune, unlockAudioContext } from '@/lib/soundAlerts';
 
 export default function PushNotificationManager() {
@@ -259,13 +259,32 @@ export default function PushNotificationManager() {
   if (!activeToast || (pathname && pathname.startsWith('/admin'))) return null;
 
   const handleOpenAction = () => {
+    const toast = activeToast;
     setActiveToast(null);
-    if (activeToast?.url && activeToast.url !== '/') {
-      router.push(activeToast.url);
+    if (!toast) return;
+
+    if (toast.type === 'chat' || toast.action === 'chat') {
+      window.dispatchEvent(new CustomEvent('openRoyalChat'));
+      return;
+    }
+
+    if (toast.url && toast.url !== '/') {
+      router.push(toast.url);
     } else {
       window.dispatchEvent(new CustomEvent('zorra-open-notifications'));
     }
   };
+
+  const getActionLabel = () => {
+    if (activeToast?.actionText) return activeToast.actionText;
+    if (activeToast?.type === 'chat' || activeToast?.action === 'chat') return 'Open Chat';
+    if (activeToast?.type === 'account_request') return 'View Account';
+    if (activeToast?.type === 'deposit') return 'View Deposit';
+    if (activeToast?.type === 'bonus' || activeToast?.type === 'daily_claim') return 'Claim Bonus';
+    return 'View Details';
+  };
+
+  const isChatToast = activeToast?.type === 'chat' || activeToast?.action === 'chat';
 
   return (
     <div
@@ -278,7 +297,11 @@ export default function PushNotificationManager() {
       <div className="flex items-start gap-3">
         {/* Glowing Royal Icon */}
         <div className="relative shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37]/25 to-amber-600/20 border border-[#d4af37]/70 flex items-center justify-center text-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.5)]">
-          <Crown size={20} className="animate-bounce text-[#d4af37]" />
+          {isChatToast ? (
+            <MessageSquare size={19} className="animate-pulse text-[#ffd700]" />
+          ) : (
+            <Crown size={20} className="animate-bounce text-[#d4af37]" />
+          )}
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#d4af37] animate-ping" />
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#d4af37]" />
         </div>
@@ -287,7 +310,7 @@ export default function PushNotificationManager() {
         <div className="flex-1 min-w-0 pr-2">
           <div className="flex items-center gap-1.5 mb-0.5">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#d4af37] px-1.5 py-0.2 rounded bg-amber-950/60 border border-[#d4af37]/30">
-              ROYAL ALERT
+              {isChatToast ? 'SUPPORT ALERT' : 'ROYAL ALERT'}
             </span>
             <span className="text-[10px] text-zinc-400">Just now</span>
           </div>
@@ -306,7 +329,7 @@ export default function PushNotificationManager() {
               onClick={handleOpenAction}
               className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#d4af37] via-amber-400 to-[#b89728] text-black text-[11px] font-heading font-black hover:scale-102 active:scale-98 transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(212,175,55,0.5)]"
             >
-              <span>CLAIM / VIEW</span>
+              <span>{getActionLabel()}</span>
               <ExternalLink size={11} strokeWidth={3} />
             </button>
 

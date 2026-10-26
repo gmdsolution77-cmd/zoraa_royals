@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { MessageSquare } from 'lucide-react';
 import LiveChatModal from '@/components/support/LiveChatModal';
@@ -54,44 +54,128 @@ export default function GlobalLiveChatWidget() {
   }, []);
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const prevUnreadRef = useRef(0);
+  const isInitialChatCheck = useRef(true);
+
+  // Mark all player messages as read on the server
+  const markMessagesAsRead = async () => {
+    try {
+      setUnreadCount(0);
+      prevUnreadRef.current = 0;
+      await fetch('/api/chat?markRead=true', { cache: 'no-store' });
+    } catch {}
+  };
 
   // Poll for unread messages sent to the player
   useEffect(() => {
     if (!user) {
       setUnreadCount(0);
+      prevUnreadRef.current = 0;
       return;
     }
+
     const checkUnread = async () => {
       try {
+        // If chat is open, automatically mark messages as read on server
+        if (chatOpen) {
+          await markMessagesAsRead();
+          return;
+        }
+
         const res = await fetch('/api/chat', { cache: 'no-store' });
         const d = await res.json();
         if (d.success && Array.isArray(d.messages)) {
-          const unread = d.messages.filter(
-            m => m.read === false && (m.sender === 'support' || m.senderRole === 'staff')
-          ).length;
-          setUnreadCount(unread);
+          const unreadStaffMsgs = d.messages.filter(
+            (m) => m.read === false && (m.sender === 'support' || m.senderRole === 'staff')
+          );
+          const count = unreadStaffMsgs.length;
+
+          if (isInitialChatCheck.current) {
+            isInitialChatCheck.current = false;
+            prevUnreadRef.current = count;
+            setUnreadCount(count);
+            return;
+          }
+
+          // New staff reply arrived!
+          if (count > prevUnreadRef.current) {
+            const newest = unreadStaffMsgs[unreadStaffMsgs.length - 1];
+
+            // 1. Play chime audio bell
+            try {
+              const { playTune, unlockAudioContext } = await import('@/lib/soundAlerts');
+              unlockAudioContext();
+              playTune('message', 0.85);
+            } catch {}
+
+            // 2. Browser Desktop Notification
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+              if (Notification.permission === 'granted') {
+                try {
+                  const desktopNotif = new window.Notification('💬 VIP Concierge Support', {
+                    body: newest?.text || 'VIP Support Desk has replied to your inquiry.',
+                    icon: '/apple-touch-icon.png',
+                    tag: 'zorra-chat-' + Date.now(),
+                  });
+                  desktopNotif.onclick = () => {
+                    window.focus();
+                    setChatOpen(true);
+                    markMessagesAsRead();
+                    desktopNotif.close();
+                  };
+                } catch {}
+              } else if (Notification.permission === 'default') {
+                Notification.requestPermission().catch(() => {});
+              }
+            }
+
+            // 3. Top-right toast banner popup
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('zorra-show-notification', {
+                  detail: {
+                    type: 'chat',
+                    action: 'chat',
+                    title: '💬 VIP Concierge Reply',
+                    message: newest?.text || 'Support Desk has sent you an inquiry reply.',
+                    actionText: 'Open Chat',
+                  },
+                })
+              );
+            }
+          }
+
+          prevUnreadRef.current = count;
+          setUnreadCount(count);
         }
       } catch {}
     };
+
     checkUnread();
-    const interval = setInterval(checkUnread, 10000);
+    const interval = setInterval(checkUnread, 4000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, chatOpen]);
 
   // Do NOT render on Admin Portal or dedicated full-screen /chat page
   if (pathname && (pathname.startsWith('/admin') || pathname === '/chat')) {
     return null;
   }
 
+  const handleOpenClick = () => {
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+    setChatOpen(true);
+    markMessagesAsRead();
+  };
+
   return (
     <>
       {/* Floating 24/7 VIP Concierge Chat Button on bottom-right */}
       <button
         type="button"
-        onClick={() => {
-          setChatOpen(true);
-          setUnreadCount(0);
-        }}
+        onClick={handleOpenClick}
         className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 p-3.5 rounded-full bg-gradient-to-tr from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black shadow-[0_0_25px_rgba(212,175,55,0.7)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer group"
         title="24/7 VIP Concierge Support"
         aria-label="24/7 VIP Concierge Support"
@@ -108,7 +192,10 @@ export default function GlobalLiveChatWidget() {
       {/* Global Live Chat Modal */}
       <LiveChatModal
         isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
+        onClose={() => {
+          setChatOpen(false);
+          markMessagesAsRead();
+        }}
         user={user}
         onOpenAuth={() => setAuthModalOpen(true)}
       />

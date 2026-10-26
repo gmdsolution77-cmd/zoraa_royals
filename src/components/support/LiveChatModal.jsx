@@ -37,7 +37,7 @@ export default function LiveChatModal({
   const fetchChat = async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/chat');
+      const res = await fetch('/api/chat?markRead=true', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.messages) {
         setMessages(data.messages);

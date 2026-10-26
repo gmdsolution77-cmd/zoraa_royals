@@ -739,9 +739,15 @@ export default function AdminPortal({ initialTab }) {
 
   const handleOpenApproveModal = (req) => {
     const rawIdentifier = req.userName || (req.userEmail ? req.userEmail.split('@')[0] : 'royal');
-    const cleanUser = String(rawIdentifier).toLowerCase().replace(/[^a-z0-9]/g, '') || 'royal';
+    // Ensure all lowercase, strictly no spaces or special characters, 3-digit number attached
+    const cleanUser = String(rawIdentifier).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'royal';
     const randSuf = Math.floor(100 + Math.random() * 900);
-    const randPass = 'Royal' + Math.floor(1000 + Math.random() * 9000);
+    // Unique secure password generator: e.g. Zr@k7m2914
+    const passPrefixes = ['Zr', 'Rz', 'Vip', 'Roy', 'Zor', 'Kng'];
+    const prefix = passPrefixes[Math.floor(Math.random() * passPrefixes.length)];
+    const randAlpha = Math.random().toString(36).substring(2, 5);
+    const randNum = Math.floor(1000 + Math.random() * 9000);
+    const randPass = `${prefix}@${randAlpha}${randNum}`;
     setApprovalModal({
       open: true,
       request: req,
@@ -1076,22 +1082,23 @@ export default function AdminPortal({ initialTab }) {
           targetSubTab: 'cashouts',
         });
       }
-      // 4. Check for incoming new game account / load requests (Coins Allotment)
+      // 4. Check for incoming new game account / load requests
       else if (pendingReqs.length > (prevCountsRef.current.requests || 0)) {
         const newest = pendingReqs[0];
+        const isCoinLoad = Number(newest?.transferAmount || 0) > 0;
         playAdminChime();
         sendDesktopNotification(
-          '⚡ New Game Account / Load Request!',
-          `${newest?.gameTitle || 'Game'} request from ${newest?.userName || 'Player'}`,
-          '/admin?tab=coins_allotment'
+          isCoinLoad ? '🪙 New Game Coin Load Request!' : '🎮 New Game Account Request!',
+          `${newest?.gameTitle || 'Game'} request from ${newest?.userName || 'Player'}${isCoinLoad ? ` ($${newest.transferAmount} SC)` : ''}`,
+          isCoinLoad ? '/admin?tab=coins_allotment' : '/admin?tab=account_requests'
         );
         setActiveAlertToast({
-          type: 'account',
-          title: 'New Game Request!',
-          message: `${newest?.gameTitle || 'Game'} request from ${newest?.userName || 'Player'}`,
-          subtext: newest?.transferAmount > 0 ? `Load Amount: $${newest?.transferAmount} USD (Escrow Frozen)` : 'Ready to issue credentials',
-          targetTab: 'coins_allotment',
-          targetSubTab: 'loads',
+          type: isCoinLoad ? 'coin_verification' : 'account',
+          title: isCoinLoad ? '🪙 New Coin Load Request!' : '🎮 New Game Account Request!',
+          message: `${newest?.gameTitle || 'Game'} for ${newest?.userName || 'Player'}`,
+          subtext: isCoinLoad ? `Load Amount: $${newest?.transferAmount} SC (Escrow Frozen)` : 'Ready to issue credentials',
+          targetTab: isCoinLoad ? 'coins_allotment' : 'account_requests',
+          targetSubTab: isCoinLoad ? 'loads' : null,
         });
       }
 
@@ -1332,7 +1339,7 @@ export default function AdminPortal({ initialTab }) {
       id: 'account_requests',
       label: 'Account Requests',
       icon: Key,
-      badge: (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING').length,
+      badge: (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING' && Number(r.transferAmount || 0) <= 0).length,
       category: 'Operations',
     },
     {
@@ -1341,7 +1348,7 @@ export default function AdminPortal({ initialTab }) {
       icon: Coins,
       badge: (
         (redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification').length +
-        (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING').length
+        (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING' && Number(r.transferAmount || 0) > 0).length
       ),
       category: 'Operations',
     },
@@ -1546,6 +1553,7 @@ export default function AdminPortal({ initialTab }) {
                           type="button"
                           onClick={() => {
                             setActiveTab(tab.id);
+                            setActiveAlertToast(null);
                             setMobileSidebarOpen(false);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition text-left cursor-pointer ${
@@ -5720,6 +5728,7 @@ export default function AdminPortal({ initialTab }) {
             onViewRequest={(alert) => {
               if (alert.targetTab) setActiveTab(alert.targetTab);
               if (alert.targetSubTab) setFinanceSubTab(alert.targetSubTab);
+              setActiveAlertToast(null);
             }}
           />
 

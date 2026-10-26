@@ -197,51 +197,60 @@ export async function PUT(req) {
     const ledgerCol = db.collection('ledger');
     const cleanEmail = targetRequest.userEmail.toLowerCase().trim();
     const cleanTitle = targetRequest.gameTitle;
-    const transferAmount = Number(targetRequest.transferAmount || 0);
+    const originalFrozen = Number(targetRequest.transferAmount || 0);
+    const finalTransferAmount = body.transferAmount !== undefined && !isNaN(Number(body.transferAmount))
+      ? Math.max(0, Number(body.transferAmount))
+      : originalFrozen;
 
     if (action === 'approve') {
       const gameAccountsCol = db.collection('gameAccounts');
 
       // 1. Permanently deduct balance and clear frozen escrow
-      if (transferAmount > 0) {
-        const user = await usersCol.findOne({ email: cleanEmail });
-        if (user) {
-          const oldSC = Number(user.balanceSC || 0);
-          const newSC = Number(Math.max(0, oldSC - transferAmount).toFixed(2));
+      const user = await usersCol.findOne({ email: cleanEmail });
+      if (user) {
+        const oldSC = Number(user.balanceSC || 0);
+        const newSC = Number(Math.max(0, oldSC - finalTransferAmount).toFixed(2));
 
+        const userUpdate = {};
+        if (finalTransferAmount > 0) {
+          userUpdate.balanceSC = -finalTransferAmount;
+        }
+        if (originalFrozen > 0) {
+          userUpdate.frozenBalance = -originalFrozen;
+        }
+
+        if (Object.keys(userUpdate).length > 0) {
           await usersCol.updateOne(
             { _id: user._id },
-            {
-              $inc: {
-                balanceSC: -transferAmount,
-                frozenBalance: -transferAmount,
-              },
-            }
+            { $inc: userUpdate }
           );
+        }
 
+        if (finalTransferAmount > 0) {
           await ledgerCol.insertOne({
             userId: user._id.toString(),
             username: user.username,
             type: 'game_transfer',
             currency: 'SC',
-            amount: -transferAmount,
+            amount: -finalTransferAmount,
             balanceBefore: oldSC,
             balanceAfter: newSC,
             performedBy: session.username,
             staffRole: session.role,
             referenceId: targetRequest._id.toString(),
-            notes: `Game account coin load into ${cleanTitle} (Account ID: ${username || targetRequest.userName})`,
+            notes: `Game account coin load into ${cleanTitle} (Account ID: ${username || targetRequest.userName}${originalFrozen !== finalTransferAmount ? ` - Admin adjusted from $${originalFrozen} to $${finalTransferAmount}` : ''})`,
             createdAt: new Date(),
           });
         }
       }
 
-      // 2. Update request status to READY
+      // 2. Update request status to READY with final transfer amount
       await requestsCol.updateOne(
         { _id: targetRequest._id },
         {
           $set: {
             status: 'READY',
+            transferAmount: finalTransferAmount,
             gameAccountUsername: username,
             gameAccountPassword: password,
             approvedBy: session.username,
@@ -250,15 +259,21 @@ export async function PUT(req) {
         }
       );
 
-      // 3. Insert or update gameAccounts collection
+      const rawUser = username || cleanEmail.split('@')[0];
+      const cleanU = String(rawUser).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'royal';
+      const finalUsername = String(username || `${cleanU}${Math.floor(100 + Math.random() * 900)}`).toLowerCase().replace(/\s+/g, '');
+      const passPrefixes = ['Zr', 'Rz', 'Vip', 'Roy', 'Zor', 'Kng'];
+      const prefix = passPrefixes[Math.floor(Math.random() * passPrefixes.length)];
+      const finalPassword = password || `${prefix}@${Math.random().toString(36).substring(2, 5)}${Math.floor(1000 + Math.random() * 9000)}`;
+
       await gameAccountsCol.updateOne(
         { userEmail: cleanEmail, gameTitle: cleanTitle },
         {
           $set: {
             userEmail: cleanEmail,
             gameTitle: cleanTitle,
-            username: username || cleanEmail.split('@')[0],
-            password: password || 'RoyalWin777!',
+            username: finalUsername,
+            password: finalPassword,
             status: 'READY',
             updatedAt: new Date(),
           },

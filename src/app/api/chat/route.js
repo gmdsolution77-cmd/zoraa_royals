@@ -96,6 +96,7 @@ export async function GET(req) {
         { conversationId: conversationId },
         { userId: conversationId },
         { userEmail: conversationId },
+        { customerUserId: conversationId },
       ];
       if (/^[0-9a-fA-F]{24}$/.test(conversationId)) {
         try {
@@ -128,9 +129,44 @@ export async function GET(req) {
     }
 
     // 3. Player Viewing Own Messages
+    const shouldMarkRead = searchParams.get('markRead') === 'true' || searchParams.get('read') === 'true';
+    const playerOrList = [
+      { userId: session.id },
+      { userEmail: session.email },
+      { conversationId: session.id },
+    ];
+    if (session.id && /^[0-9a-fA-F]{24}$/.test(String(session.id))) {
+      try {
+        const { ObjectId } = require('mongodb');
+        playerOrList.push({ userId: new ObjectId(session.id) });
+        playerOrList.push({ conversationId: new ObjectId(session.id) });
+      } catch {}
+    }
+
+    if (shouldMarkRead) {
+      try {
+        await chatCol.updateMany(
+          {
+            $and: [
+              { $or: playerOrList },
+              {
+                $or: [
+                  { sender: { $in: ['support', 'staff'] } },
+                  { senderRole: 'staff' },
+                ],
+              },
+            ],
+          },
+          { $set: { read: true } }
+        );
+      } catch (err) {
+        console.error('Player mark read error:', err);
+      }
+    }
+
     const playerMessages = await chatCol
       .find({
-        $or: [{ userId: session.id }, { userEmail: session.email }, { conversationId: session.id }],
+        $or: playerOrList,
       })
       .sort({ createdAt: 1 })
       .toArray();
