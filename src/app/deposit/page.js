@@ -42,8 +42,10 @@ export default function DepositPage() {
 
   // Settings for Bonus System
   const [settings, setSettings] = useState({
-    welcomeBonusPercent: 300,
-    regularBonusPercent: 50,
+    welcomeBonusPercent: 100,
+    regularBonusPercent: 20,
+    minDeposit: 10,
+    maxDeposit: 10000,
   });
 
   // Deposit Form State
@@ -56,6 +58,7 @@ export default function DepositPage() {
   const [transactionId, setTransactionId] = useState('');
   const [proofImage, setProofImage] = useState('');
   const [proofFileName, setProofFileName] = useState('');
+  const [availableGames, setAvailableGames] = useState([]);
   const [selectedGame, setSelectedGame] = useState('Orion Stars');
   const [userGameAccounts, setUserGameAccounts] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -76,7 +79,7 @@ export default function DepositPage() {
     try {
       const [uRes, sRes] = await Promise.all([
         fetch('/api/auth/me', { cache: 'no-store' }),
-        fetch('/api/admin/settings', { cache: 'no-store' }),
+        fetch('/api/settings', { cache: 'no-store' }),
       ]);
       const [uData, sData] = await Promise.all([uRes.json(), sRes.json()]);
 
@@ -95,6 +98,8 @@ export default function DepositPage() {
         setSettings({
           welcomeBonusPercent: Number(sData.settings.welcomeBonusPercent ?? sData.settings.welcomeBonusPercentage ?? 100),
           regularBonusPercent: Number(sData.settings.regularBonusPercent ?? sData.settings.regularBonusPercentage ?? 20),
+          minDeposit: Number(sData.settings.minDeposit ?? 10),
+          maxDeposit: Number(sData.settings.maxDeposit ?? 10000),
         });
       }
     } catch (err) {
@@ -185,11 +190,29 @@ export default function DepositPage() {
     }
   };
 
+  // 5. Fetch all active games dynamically from database
+  const fetchGames = async () => {
+    try {
+      const res = await fetch('/api/games', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.games)) {
+        const active = data.games.filter(g => g.status === 'active' || g.isActive !== false);
+        setAvailableGames(active);
+        if (active.length > 0) {
+          setSelectedGame(prev => prev || active[0].title);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching games:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUserAndSettings();
     fetchGateways();
     fetchHistory();
     fetchGameAccounts();
+    fetchGames();
 
     // Zero-refresh live polling: updates pending deposits as soon as staff approves
     const pollInterval = setInterval(() => {
@@ -294,8 +317,9 @@ export default function DepositPage() {
 
   const handleSubmitDeposit = async (e) => {
     e.preventDefault();
-    if (!finalAmount || finalAmount < 5) {
-      setStatusMessage({ type: 'error', text: 'Minimum deposit is $5.00' });
+    const minRequired = selectedGateway?.minDeposit || settings.minDeposit || 5;
+    if (!finalAmount || finalAmount < minRequired) {
+      setStatusMessage({ type: 'error', text: `Minimum deposit for ${selectedGateway?.name || 'this gateway'} is $${minRequired}.00` });
       return;
     }
 
@@ -608,13 +632,19 @@ export default function DepositPage() {
                           {acc.gameTitle || acc.title} (ID: {acc.username})
                         </option>
                       ))
+                    ) : availableGames.length > 0 ? (
+                      availableGames.map((g, i) => (
+                        <option key={i} value={g.title} className="bg-slate-900 text-white">
+                          {g.title}
+                        </option>
+                      ))
                     ) : (
                       <>
                         <option value="Orion Stars" className="bg-slate-900 text-white">Orion Stars</option>
                         <option value="Ultra Panda" className="bg-slate-900 text-white">Ultra Panda</option>
                         <option value="Fire Kirin" className="bg-slate-900 text-white">Fire Kirin</option>
                         <option value="Game Vault" className="bg-slate-900 text-white">Game Vault</option>
-                        <option value="Juwa" className="bg-slate-900 text-white">Juwa 777</option>
+                        <option value="Juwa 777" className="bg-slate-900 text-white">Juwa 777</option>
                       </>
                     )}
                   </select>

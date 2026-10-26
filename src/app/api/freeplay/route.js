@@ -21,7 +21,7 @@ export async function GET(req) {
         canClaim: true,
         amount: configuredAmount,
         bonusAmount: configuredAmount,
-        title: '$5 One-Time Signup Freeplay',
+        title: `$${configuredAmount.toFixed(0)} One-Time Signup Freeplay`,
       });
     }
 
@@ -49,7 +49,9 @@ export async function GET(req) {
       amount: configuredAmount,
       bonusAmount: configuredAmount,
       signupBonusClaimed: claimed,
-      title: '$5 One-Time Signup Freeplay',
+      title: `$${configuredAmount.toFixed(0)} One-Time Signup Freeplay`,
+      welcomeBonusPercent: Number(settingsDoc?.welcomeBonusPercent || settingsDoc?.welcomeBonusPercentage || 300),
+      welcomeBonusPercentage: Number(settingsDoc?.welcomeBonusPercent || settingsDoc?.welcomeBonusPercentage || 300),
       claimedAt: user.freeplayClaimedAt || null,
       message: canClaim
         ? `Claim your complimentary $${configuredAmount.toFixed(2)} signup freeplay now!`
@@ -77,6 +79,7 @@ export async function POST(req) {
     const configuredAmount = Number(
       settingsDoc?.freeplayAmountSC ?? settingsDoc?.signupBonusAmount ?? 5.0
     );
+    const matchBonusPct = Number(settingsDoc?.welcomeBonusPercent || settingsDoc?.welcomeBonusPercentage || 300);
 
     const usersCol = db.collection('users');
     let user = null;
@@ -99,8 +102,8 @@ export async function POST(req) {
       return NextResponse.json({
         success: false,
         alreadyClaimed: true,
-        error: 'You have already claimed your Freeplay bonus! Make a deposit to receive up to 300% match bonuses.',
-        message: 'You have already claimed your Freeplay bonus! Make a deposit to receive up to 300% match bonuses.',
+        error: `You have already claimed your Freeplay bonus! Make a deposit to receive up to ${matchBonusPct}% match bonuses.`,
+        message: `You have already claimed your Freeplay bonus! Make a deposit to receive up to ${matchBonusPct}% match bonuses.`,
       });
     }
 

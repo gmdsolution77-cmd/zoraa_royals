@@ -115,9 +115,22 @@ export async function POST(req) {
         }
       }
 
+      // Read dynamic daily bonus rewards from system settings
+      const sysSettings = await db.collection('system_settings').findOne({ key: 'general' });
+      const dailyRewards = Array.isArray(sysSettings?.dailyRewards) && sysSettings.dailyRewards.length === 7
+        ? sysSettings.dailyRewards.map(Number)
+        : [
+            Number(sysSettings?.dailyRewardDay1 ?? 1.0),
+            Number(sysSettings?.dailyRewardDay2 ?? 1.5),
+            Number(sysSettings?.dailyRewardDay3 ?? 2.0),
+            Number(sysSettings?.dailyRewardDay4 ?? 2.5),
+            Number(sysSettings?.dailyRewardDay5 ?? 3.0),
+            Number(sysSettings?.dailyRewardDay6 ?? 4.0),
+            Number(sysSettings?.dailyRewardDay7 ?? 5.0),
+          ];
+
       const streak = ((user.dailyStreak || 0) % 7) + 1;
-      const dailyRewards = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0];
-      const rewardUSD = dailyRewards[streak - 1];
+      const rewardUSD = Number(dailyRewards[streak - 1] || 1.0);
 
       const oldBal = user.balance || user.balanceSC || 0;
       const newBal = Number((oldBal + rewardUSD).toFixed(2));

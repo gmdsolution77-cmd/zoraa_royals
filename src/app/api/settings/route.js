@@ -36,7 +36,19 @@ export async function GET() {
         referralBonusPercentage: refPct,
         referralBonusTitle: settings?.referralBonusTitle || 'FRIEND REFERRAL BONUS',
         referralBonusSubtitle: settings?.referralBonusSubtitle || 'Earn instant bonus directly in your wallet when your friends join and make their first deposit!',
-        signupBonusAmount: settings?.signupBonusAmount !== undefined ? settings.signupBonusAmount : 3.0,
+        freeplayAmountSC: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0),
+        signupBonusAmount: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0),
+        dailyRewards: Array.isArray(settings?.dailyRewards) && settings.dailyRewards.length === 7
+          ? settings.dailyRewards.map(Number)
+          : [
+              Number(settings?.dailyRewardDay1 ?? 1.0),
+              Number(settings?.dailyRewardDay2 ?? 1.5),
+              Number(settings?.dailyRewardDay3 ?? 2.0),
+              Number(settings?.dailyRewardDay4 ?? 2.5),
+              Number(settings?.dailyRewardDay5 ?? 3.0),
+              Number(settings?.dailyRewardDay6 ?? 4.0),
+              Number(settings?.dailyRewardDay7 ?? 5.0),
+            ],
         minDeposit: Number(settings?.minDeposit || 10.0),
         maxDeposit: Number(settings?.maxDeposit || 10000.0),
         minWithdrawal: minCashout,

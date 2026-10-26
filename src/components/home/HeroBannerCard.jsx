@@ -4,9 +4,9 @@ import React from 'react';
 import Image from 'next/image';
 import { Crown, Gift, Key, Sparkles, Zap, ShieldCheck, Star } from 'lucide-react';
 
-export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, hasDeposited }) {
+export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, hasDeposited, freeplayAmountSC = 5, gamesCount = 11 }) {
   if (currentSlide === 1) {
-    // Slide 1: $3 Complimentary Freeplay Card
+    // Slide 1: Complimentary Freeplay Card
     return (
       <div className="relative w-full max-w-md aspect-[4/3] rounded-3xl overflow-hidden border-2 border-emerald-500/40 bg-gradient-to-br from-[#0a1813] via-[#08120e] to-[#040907] shadow-[0_15px_50px_rgba(16,185,129,0.35)] p-5 flex flex-col justify-between group transition-all duration-500">
         {/* Glow ambient */}
@@ -41,7 +41,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
             </div>
 
             <div className="text-4xl sm:text-5xl font-black font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-[#ffd700] to-emerald-200 drop-shadow-[0_2px_12px_rgba(212,175,55,0.5)] my-1">
-              $5.00 USD
+              ${Number(freeplayAmountSC || 5).toFixed(2)} USD
             </div>
 
             <p className="text-[11px] text-gray-300 font-medium">
@@ -58,7 +58,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
 
         {/* Bottom Bar */}
         <div className="relative z-10 flex items-center justify-between pt-2 border-t border-emerald-500/20 text-[11px]">
-          <span className="text-gray-400 font-medium">All 11 Platforms Eligible</span>
+          <span className="text-gray-400 font-medium">All {gamesCount || 11} Platforms Eligible</span>
           <span className="text-emerald-400 font-bold flex items-center gap-1">
             <Zap className="w-3.5 h-3.5" /> Instant Delivery
           </span>
@@ -68,7 +68,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
   }
 
   if (currentSlide === 2) {
-    // Slide 2: 10+ Sweepstakes Platforms Showcase Card
+    // Slide 2: Sweepstakes Platforms Showcase Card
     return (
       <div className="relative w-full max-w-md aspect-[4/3] rounded-3xl overflow-hidden border-2 border-purple-500/40 bg-gradient-to-br from-[#120a1f] via-[#0d0718] to-[#080410] shadow-[0_15px_50px_rgba(168,85,247,0.35)] p-5 flex flex-col justify-between group transition-all duration-500">
         {/* Glow ambient */}
@@ -86,7 +86,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
             </span>
           </div>
           <span className="px-3 py-1 rounded-full bg-black/60 border border-purple-500/40 text-purple-300 text-[10px] font-mono font-bold tracking-wider uppercase">
-            11 Networks
+            {gamesCount || 11} Networks
           </span>
         </div>
 

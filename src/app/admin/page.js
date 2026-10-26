@@ -381,17 +381,35 @@ export default function AdminPortal({ initialTab }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          welcomeBonusPercent: Number(sysSettings?.welcomeBonusPercent ?? 100),
+          welcomeBonusPercent: Number(sysSettings?.welcomeBonusPercent ?? 300),
           welcomeBonusMax: Number(sysSettings?.welcomeBonusMax ?? 5000),
           welcomeBonusTitle: sysSettings?.welcomeBonusTitle || 'WELCOME BONUS',
-          welcomeBonusSubtitle: sysSettings?.welcomeBonusSubtitle || 'Claim a 100% royal match on your first deposit! Fast credits & prompt payouts.',
-          regularBonusPercent: Number(sysSettings?.regularBonusPercent ?? 20),
+          welcomeBonusSubtitle: sysSettings?.welcomeBonusSubtitle || 'Claim a royal match on your first deposit! Fast credits & prompt payouts.',
+          regularBonusPercent: Number(sysSettings?.regularBonusPercent ?? 50),
           regularBonusMax: Number(sysSettings?.regularBonusMax ?? 2000),
           regularBonusTitle: sysSettings?.regularBonusTitle || 'REGULAR RELOAD BONUS',
-          regularBonusSubtitle: sysSettings?.regularBonusSubtitle || 'Enjoy a 20% bonus on every reload! Boost your palace treasury anytime.',
+          regularBonusSubtitle: sysSettings?.regularBonusSubtitle || 'Enjoy bonus on every reload! Boost your palace treasury anytime.',
           referralBonusPercent: Number(sysSettings?.referralBonusPercent ?? 50),
           referralBonusTitle: sysSettings?.referralBonusTitle || 'FRIEND REFERRAL BONUS',
           referralBonusSubtitle: sysSettings?.referralBonusSubtitle || 'Earn instant % bonus directly into your wallet when friends join and complete their first deposit!',
+          freeplayAmountSC: Number(sysSettings?.freeplayAmountSC ?? sysSettings?.signupBonusAmount ?? 5.0),
+          signupBonusAmount: Number(sysSettings?.freeplayAmountSC ?? sysSettings?.signupBonusAmount ?? 5.0),
+          dailyRewardDay1: Number(sysSettings?.dailyRewardDay1 ?? 1.0),
+          dailyRewardDay2: Number(sysSettings?.dailyRewardDay2 ?? 1.5),
+          dailyRewardDay3: Number(sysSettings?.dailyRewardDay3 ?? 2.0),
+          dailyRewardDay4: Number(sysSettings?.dailyRewardDay4 ?? 2.5),
+          dailyRewardDay5: Number(sysSettings?.dailyRewardDay5 ?? 3.0),
+          dailyRewardDay6: Number(sysSettings?.dailyRewardDay6 ?? 4.0),
+          dailyRewardDay7: Number(sysSettings?.dailyRewardDay7 ?? 5.0),
+          dailyRewards: [
+            Number(sysSettings?.dailyRewardDay1 ?? 1.0),
+            Number(sysSettings?.dailyRewardDay2 ?? 1.5),
+            Number(sysSettings?.dailyRewardDay3 ?? 2.0),
+            Number(sysSettings?.dailyRewardDay4 ?? 2.5),
+            Number(sysSettings?.dailyRewardDay5 ?? 3.0),
+            Number(sysSettings?.dailyRewardDay6 ?? 4.0),
+            Number(sysSettings?.dailyRewardDay7 ?? 5.0),
+          ],
           minCashoutThreshold: Number(sysSettings?.minCashoutThreshold ?? sysSettings?.minWithdrawal ?? 50),
           minWithdrawal: Number(sysSettings?.minCashoutThreshold ?? sysSettings?.minWithdrawal ?? 50),
           geoRestrictionEnabled: Boolean(sysSettings?.geoRestrictionEnabled),
@@ -4863,7 +4881,7 @@ export default function AdminPortal({ initialTab }) {
                             <input
                               type="number"
                               min="0"
-                              max="100"
+                              max="1000"
                               value={sysSettings?.referralBonusPercent ?? 50}
                               onChange={(e) => setSysSettings(prev => ({ ...prev, referralBonusPercent: e.target.value }))}
                               className="w-full rounded-xl px-3.5 py-2 text-emerald-300 font-mono font-black text-sm pr-8 bg-[#10141e] border border-emerald-500/30 outline-none focus:border-emerald-400"
@@ -4914,6 +4932,119 @@ export default function AdminPortal({ initialTab }) {
                           <span className="text-emerald-400">✓ Instant In-App Player Notification</span>
                           <span className="text-emerald-400">✓ Automated Ledger Audit Entry</span>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Complimentary Signup Freeplay Credit */}
+                    <div className="bg-[#07080b] border border-amber-500/35 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl relative overflow-hidden">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-amber-400 uppercase tracking-wider font-serif">
+                            4. Signup Freeplay Credit
+                          </span>
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-black uppercase tracking-wider">
+                            New Players
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                            Freeplay Starter Amount ($ USD)
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2 text-xs font-bold text-amber-400">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              max="1000"
+                              value={sysSettings?.freeplayAmountSC ?? sysSettings?.signupBonusAmount ?? 5.0}
+                              onChange={(e) => setSysSettings(prev => ({
+                                ...prev,
+                                freeplayAmountSC: e.target.value,
+                                signupBonusAmount: e.target.value,
+                              }))}
+                              className="w-full rounded-xl pl-8 pr-3.5 py-2 text-amber-300 font-mono font-black text-sm bg-[#10141e] border border-amber-500/30 outline-none focus:border-amber-400"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-gray-400 leading-relaxed">
+                          Instant complimentary credit awarded to newly registered players when they click "Claim Freeplay" on the homepage or promo banner. Credited directly to player wallet and Sweepstakes balance.
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-white/10 space-y-1.5">
+                        <div className="rounded-xl p-3 text-[11px] bg-[#10141e] border border-amber-500/30 text-amber-300 space-y-1">
+                          <span className="font-bold block text-white">Active Value:</span>
+                          <span>
+                            Each eligible new player receives <strong>${Number(sysSettings?.freeplayAmountSC ?? sysSettings?.signupBonusAmount ?? 5).toFixed(2)} USD</strong> playable balance without deposit.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. 7-Day Daily Login Streak Rewards */}
+                    <div className="bg-[#07080b] border border-cyan-500/35 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl relative overflow-hidden lg:col-span-2">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-cyan-400 uppercase tracking-wider font-serif">
+                            5. 7-Day Login Streak Rewards (Daily Bonus)
+                          </span>
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-black uppercase tracking-wider">
+                            Daily Claims
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-gray-300">
+                          Configure the exact dollar reward credited for each day of consecutive player logins. Day 7 is the grand streak bonus!
+                        </p>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+                          {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                            const defaultVals = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0];
+                            const fieldKey = `dailyRewardDay${day}`;
+                            const currentVal = sysSettings?.[fieldKey] ?? (Array.isArray(sysSettings?.dailyRewards) ? sysSettings.dailyRewards[day - 1] : defaultVals[day - 1]);
+                            return (
+                              <div key={day} className="bg-[#10141e] border border-cyan-500/20 rounded-xl p-3 text-center">
+                                <span className="text-[10px] font-black text-cyan-300 uppercase tracking-wider block mb-1">
+                                  Day {day} {day === 7 ? '👑' : ''}
+                                </span>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1.5 text-[11px] font-bold text-cyan-400">$</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.25"
+                                    value={currentVal ?? defaultVals[day - 1]}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setSysSettings(prev => ({
+                                        ...prev,
+                                        [fieldKey]: val,
+                                      }));
+                                    }}
+                                    className="w-full pl-5 pr-2 py-1 text-xs font-mono font-black text-cyan-200 bg-black/40 border border-white/10 rounded-lg text-center outline-none focus:border-cyan-400"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/10 text-[11px] text-gray-400 flex items-center justify-between">
+                        <span>Total 7-Day Cycle Value: <strong>${(
+                          Number(sysSettings?.dailyRewardDay1 ?? 1.0) +
+                          Number(sysSettings?.dailyRewardDay2 ?? 1.5) +
+                          Number(sysSettings?.dailyRewardDay3 ?? 2.0) +
+                          Number(sysSettings?.dailyRewardDay4 ?? 2.5) +
+                          Number(sysSettings?.dailyRewardDay5 ?? 3.0) +
+                          Number(sysSettings?.dailyRewardDay6 ?? 4.0) +
+                          Number(sysSettings?.dailyRewardDay7 ?? 5.0)
+                        ).toFixed(2)} USD</strong></span>
+                        <span className="text-cyan-400 font-semibold">Updates live across player dashboard &amp; claiming system</span>
                       </div>
                     </div>
                   </div>

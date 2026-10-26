@@ -171,6 +171,7 @@ export async function GET(req) {
         referralCode: user.referralCode || user.username || '',
         referralLink: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://zoraaroyal.com'}/?ref=${user.referralCode || user.username || ''}`,
         commissionRate: user.affiliateRate || defaultReferralPercent,
+        referralBonusPercent: Number(sysSettings?.referralBonusPercent ?? defaultReferralPercent),
         totalReferrals: referredUsers.length,
         activeDepositors: referredUsers.filter(u => (u.totalDeposited || 0) > 0).length,
         commissionsEarned: Number(user.affiliateCommissionsEarned || 0),

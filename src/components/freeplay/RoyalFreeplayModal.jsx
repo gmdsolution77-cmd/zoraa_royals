@@ -165,7 +165,7 @@ export default function RoyalFreeplayModal({
                 onClick={onClose}
                 className="w-full btn-gold py-3.5 text-sm font-black shadow-lg flex items-center justify-center gap-2"
               >
-                <span>Deposit & Get +300% Match Bonus</span>
+                <span>Deposit & Get +{data?.welcomeBonusPercent || data?.welcomeBonusPercentage || 300}% Match Bonus</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

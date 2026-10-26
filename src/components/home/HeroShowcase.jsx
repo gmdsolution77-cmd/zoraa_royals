@@ -33,6 +33,7 @@ export default function HeroShowcase({
   const [jackpot, setJackpot] = useState(1842954.29);
   const [claimingFreeplay, setClaimingFreeplay] = useState(false);
   const [freeplayFeedback, setFreeplayFeedback] = useState(null);
+  const [gamesCount, setGamesCount] = useState(11);
   const [settings, setSettings] = useState({
     welcomeBonusPercentage: 300,
     regularBonusPercentage: 50,
@@ -58,7 +59,7 @@ export default function HeroShowcase({
       if (data.success) {
         setFreeplayFeedback({
           type: 'success',
-          message: data.message || `🎉 Successfully claimed $${data.amount || 5} Freeplay bonus!`,
+          message: data.message || `🎉 Successfully claimed $${data.amount || settings.freeplayAmountSC || 5} Freeplay bonus!`,
         });
         confetti({
           particleCount: 90,
@@ -81,13 +82,23 @@ export default function HeroShowcase({
     }
   };
 
-  // Fetch dynamic settings
+  // Fetch dynamic settings and active games count
   useEffect(() => {
     fetch('/api/settings')
       .then(r => r.json())
       .then(d => {
         if (d.success && d.settings) {
           setSettings(d.settings);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/games')
+      .then(r => r.json())
+      .then(d => {
+        const list = Array.isArray(d) ? d : (d.games || []);
+        if (list.length > 0) {
+          setGamesCount(list.length);
         }
       })
       .catch(() => {});
@@ -101,9 +112,12 @@ export default function HeroShowcase({
     return () => clearInterval(interval);
   }, []);
 
-  const welcomePct = settings.welcomeBonusPercentage || 100;
-  const regularPct = settings.regularBonusPercentage || 20;
+  const welcomePct = settings.welcomeBonusPercentage ?? 300;
+  const regularPct = settings.regularBonusPercentage ?? 50;
+  const refPct = settings.referralBonusPercentage ?? 50;
+  const freeplaySC = settings.freeplayAmountSC ?? settings.signupBonusAmount ?? 5.0;
   const hasDeposited = Boolean(user?.firstDepositMade);
+
   const slides = [
     hasDeposited ? {
       id: 0,
@@ -121,9 +135,9 @@ export default function HeroShowcase({
       id: 0,
       badge: '👑 1ST DEPOSIT WELCOME BONUS',
       title: `${welcomePct}% FIRST DEPOSIT BONUS`,
-      subtitle: `300% MATCH + $5 COMPLIMENTARY SIGNUP FREEPLAY`,
+      subtitle: `${welcomePct}% MATCH + $${freeplaySC} COMPLIMENTARY SIGNUP FREEPLAY`,
       desc: `Deposit via Cash App, Zelle or Crypto and get an instant +${welcomePct}% match bonus added directly to your dollar balance!`,
-      ctaText: user ? 'Deposit & Triple Balance' : 'Claim $5 Freeplay & Join',
+      ctaText: user ? 'Deposit & Triple Balance' : `Claim $${freeplaySC} Freeplay & Join`,
       ctaHref: user ? '/deposit' : null,
       ctaAction: user ? () => {} : () => onOpenAuth('register'),
       secondaryText: 'Lucky Spin Wheel',
@@ -133,21 +147,21 @@ export default function HeroShowcase({
     },
     {
       id: 1,
-      badge: '🎁 $5 SIGNUP FREEPLAY',
-      title: '$5 FREEPLAY BONUS',
+      badge: `🎁 $${freeplaySC} SIGNUP FREEPLAY`,
+      title: `$${freeplaySC} FREEPLAY BONUS`,
       subtitle: 'COMPLIMENTARY CREDIT FOR NEW PLAYERS • NO DEPOSIT',
-      desc: 'Test any of our 11 sweepstakes platforms completely free! Claim your $5.00 instant starter credit and start playing.',
-      ctaText: (user?.freeplayClaimed || user?.signupBonusClaimed) ? 'Play Sweepstakes' : 'Claim $5 Freeplay',
+      desc: `Test any of our ${gamesCount} sweepstakes platforms completely free! Claim your $${Number(freeplaySC).toFixed(2)} instant starter credit and start playing.`,
+      ctaText: (user?.freeplayClaimed || user?.signupBonusClaimed) ? 'Play Sweepstakes' : `Claim $${freeplaySC} Freeplay`,
       ctaAction: handleGetFreeplay,
       secondaryText: 'Deposit & Get Bonus',
       secondaryHref: '/deposit',
-      imageBadge: '$5 COMPLIMENTARY',
+      imageBadge: `$${freeplaySC} COMPLIMENTARY`,
       glowColor: '#10b981',
     },
     {
       id: 2,
       badge: '🔑 24/7 GAME CREDENTIALS',
-      title: '11 SWEEPSTAKES PLATFORMS',
+      title: `${gamesCount} SWEEPSTAKES PLATFORMS`,
       subtitle: 'ORION STARS • FIRE KIRIN • JUWA • GAME VAULT • ULTRA PANDA',
       desc: 'One single wallet for all platforms. Fast credentials generation and direct credit loading with 24/7 VIP assistance.',
       ctaText: 'View My Game IDs',
@@ -159,15 +173,15 @@ export default function HeroShowcase({
     },
     {
       id: 3,
-      badge: '🤝 50% FRIEND REFERRAL BONUS',
-      title: `${settings.referralBonusPercentage || 50}% REFERRAL BONUS`,
+      badge: `🤝 ${refPct}% FRIEND REFERRAL BONUS`,
+      title: `${refPct}% REFERRAL BONUS`,
       subtitle: 'INVITE FRIENDS • INSTANT BONUS CREDITED DIRECTLY TO WALLET',
-      desc: `Share your personal invite link. When friends make their first deposit, you instantly receive ${settings.referralBonusPercentage || 50}% bonus credited directly to your playable balance!`,
+      desc: `Share your personal invite link. When friends make their first deposit, you instantly receive ${refPct}% bonus credited directly to your playable balance!`,
       ctaText: 'Invite Friends Now',
       ctaAction: user ? onOpenReferral : () => onOpenAuth('register'),
       secondaryText: 'Deposit Funds',
       secondaryHref: '/deposit',
-      imageBadge: '50% COMMISSION',
+      imageBadge: `${refPct}% COMMISSION`,
       glowColor: '#3b82f6',
     },
   ];
@@ -257,7 +271,7 @@ export default function HeroShowcase({
                 ) : (
                   <>
                     <Gift className="w-4 h-4 text-black stroke-[2.5]" />
-                    <span>GET $5.00 FREEPLAY</span>
+                    <span>GET ${Number(freeplaySC).toFixed(2)} FREEPLAY</span>
                   </>
                 )}
               </button>
@@ -307,6 +321,8 @@ export default function HeroShowcase({
             welcomePct={welcomePct}
             regularPct={regularPct}
             hasDeposited={hasDeposited}
+            freeplayAmountSC={freeplaySC}
+            gamesCount={gamesCount}
           />
         </div>
       </div>
