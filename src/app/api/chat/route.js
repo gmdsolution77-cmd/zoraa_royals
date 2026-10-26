@@ -226,6 +226,23 @@ export async function POST(req) {
 
     const result = await chatCol.insertOne(messageDoc);
 
+    if (isExplicitStaff) {
+      try {
+        await chatCol.updateMany(
+          {
+            $or: [
+              { conversationId: resolvedConvId },
+              { userId: resolvedConvId },
+              { customerUserId: resolvedConvId },
+            ],
+            sender: { $nin: ['support', 'staff'] },
+            senderRole: { $ne: 'staff' },
+          },
+          { $set: { read: true } }
+        );
+      } catch {}
+    }
+
     // Auto-bot assistant reply for first user message
     if (!isExplicitStaff) {
       const messageCount = await chatCol.countDocuments({

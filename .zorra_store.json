@@ -285,6 +285,39 @@
   ],
   "chat_messages": [
     {
+      "_id": "6adf762898adbc835d323e51",
+      "conversationId": "6addee5228a8f0e4dae1f138",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "username": "Nabil Ahmad",
+      "customerUserId": "6addee5228a8f0e4dae1f138",
+      "customerUsername": "Nabil Ahmad",
+      "sender": "player",
+      "senderRole": "player",
+      "agentName": null,
+      "text": "hi",
+      "imageUrl": null,
+      "read": false,
+      "createdAt": "2026-10-26T15:47:52.874Z"
+    },
+    {
+      "_id": "6adf761c61a1b36d314f2596",
+      "conversationId": "6addee5228a8f0e4dae1f138",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "userEmail": "Nabil Ahmad",
+      "username": "VIP Concierge",
+      "customerUserId": "6addee5228a8f0e4dae1f138",
+      "customerUsername": "Nabil Ahmad",
+      "sender": "support",
+      "senderRole": "staff",
+      "agentName": "RoyalAdmin",
+      "text": "hi",
+      "imageUrl": null,
+      "read": true,
+      "createdAt": "2026-10-26T15:47:40.080Z",
+      "updatedAt": "2026-10-26T18:05:43.623Z"
+    },
+    {
       "_id": "6addef8db7b748da08de599c",
       "conversationId": "6addee5228a8f0e4dae1f138",
       "userId": "6addee5228a8f0e4dae1f138",
@@ -297,8 +330,9 @@
       "agentName": "RoyalAdmin",
       "text": "yes",
       "imageUrl": null,
-      "read": false,
-      "createdAt": "2026-10-25T12:01:17.175Z"
+      "read": true,
+      "createdAt": "2026-10-25T12:01:17.175Z",
+      "updatedAt": "2026-10-26T18:05:43.623Z"
     },
     {
       "_id": "6addef7cbc78f886fc6bf83a",

@@ -947,11 +947,13 @@ export default function AdminPortal({ initialTab }) {
     // Immediately clear unread counter in client state
     setChatConversations(prev =>
       prev.map(item =>
-        item._id === c._id ? { ...item, unreadCount: 0, unreadStaff: false } : item
+        item._id === c._id || (c.userId && item.userId === c.userId)
+          ? { ...item, unreadCount: 0, unreadStaff: false }
+          : item
       )
     );
     try {
-      const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(c._id)}`);
+      const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(c._id)}&markRead=true`);
       const d = await res.json();
       if (d.success && Array.isArray(d.messages)) {
         safeSetSortedMessages(d.messages);
@@ -1154,7 +1156,17 @@ export default function AdminPortal({ initialTab }) {
         fetch('/api/payments/deposit?status=all').then(r => r.json()).then(d => { if (d.success) setDeposits(d.deposits || []); });
         fetch('/api/payments/withdraw?status=all').then(r => r.json()).then(d => { if (d.success) setRedemptions(d.redemptions || []); });
       } else if (activeTab === 'chat') {
-        fetch('/api/chat?inbox=true').then(r => r.json()).then(d => { if (d.success) setChatConversations(d.conversations || []); });
+        fetch('/api/chat?inbox=true').then(r => r.json()).then(d => {
+          if (d.success) {
+            const mapped = (d.conversations || []).map(item => {
+              if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
+                return { ...item, unreadCount: 0, unreadStaff: false };
+              }
+              return item;
+            });
+            setChatConversations(mapped);
+          }
+        });
       } else if (activeTab === 'kyc') {
         fetch('/api/kyc?status=all').then(r => r.json()).then(d => { if (d.success) setKycRequests(d.requests || []); });
       } else if (activeTab === 'promos') {
@@ -3108,9 +3120,19 @@ export default function AdminPortal({ initialTab }) {
                     <button
                       type="button"
                       onClick={() => {
-                        fetch('/api/chat?inbox=true').then(r => r.json()).then(d => { if (d.success) setChatConversations(d.conversations); });
+                        fetch('/api/chat?inbox=true').then(r => r.json()).then(d => {
+                          if (d.success) {
+                            const mapped = (d.conversations || []).map(item => {
+                              if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
+                                return { ...item, unreadCount: 0, unreadStaff: false };
+                              }
+                              return item;
+                            });
+                            setChatConversations(mapped);
+                          }
+                        });
                         if (activeChatConv) {
-                          fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`).then(r => r.json()).then(d => { if (d.success) safeSetSortedMessages(d.messages); });
+                          fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}&markRead=true`).then(r => r.json()).then(d => { if (d.success) safeSetSortedMessages(d.messages); });
                         }
                       }}
                       className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white flex items-center gap-1.5 text-xs font-bold transition"
@@ -3349,11 +3371,11 @@ export default function AdminPortal({ initialTab }) {
                               </p>
                             </div>
                           ) : (
-                            chatMessages.map((m) => {
+                            chatMessages.map((m, idx) => {
                               const isStaff = m.senderRole === 'staff';
                               return (
                                 <div
-                                  key={m.id}
+                                  key={m._id || m.id || `msg-${idx}`}
                                   className={`flex flex-col ${isStaff ? 'items-end' : 'items-start'}`}
                                 >
                                   <div className={`flex items-start gap-2 max-w-[85%] sm:max-w-[75%] ${isStaff ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -3361,7 +3383,7 @@ export default function AdminPortal({ initialTab }) {
                                     <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-black uppercase mt-1 border shadow-sm">
                                       {isStaff ? (
                                         <div className="w-full h-full rounded-lg bg-gradient-to-tr from-cyan-400 to-cyan-600 text-black flex items-center justify-center font-black">
-                                          V1
+                                          ZR
                                         </div>
                                       ) : (
                                         <div className="w-full h-full rounded-lg bg-gradient-to-tr from-purple-600/50 to-pink-600/40 text-purple-200 border-white/20 flex items-center justify-center font-black">

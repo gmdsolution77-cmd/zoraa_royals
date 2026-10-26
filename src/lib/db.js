@@ -191,6 +191,36 @@ class FallbackCollection {
     return { matchedCount: 1, modifiedCount: 1 };
   }
 
+  async updateMany(query, update, options = {}) {
+    const items = this._getItems();
+    const matches = items.filter(item => this._matches(item, query));
+    let modifiedCount = 0;
+
+    for (const item of matches) {
+      if (update.$set) {
+        Object.assign(item, update.$set);
+      }
+      if (update.$inc) {
+        for (const [k, v] of Object.entries(update.$inc)) {
+          item[k] = (item[k] || 0) + v;
+        }
+      }
+      if (update.$push) {
+        for (const [k, v] of Object.entries(update.$push)) {
+          if (!Array.isArray(item[k])) item[k] = [];
+          item[k].push(v);
+        }
+      }
+      item.updatedAt = new Date();
+      modifiedCount++;
+    }
+
+    if (modifiedCount > 0) {
+      this.saveStore();
+    }
+    return { matchedCount: matches.length, modifiedCount };
+  }
+
   async deleteOne(query) {
     const items = this._getItems();
     const idx = items.findIndex(item => this._matches(item, query));
@@ -200,6 +230,18 @@ class FallbackCollection {
       return { deletedCount: 1 };
     }
     return { deletedCount: 0 };
+  }
+
+  async deleteMany(query) {
+    const items = this._getItems();
+    const initialLen = items.length;
+    const remaining = items.filter(item => !this._matches(item, query));
+    const deletedCount = initialLen - remaining.length;
+    if (deletedCount > 0) {
+      this.getStore()[this.name] = remaining;
+      this.saveStore();
+    }
+    return { deletedCount };
   }
 
   _matches(item, query) {
