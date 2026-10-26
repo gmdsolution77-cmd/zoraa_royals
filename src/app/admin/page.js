@@ -3045,6 +3045,7 @@ export default function AdminPortal({ initialTab }) {
 
               setIsSendingChat(true);
               const optimisticMsg = {
+                _id: `temp_${Date.now()}`,
                 id: `temp_${Date.now()}`,
                 conversationId: activeChatConv._id,
                 userId: activeChatConv.userId,
@@ -3058,6 +3059,7 @@ export default function AdminPortal({ initialTab }) {
               setChatMessages(prev => [...prev, optimisticMsg]);
               setChatReplyText('');
               setChatAttachedImage(null);
+              setTimeout(() => scrollToBottom(true), 40);
 
               try {
                 await fetch('/api/chat', {
@@ -3072,16 +3074,25 @@ export default function AdminPortal({ initialTab }) {
                     isStaffReply: true,
                   }),
                 });
-                const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`);
+                const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}&markRead=true`);
                 const d = await res.json();
-                if (d.success) safeSetSortedMessages(d.messages);
+                if (d.success && Array.isArray(d.messages)) safeSetSortedMessages(d.messages);
                 const cRes = await fetch('/api/chat?inbox=true');
                 const cD = await cRes.json();
-                if (cD.success) setChatConversations(cD.conversations);
+                if (cD.success) {
+                  const mapped = (cD.conversations || []).map(item => {
+                    if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
+                      return { ...item, unreadCount: 0, unreadStaff: false };
+                    }
+                    return item;
+                  });
+                  setChatConversations(mapped);
+                }
               } catch (err) {
                 console.error('Failed to send chat message:', err);
               } finally {
                 setIsSendingChat(false);
+                setTimeout(() => scrollToBottom(true), 60);
               }
             };
 
@@ -3334,7 +3345,7 @@ export default function AdminPortal({ initialTab }) {
                             <button
                               type="button"
                               onClick={() => {
-                                fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`).then(r => r.json()).then(d => { if (d.success) safeSetSortedMessages(d.messages); });
+                                fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}&markRead=true`).then(r => r.json()).then(d => { if (d.success) safeSetSortedMessages(d.messages); });
                               }}
                               className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition"
                               title="Refresh Chat"
