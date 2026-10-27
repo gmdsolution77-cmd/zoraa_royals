@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, ROLES } from '@/lib/auth';
+import { notifyPlayer } from '@/lib/notify';
 
 // GET Account Requests
 export async function GET(req) {
@@ -45,6 +46,10 @@ export async function GET(req) {
       password: r.gameAccountPassword || '',
       transferAmount: Number(r.transferAmount || 0),
       source: r.source || 'player_request',
+      freeplayPending: Boolean(r.freeplayPending),
+      freeplayAmount: Number(r.freeplayAmount || 0),
+      freeplayScreenshot: r.freeplayScreenshot || r.screenshot || '',
+      freeplayTaskId: r.freeplayTaskId || '',
       initialDepositAmount: r.initialDepositAmount || null,
       depositId: r.depositId || null,
       notes: r.notes || '',
@@ -282,20 +287,93 @@ export async function PUT(req) {
         { upsert: true }
       );
 
+      // 4. Handle Freeplay Attached Tasks
+      if (targetRequest.freeplayPending) {
+        const fpAmount = Number(targetRequest.freeplayAmount || 5.0);
+        await usersCol.updateOne(
+          { email: cleanEmail },
+          {
+            $set: {
+              freeplayClaimed: true,
+              signupBonusClaimed: true,
+              freeplayClaimedAt: new Date(),
+            },
+          }
+        );
+
+        // Update freeplay_tasks collection
+        await db.collection('freeplay_tasks').updateOne(
+          {
+            $or: [
+              { taskId: targetRequest.freeplayTaskId },
+              { email: cleanEmail, status: 'pending' },
+            ],
+          },
+          {
+            $set: {
+              status: 'approved',
+              approvedBy: session.username,
+              approvedAt: new Date(),
+            },
+          }
+        ).catch(() => {});
+
+        // Log to ledger
+        await ledgerCol.insertOne({
+          userEmail: cleanEmail,
+          username: targetRequest.userName || cleanEmail.split('@')[0],
+          type: 'freeplay_bonus_approved',
+          currency: 'USD',
+          amount: fpAmount,
+          description: `🎁 $${fpAmount.toFixed(2)} Freeplay Verification Task approved for ${cleanTitle}`,
+          status: 'completed',
+          performedBy: session.username,
+          createdAt: new Date(),
+        }).catch(() => {});
+
+        notifyPlayer({
+          userEmail: cleanEmail,
+          title: `Freeplay Approved: ${cleanTitle}! 🎁`,
+          message: `Your $${fpAmount.toFixed(2)} Freeplay task for ${cleanTitle} was approved! Game ID: ${finalUsername}`,
+          type: 'account_ready',
+          data: { gameTitle: cleanTitle },
+        });
+      } else if (finalTransferAmount > 0) {
+        notifyPlayer({
+          userEmail: cleanEmail,
+          title: `Game Loaded: ${cleanTitle}! ⚡`,
+          message: `$${finalTransferAmount.toFixed(2)} SC loaded into your ${cleanTitle} account! Good luck!`,
+          type: 'coin_load_approved',
+          data: { gameTitle: cleanTitle, amount: String(finalTransferAmount) },
+        });
+      } else {
+        notifyPlayer({
+          userEmail: cleanEmail,
+          title: `Game ID Ready: ${cleanTitle}! 🎮`,
+          message: `Your ${cleanTitle} credentials have been issued! Username: ${finalUsername}`,
+          type: 'account_ready',
+          data: { gameTitle: cleanTitle },
+        });
+      }
+
       return NextResponse.json({
         success: true,
-        message: `Coin load for ${cleanTitle} approved! $${transferAmount.toFixed(2)} SC deducted from player balance.`,
+        message: targetRequest.freeplayPending
+          ? `Freeplay task approved & credentials issued for ${cleanTitle}!`
+          : finalTransferAmount > 0
+          ? `Coin load for ${cleanTitle} approved! $${finalTransferAmount.toFixed(2)} SC deducted from player balance.`
+          : `Credentials for ${cleanTitle} issued successfully!`,
       });
     } else if (action === 'cancel' || action === 'reject') {
       const reason = body.reason || body.rejectionReason || 'Staff desk rejected request or platform currently unavailable.';
 
-      // Unfreeze player's coins so they return to available balance
-      if (transferAmount > 0) {
+      // Unfreeze player's coins if transfer load was frozen
+      if (originalFrozen > 0) {
         const user = await usersCol.findOne({ email: cleanEmail });
         if (user) {
           await usersCol.updateOne(
             { _id: user._id },
-            { $inc: { frozenBalance: -transferAmount } }
+            { $inc: { frozenBalance: -originalFrozen } }
           );
 
           await ledgerCol.insertOne({
@@ -303,16 +381,36 @@ export async function PUT(req) {
             username: user.username,
             type: 'game_load_unfreeze',
             currency: 'SC',
-            amount: transferAmount,
+            amount: originalFrozen,
             balanceBefore: user.balanceSC,
             balanceAfter: user.balanceSC,
             performedBy: session.username,
             staffRole: session.role,
             referenceId: targetRequest._id.toString(),
-            notes: `Game coin load rejected ($${transferAmount} SC unfrozen & returned): ${reason}`,
+            notes: `Game coin load rejected ($${originalFrozen} SC unfrozen & returned): ${reason}`,
             createdAt: new Date(),
           });
         }
+      }
+
+      // If this was a freeplay task, update freeplay_tasks collection
+      if (targetRequest.freeplayPending) {
+        await db.collection('freeplay_tasks').updateOne(
+          {
+            $or: [
+              { taskId: targetRequest.freeplayTaskId },
+              { email: cleanEmail, status: 'pending' },
+            ],
+          },
+          {
+            $set: {
+              status: 'rejected',
+              rejectionReason: reason,
+              rejectedBy: session.username,
+              rejectedAt: new Date(),
+            },
+          }
+        ).catch(() => {});
       }
 
       await requestsCol.updateOne(
@@ -327,9 +425,19 @@ export async function PUT(req) {
         }
       );
 
+      notifyPlayer({
+        userEmail: cleanEmail,
+        title: `${cleanTitle} Request Update ⚠️`,
+        message: targetRequest.freeplayPending
+          ? `Your Freeplay verification task for ${cleanTitle} was not approved: ${reason}`
+          : `Your request for ${cleanTitle} was rejected: ${reason}`,
+        type: 'account_rejected',
+        data: { gameTitle: cleanTitle },
+      });
+
       return NextResponse.json({
         success: true,
-        message: 'Request rejected. Coins unfrozen and reason note logged for player.',
+        message: 'Request rejected and notification logged for player.',
       });
     }
 

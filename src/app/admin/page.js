@@ -124,12 +124,19 @@ export default function AdminPortal({ initialTab }) {
       const savedEnabled = localStorage.getItem('zorra_admin_alert_enabled');
       if (savedEnabled !== null) setAudioAlertsEnabled(savedEnabled !== 'false');
 
-      // Request Chrome desktop notification permission on user interaction
+      // Request Chrome desktop notification permission and unlock Web Audio context on user interaction
       const promptPerm = () => {
+        unlockAudioContext();
         requestDesktopNotificationPermission().catch(() => {});
       };
-      window.addEventListener('click', promptPerm, { once: true });
-      return () => window.removeEventListener('click', promptPerm);
+      window.addEventListener('click', promptPerm, { passive: true });
+      window.addEventListener('pointerdown', promptPerm, { passive: true });
+      window.addEventListener('keydown', promptPerm, { passive: true });
+      return () => {
+        window.removeEventListener('click', promptPerm);
+        window.removeEventListener('pointerdown', promptPerm);
+        window.removeEventListener('keydown', promptPerm);
+      };
     }
   }, []);
 
@@ -269,10 +276,17 @@ export default function AdminPortal({ initialTab }) {
   const chatMessagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const activeChatConvRef = useRef(null);
+  const activeTabRef = useRef(activeTab);
+  const lastActiveMsgKeyRef = useRef(null);
+  const prevConvUnreadMapRef = useRef(new Map());
 
   useEffect(() => {
     activeChatConvRef.current = activeChatConv;
   }, [activeChatConv]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   const scrollToBottom = (smooth = true) => {
     if (chatContainerRef.current) {
@@ -385,15 +399,19 @@ export default function AdminPortal({ initialTab }) {
           welcomeBonusMax: Number(sysSettings?.welcomeBonusMax ?? 5000),
           welcomeBonusTitle: sysSettings?.welcomeBonusTitle || 'WELCOME BONUS',
           welcomeBonusSubtitle: sysSettings?.welcomeBonusSubtitle || 'Claim a royal match on your first deposit! Fast credits & prompt payouts.',
+          welcomeBonusActive: sysSettings?.welcomeBonusActive !== false,
           regularBonusPercent: Number(sysSettings?.regularBonusPercent ?? 50),
           regularBonusMax: Number(sysSettings?.regularBonusMax ?? 2000),
           regularBonusTitle: sysSettings?.regularBonusTitle || 'REGULAR RELOAD BONUS',
           regularBonusSubtitle: sysSettings?.regularBonusSubtitle || 'Enjoy bonus on every reload! Boost your palace treasury anytime.',
+          regularBonusActive: sysSettings?.regularBonusActive !== false,
           referralBonusPercent: Number(sysSettings?.referralBonusPercent ?? 50),
           referralBonusTitle: sysSettings?.referralBonusTitle || 'FRIEND REFERRAL BONUS',
           referralBonusSubtitle: sysSettings?.referralBonusSubtitle || 'Earn instant % bonus directly into your wallet when friends join and complete their first deposit!',
+          referralBonusActive: sysSettings?.referralBonusActive !== false,
           freeplayAmountSC: Number(sysSettings?.freeplayAmountSC ?? sysSettings?.signupBonusAmount ?? 5.0),
           signupBonusAmount: Number(sysSettings?.freeplayAmountSC ?? sysSettings?.signupBonusAmount ?? 5.0),
+          freeplayActive: sysSettings?.freeplayActive !== false,
           dailyRewardDay1: Number(sysSettings?.dailyRewardDay1 ?? 1.0),
           dailyRewardDay2: Number(sysSettings?.dailyRewardDay2 ?? 1.5),
           dailyRewardDay3: Number(sysSettings?.dailyRewardDay3 ?? 2.0),
@@ -1008,12 +1026,34 @@ export default function AdminPortal({ initialTab }) {
       const pendingCoinCashouts = (withData.redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification');
       
       const unreadConvs = (chatData.conversations || []).filter(c => {
-        if (activeChatConvRef.current && (c._id === activeChatConvRef.current._id || c.userId === activeChatConvRef.current.userId)) {
+        // Only ignore if admin is actively on the chat tab with this conversation open
+        if (activeTabRef.current === 'chat' && activeChatConvRef.current && (c._id === activeChatConvRef.current._id || c.userId === activeChatConvRef.current.userId)) {
           return false;
         }
         return Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0));
       });
       const unreadChatTotal = unreadConvs.reduce((acc, c) => acc + (c.unreadCount || 1), 0);
+
+      // Check if any conversation has new unread messages
+      let hasNewChatAlert = false;
+      let newestChatAlert = null;
+
+      for (const c of unreadConvs) {
+        const prevCount = prevConvUnreadMapRef.current.get(c._id) || 0;
+        const currentCount = c.unreadCount || (c.unreadStaff ? 1 : 0);
+        if (currentCount > prevCount) {
+          hasNewChatAlert = true;
+          newestChatAlert = c;
+          break;
+        }
+      }
+
+      // Snapshot conversation unread counts for next poll cycle
+      const nextUnreadMap = new Map();
+      for (const c of unreadConvs) {
+        nextUnreadMap.set(c._id, c.unreadCount || (c.unreadStaff ? 1 : 0));
+      }
+      prevConvUnreadMapRef.current = nextUnreadMap;
 
       const totalPending = pendingDeps.length + pendingWith.length + pendingReqs.length + pendingCoinCashouts.length + unreadChatTotal;
       updateFaviconBadge(totalPending);
@@ -1031,21 +1071,20 @@ export default function AdminPortal({ initialTab }) {
       }
 
       // 0. Check for incoming new live chat messages
-      if (unreadChatTotal > (prevCountsRef.current.chat || 0)) {
-        const newestChat = unreadConvs[0];
+      if (hasNewChatAlert && newestChatAlert) {
         playAdminChime();
         sendDesktopNotification(
           '💬 New Live Chat Support Message!',
-          `${newestChat?.username || 'VIP Patron'}: ${newestChat?.lastMessage || 'Sent a new message'}`,
+          `${newestChatAlert?.username || 'VIP Patron'}: ${newestChatAlert?.lastMessage || 'Sent a new message'}`,
           '/admin?tab=chat'
         );
         setActiveAlertToast({
           type: 'chat',
           title: '💬 New Live Chat Message!',
-          message: `${newestChat?.username || 'VIP Patron'} needs assistance`,
-          subtext: newestChat?.lastMessage || 'Active inquiry received',
+          message: `${newestChatAlert?.username || 'VIP Patron'} needs assistance`,
+          subtext: newestChatAlert?.lastMessage || 'Active inquiry received',
           targetTab: 'chat',
-          targetConv: newestChat,
+          targetConv: newestChatAlert,
         });
       }
       // 1. Check for incoming new deposits (Finance)
@@ -1204,10 +1243,26 @@ export default function AdminPortal({ initialTab }) {
   // Load chat messages when active conversation selected
   useEffect(() => {
     if (!activeChatConv) return;
+    lastActiveMsgKeyRef.current = null; // reset for newly selected conversation
+
     const fetchChatMsgs = () => {
       fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`)
         .then(r => r.json())
-        .then(d => { if (d.success) safeSetSortedMessages(d.messages); });
+        .then(d => {
+          if (d.success && Array.isArray(d.messages)) {
+            // Detect new incoming player messages in this open thread
+            const playerMsgs = d.messages.filter(m => m.sender === 'player' || m.senderRole === 'player' || m.sender === 'user');
+            const latestPlayerMsg = playerMsgs[playerMsgs.length - 1];
+            if (latestPlayerMsg) {
+              const msgKey = String(latestPlayerMsg._id || `${latestPlayerMsg.createdAt}_${latestPlayerMsg.text}`);
+              if (lastActiveMsgKeyRef.current && lastActiveMsgKeyRef.current !== msgKey) {
+                playAdminChime();
+              }
+              lastActiveMsgKeyRef.current = msgKey;
+            }
+            safeSetSortedMessages(d.messages);
+          }
+        });
     };
     fetchChatMsgs();
     const interval = setInterval(fetchChatMsgs, 3000);
@@ -4971,13 +5026,22 @@ export default function AdminPortal({ initialTab }) {
                     {/* 4. Complimentary Signup Freeplay Credit */}
                     <div className="bg-[#07080b] border border-amber-500/35 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl relative overflow-hidden">
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-black text-amber-400 uppercase tracking-wider font-serif">
-                            4. Signup Freeplay Credit
+                            4. Signup Freeplay Credit ($ SC)
                           </span>
-                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-black uppercase tracking-wider">
-                            New Players
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSysSettings(prev => ({ ...prev, freeplayActive: prev?.freeplayActive === false ? true : false }))}
+                            className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase whitespace-nowrap border cursor-pointer transition ${
+                              sysSettings?.freeplayActive !== false
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                : 'bg-red-500/20 border-red-500/40 text-red-300 line-through'
+                            }`}
+                            title="Toggle active or disable freeplay button"
+                          >
+                            {sysSettings?.freeplayActive !== false ? '● ACTIVE' : '✕ OFF / HIDDEN'}
+                          </button>
                         </div>
 
                         <div>

@@ -33,14 +33,53 @@ export default function LiveChatModal({
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const containerRef = useRef(null);
+  const messagesScrollRef = useRef(null);
+
+  const scrollToBottom = (smooth = true) => {
+    if (messagesScrollRef.current) {
+      try {
+        messagesScrollRef.current.scrollTo({
+          top: messagesScrollRef.current.scrollHeight + 1000,
+          behavior: smooth ? 'smooth' : 'auto',
+        });
+      } catch {
+        messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight;
+      }
+    }
+    endRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  };
+
+  const safeSetSortedMessages = (incoming) => {
+    if (!Array.isArray(incoming)) return;
+    setMessages((prev) => {
+      const map = new Map();
+      for (const m of incoming) {
+        const key = m._id || `${m.createdAt}_${m.text}_${m.sender}`;
+        map.set(key, m);
+      }
+      for (const p of prev) {
+        if (p.optimistic) {
+          const key = p._id || `${p.createdAt}_${p.text}_${p.sender}`;
+          if (!map.has(key)) {
+            map.set(key, p);
+          }
+        }
+      }
+      return Array.from(map.values()).sort((a, b) => {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tA - tB;
+      });
+    });
+  };
 
   const fetchChat = async () => {
     if (!user) return;
     try {
       const res = await fetch('/api/chat?markRead=true', { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && data.messages) {
-        setMessages(data.messages);
+      if (data.success && Array.isArray(data.messages)) {
+        safeSetSortedMessages(data.messages);
       }
     } catch {}
   };
@@ -54,8 +93,12 @@ export default function LiveChatModal({
   }, [isOpen, user]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isOpen]);
+    if (isOpen) {
+      scrollToBottom(false);
+      const timer = setTimeout(() => scrollToBottom(true), 120);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, isOpen]);
 
   // Handle mobile visualViewport resize when virtual keyboard opens
   useEffect(() => {
@@ -158,15 +201,18 @@ export default function LiveChatModal({
     setAttachedImage(null);
     setLoading(true);
 
-    // Optimistic UI append
+    // Optimistic UI append at the very bottom
     const optimisticMsg = {
+      _id: 'temp_' + Date.now(),
       sender: 'player',
+      senderRole: 'player',
       text: outgoing,
       imageUrl: imagePayload,
       createdAt: new Date().toISOString(),
       optimistic: true,
     };
-    setMessages((prev) => [...prev, optimisticMsg]);
+    safeSetSortedMessages([...messages, optimisticMsg]);
+    setTimeout(() => scrollToBottom(false), 20);
 
     try {
       const res = await fetch('/api/chat', {
@@ -174,6 +220,7 @@ export default function LiveChatModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: outgoing,
+          message: outgoing,
           imageUrl: imagePayload,
         }),
       });
@@ -184,15 +231,13 @@ export default function LiveChatModal({
     } catch {
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        endRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 50);
+      setTimeout(() => scrollToBottom(true), 80);
     }
   };
 
   const handleFocus = () => {
     setTimeout(() => {
-      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom(true);
     }, 250);
   };
 
@@ -255,7 +300,10 @@ export default function LiveChatModal({
         </div>
 
         {/* WhatsApp Wallpaper Texture / Chat Messages Container */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#06070b] relative text-xs">
+        <div
+          ref={messagesScrollRef}
+          className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#06070b] relative text-xs"
+        >
           {/* Subtle watermark */}
           <div className="absolute inset-0 bg-[radial-gradient(#d4af37_1px,transparent_1px)] [background-size:24px_24px] opacity-5 pointer-events-none" />
 

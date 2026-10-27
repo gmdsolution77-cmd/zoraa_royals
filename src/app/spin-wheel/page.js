@@ -113,10 +113,16 @@ export default function SpinWheelPage() {
       setSpinning(true);
       setLoading(false);
 
-      const targetIndex = data.sliceIndex;
+      const targetIndex = Number(data.sliceIndex);
       const targetSliceCenter = targetIndex * sliceAngle + sliceAngle / 2;
+      const desiredAngle = (360 - (targetSliceCenter % 360)) % 360;
+      const currentAngle = ((rotationDegree % 360) + 360) % 360;
+      let delta = desiredAngle - currentAngle;
+      if (delta <= 0) {
+        delta += 360;
+      }
       const baseRevolutions = 5 * 360; // 5 full rotations for drama
-      const finalDegree = rotationDegree + baseRevolutions + (360 - (targetSliceCenter % 360));
+      const finalDegree = rotationDegree + baseRevolutions + delta;
 
       setRotationDegree(finalDegree);
 

@@ -2,26 +2,29 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { notifyStaff } from '@/lib/notify';
 
-// GET - Check Freeplay eligibility and claim status
+// GET - Check Freeplay eligibility, configured amount, active toggle and pending task status
 export async function GET(req) {
   try {
     await initDb();
     const db = await getDb();
     const settingsDoc = await db.collection('system_settings').findOne({ key: 'general' });
-    const configuredAmount = Number(
-      settingsDoc?.freeplayAmountSC ?? settingsDoc?.signupBonusAmount ?? 5.0
-    );
+    const configuredAmount = settingsDoc?.freeplayAmountSC !== undefined 
+      ? Number(settingsDoc.freeplayAmountSC) 
+      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 5.0);
+    const freeplayActive = settingsDoc?.freeplayActive !== false;
 
     const session = await getSessionUser();
     if (!session) {
       return NextResponse.json({
         success: true,
         claimed: false,
-        canClaim: true,
+        canClaim: freeplayActive,
         amount: configuredAmount,
         bonusAmount: configuredAmount,
-        title: `$${configuredAmount.toFixed(0)} One-Time Signup Freeplay`,
+        freeplayActive,
+        pending: false,
       });
     }
 
@@ -35,51 +38,70 @@ export async function GET(req) {
       user = await usersCol.findOne({ email: session.email.toLowerCase().trim() });
     }
 
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-    }
+    const claimed = Boolean(user?.freeplayClaimed || user?.signupBonusClaimed);
 
-    const claimed = Boolean(user.freeplayClaimed || user.signupBonusClaimed);
-    const canClaim = !claimed;
+    // Check if there is an active pending freeplay task
+    const pendingTask = await db.collection('freeplay_tasks').findOne({
+      $or: [
+        { userId: user?._id ? user._id.toString() : '' },
+        { email: user?.email ? user.email.toLowerCase().trim() : '' },
+      ],
+      status: 'pending',
+    });
 
     return NextResponse.json({
       success: true,
       claimed,
-      canClaim,
+      canClaim: !claimed && freeplayActive && !pendingTask,
       amount: configuredAmount,
       bonusAmount: configuredAmount,
       signupBonusClaimed: claimed,
-      title: `$${configuredAmount.toFixed(0)} One-Time Signup Freeplay`,
-      welcomeBonusPercent: Number(settingsDoc?.welcomeBonusPercent || settingsDoc?.welcomeBonusPercentage || 300),
-      welcomeBonusPercentage: Number(settingsDoc?.welcomeBonusPercent || settingsDoc?.welcomeBonusPercentage || 300),
-      claimedAt: user.freeplayClaimedAt || null,
-      message: canClaim
-        ? `Claim your complimentary $${configuredAmount.toFixed(2)} signup freeplay now!`
-        : `You have already claimed your $${configuredAmount.toFixed(2)} signup freeplay bonus.`,
+      freeplayActive,
+      pending: Boolean(pendingTask),
+      pendingTask: pendingTask ? {
+        taskId: pendingTask.taskId,
+        gameTitle: pendingTask.gameTitle,
+        createdAt: pendingTask.createdAt,
+      } : null,
+      claimedAt: user?.freeplayClaimedAt || null,
+      message: claimed
+        ? `You have already claimed your $${configuredAmount.toFixed(2)} signup freeplay bonus.`
+        : pendingTask
+        ? `Your Freeplay verification task (#${pendingTask.taskId}) is under staff review.`
+        : `Claim your complimentary $${configuredAmount.toFixed(2)} signup freeplay now!`,
     });
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
-// POST - Claim Freeplay Bonus
+// POST - Submit Freeplay Verification Task
 export async function POST(req) {
   try {
     await initDb();
     const session = await getSessionUser();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: 'Please sign in to claim your Freeplay bonus.' },
+        { success: false, message: 'Please sign in to complete your Freeplay verification task.' },
         { status: 401 }
       );
     }
 
+    const body = await req.json().catch(() => ({}));
+    const { gameTitle, taskId, screenshot } = body;
+
     const db = await getDb();
     const settingsDoc = await db.collection('system_settings').findOne({ key: 'general' });
-    const configuredAmount = Number(
-      settingsDoc?.freeplayAmountSC ?? settingsDoc?.signupBonusAmount ?? 5.0
-    );
-    const matchBonusPct = Number(settingsDoc?.welcomeBonusPercent || settingsDoc?.welcomeBonusPercentage || 300);
+    if (settingsDoc?.freeplayActive === false) {
+      return NextResponse.json(
+        { success: false, message: 'Freeplay promotions are currently paused or inactive.' },
+        { status: 400 }
+      );
+    }
+
+    const configuredAmount = settingsDoc?.freeplayAmountSC !== undefined 
+      ? Number(settingsDoc.freeplayAmountSC) 
+      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 5.0);
 
     const usersCol = db.collection('users');
     let user = null;
@@ -93,7 +115,7 @@ export async function POST(req) {
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'User not found. Please log in again.' },
+        { success: false, message: 'User not found. Please log in again.' },
         { status: 404 }
       );
     }
@@ -102,67 +124,94 @@ export async function POST(req) {
       return NextResponse.json({
         success: false,
         alreadyClaimed: true,
-        error: `You have already claimed your Freeplay bonus! Make a deposit to receive up to ${matchBonusPct}% match bonuses.`,
-        message: `You have already claimed your Freeplay bonus! Make a deposit to receive up to ${matchBonusPct}% match bonuses.`,
+        message: 'You have already claimed your Freeplay bonus! Make a deposit to receive reload bonuses.',
       });
     }
 
-    const awardSC = configuredAmount;
-    const oldBalance = Number(user.balanceSC ?? user.balance ?? 0);
-    const newBalance = Number((oldBalance + awardSC).toFixed(2));
-    const now = new Date();
+    // Require game selection and screenshot proof
+    if (!gameTitle || !String(gameTitle).trim()) {
+      return NextResponse.json(
+        { success: false, message: 'Please select a casino game platform for your freeplay credits.' },
+        { status: 400 }
+      );
+    }
 
-    await usersCol.updateOne(
-      { _id: user._id },
-      {
-        $inc: {
-          balance: awardSC,
-          balanceSC: awardSC,
-        },
-        $set: {
-          freeplayClaimed: true,
-          signupBonusClaimed: true,
-          freeplayClaimedAt: now,
-        },
-      }
-    );
+    if (!screenshot || !String(screenshot).trim()) {
+      return NextResponse.json(
+        { success: false, message: 'Please upload your Inbox screenshot proof before submitting.' },
+        { status: 400 }
+      );
+    }
 
-    // Record in ledger
-    const ledgerCol = db.collection('ledger');
-    await ledgerCol.insertOne({
-      userId: user._id.toString(),
-      userEmail: user.email,
-      username: user.username,
-      type: 'freeplay_bonus',
-      amount: awardSC,
-      currency: 'USD',
-      balanceBefore: oldBalance,
-      balanceAfter: newBalance,
-      description: `🎁 $${awardSC.toFixed(2)} Freeplay Bonus claimed from lobby`,
-      status: 'completed',
-      createdAt: now,
+    // Check for existing pending task
+    const existingPending = await db.collection('freeplay_tasks').findOne({
+      $or: [
+        { userId: user._id.toString() },
+        { email: user.email.toLowerCase().trim() },
+      ],
+      status: 'pending',
     });
 
-    // Notification
-    await db.collection('notifications').insertOne({
-      userId: user._id,
-      title: '🎁 $5 Signup Freeplay Claimed!',
-      message: `Your account has been credited with $${awardSC.toFixed(2)} complimentary freeplay! Good luck at Zorra Royals!`,
-      type: 'bonus',
-      read: false,
-      createdAt: now,
+    if (existingPending) {
+      return NextResponse.json({
+        success: false,
+        message: 'You already have a Freeplay verification task pending staff review. Please wait for our desk to process it.',
+      });
+    }
+
+    const resolvedTaskId = taskId || `FP-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // 1. Record submission into freeplay_tasks collection
+    await db.collection('freeplay_tasks').insertOne({
+      taskId: resolvedTaskId,
+      userId: user._id.toString(),
+      username: user.username,
+      email: user.email,
+      gameTitle: String(gameTitle).trim(),
+      screenshot,
+      amount: configuredAmount,
+      status: 'pending',
+      createdAt: new Date(),
+    });
+
+    // 2. Create account request with freeplay attached for staff to approve
+    await db.collection('accountRequests').insertOne({
+      userId: user._id.toString(),
+      userName: user.username,
+      userEmail: user.email,
+      gameTitle: String(gameTitle).trim(),
+      requestType: 'ACCOUNT_CREATION',
+      status: 'PENDING',
+      source: 'freeplay_task',
+      freeplayPending: true,
+      freeplayAmount: configuredAmount,
+      freeplayScreenshot: screenshot,
+      freeplayTaskId: resolvedTaskId,
+      createdAt: new Date(),
+    });
+
+    // 3. Notify staff
+    notifyStaff({
+      type: 'freeplay_task_submitted',
+      title: 'Freeplay Task Proof Submitted 🎁',
+      message: `Player ${user.username} submitted Inbox screenshot for $${configuredAmount.toFixed(2)} Freeplay on ${gameTitle}.`,
+      data: {
+        userId: user._id.toString(),
+        username: user.username,
+        gameTitle,
+        amount: String(configuredAmount),
+        taskId: resolvedTaskId,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      message: `🎉 $${awardSC.toFixed(2)} Freeplay bonus credited to your wallet!`,
-      newBalance,
-      newBalanceSC: newBalance,
-      claimed: true,
-      amount: awardSC,
-      bonusAmount: awardSC,
+      message: `🎉 Freeplay task submitted! Our 24/7 staff will verify your Inbox screenshot and load your $${configuredAmount.toFixed(2)} Freeplay credentials shortly.`,
+      taskId: resolvedTaskId,
+      amount: configuredAmount,
     });
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    console.error('Freeplay Task submission error:', err);
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }

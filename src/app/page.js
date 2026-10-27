@@ -365,7 +365,10 @@ export default function HomePage() {
         onClose={() => setFreeplayOpen(false)}
         user={user}
         onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
-        onBalanceUpdated={fetchUser}
+        onBalanceUpdated={() => {
+          fetchUser();
+          fetchVaultData();
+        }}
       />
 
       <LiveChatModal

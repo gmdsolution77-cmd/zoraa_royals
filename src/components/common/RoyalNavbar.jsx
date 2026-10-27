@@ -55,7 +55,24 @@ export default function RoyalNavbar({
   }, [dropdownOpen]);
 
   // Persistent Client-Side Cached User (Eliminates login/signup flicker on tab switches)
-  const [cachedUser, setCachedUser] = useState(() => getCachedUser());
+  const [cachedUser, setCachedUser] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  const [bonusSettings, setBonusSettings] = useState({ freeplayAmountSC: 5.0, freeplayActive: true });
+
+  useEffect(() => {
+    setMounted(true);
+    const cached = getCachedUser();
+    if (cached) setCachedUser(cached);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d?.settings) setBonusSettings(d.settings);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -72,7 +89,7 @@ export default function RoyalNavbar({
     return () => window.removeEventListener('royal-user-sync', handleSync);
   }, []);
 
-  const activeUser = user || cachedUser;
+  const activeUser = user || (mounted ? cachedUser : null);
 
   const handleLogoutClick = () => {
     setDropdownOpen(false);
@@ -175,15 +192,15 @@ export default function RoyalNavbar({
                 <span className="hidden sm:inline">Deposit</span>
               </button>
 
-              {/* Freeplay $3 Signup Reward Quick Button if not claimed */}
-              {!activeUser.signupBonusClaimed && !activeUser.freeplayClaimed && (
+              {/* Freeplay Signup Reward Quick Button if active & not claimed */}
+              {bonusSettings?.freeplayActive !== false && !activeUser.signupBonusClaimed && !activeUser.freeplayClaimed && (
                 <button
                   onClick={onOpenFreeplay}
                   className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
-                  title="Claim $3 Signup Freeplay"
+                  title={`Claim $${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Signup Freeplay`}
                 >
                   <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span className="hidden md:inline">$3 Freeplay</span>
+                  <span className="hidden md:inline">${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Freeplay</span>
                 </button>
               )}
 

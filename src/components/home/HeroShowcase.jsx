@@ -42,43 +42,13 @@ export default function HeroShowcase({
     signupBonusAmount: 5.0,
   });
 
-  const handleGetFreeplay = async () => {
+  const handleGetFreeplay = () => {
     if (!user) {
       if (onOpenAuth) onOpenAuth('register');
       return;
     }
-
-    setClaimingFreeplay(true);
-    setFreeplayFeedback(null);
-
-    try {
-      const res = await fetch('/api/freeplay', { method: 'POST' });
-      const data = await res.json();
-      setClaimingFreeplay(false);
-
-      if (data.success) {
-        setFreeplayFeedback({
-          type: 'success',
-          message: data.message || `🎉 Successfully claimed $${data.amount || settings.freeplayAmountSC || 5} Freeplay bonus!`,
-        });
-        confetti({
-          particleCount: 90,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#ffd700', '#d4af37', '#10b981', '#ffffff'],
-        });
-        if (onBalanceUpdated) onBalanceUpdated();
-      } else {
-        setFreeplayFeedback({
-          type: data.alreadyClaimed ? 'info' : 'error',
-          message: data.error || data.message || 'Unable to claim Freeplay.',
-        });
-        setTimeout(() => setFreeplayFeedback(null), 5000);
-      }
-    } catch (err) {
-      setClaimingFreeplay(false);
-      setFreeplayFeedback({ type: 'error', message: err.message || 'Error claiming Freeplay.' });
-      setTimeout(() => setFreeplayFeedback(null), 4000);
+    if (onOpenFreeplay) {
+      onOpenFreeplay();
     }
   };
 
@@ -118,6 +88,8 @@ export default function HeroShowcase({
   const freeplaySC = settings.freeplayAmountSC ?? settings.signupBonusAmount ?? 5.0;
   const hasDeposited = Boolean(user?.firstDepositMade);
 
+  const isFreeplayActive = settings?.freeplayActive !== false;
+
   const slides = [
     hasDeposited ? {
       id: 0,
@@ -137,7 +109,7 @@ export default function HeroShowcase({
       title: `${welcomePct}% FIRST DEPOSIT BONUS`,
       subtitle: `${welcomePct}% MATCH + $${freeplaySC} COMPLIMENTARY SIGNUP FREEPLAY`,
       desc: `Deposit via Cash App, Zelle or Crypto and get an instant +${welcomePct}% match bonus added directly to your dollar balance!`,
-      ctaText: user ? 'Deposit & Triple Balance' : `Claim $${freeplaySC} Freeplay & Join`,
+      ctaText: user ? 'Deposit & Triple Balance' : (isFreeplayActive ? `Claim $${freeplaySC} Freeplay & Join` : 'Join Palace VIP'),
       ctaHref: user ? '/deposit' : null,
       ctaAction: user ? () => {} : () => onOpenAuth('register'),
       secondaryText: 'Lucky Spin Wheel',
@@ -145,7 +117,7 @@ export default function HeroShowcase({
       imageBadge: `+${welcomePct}% WELCOME`,
       glowColor: '#d4af37',
     },
-    {
+    ...(isFreeplayActive ? [{
       id: 1,
       badge: `🎁 $${freeplaySC} SIGNUP FREEPLAY`,
       title: `$${freeplaySC} FREEPLAY BONUS`,
@@ -157,7 +129,7 @@ export default function HeroShowcase({
       secondaryHref: '/deposit',
       imageBadge: `$${freeplaySC} COMPLIMENTARY`,
       glowColor: '#10b981',
-    },
+    }] : []),
     {
       id: 2,
       badge: '🔑 24/7 GAME CREDENTIALS',
@@ -257,23 +229,13 @@ export default function HeroShowcase({
 
           {/* Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            {(!user || (!user.freeplayClaimed && !user.signupBonusClaimed)) && (
+            {isFreeplayActive && (!user || (!user.freeplayClaimed && !user.signupBonusClaimed)) && (
               <button
                 onClick={handleGetFreeplay}
-                disabled={claimingFreeplay}
                 className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_25px_rgba(212,175,55,0.5)] cursor-pointer"
               >
-                {claimingFreeplay ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    <span>CLAIMING...</span>
-                  </>
-                ) : (
-                  <>
-                    <Gift className="w-4 h-4 text-black stroke-[2.5]" />
-                    <span>GET ${Number(freeplaySC).toFixed(2)} FREEPLAY</span>
-                  </>
-                )}
+                <Gift className="w-4 h-4 text-black stroke-[2.5]" />
+                <span>GET ${Number(freeplaySC).toFixed(2)} FREEPLAY</span>
               </button>
             )}
 

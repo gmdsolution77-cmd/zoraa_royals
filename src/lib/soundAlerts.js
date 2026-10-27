@@ -69,11 +69,7 @@ export function unlockAudioContext() {
   }
 }
 
-export function playTune(tuneId = 'chaching', volume = 0.7) {
-  if (typeof window === 'undefined') return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
+function _renderTune(ctx, tuneId, volume) {
   const masterVol = Math.max(0.01, Math.min(1, volume));
   const now = ctx.currentTime;
 
@@ -256,6 +252,26 @@ export function playTune(tuneId = 'chaching', volume = 0.7) {
       osc.stop(now + 0.4);
       break;
     }
+  }
+}
+
+export function playTune(tuneId = 'chaching', volume = 0.7) {
+  if (typeof window === 'undefined') return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const playNow = () => {
+    try {
+      _renderTune(ctx, tuneId, volume);
+    } catch (e) {
+      console.warn('Tune play error:', e);
+    }
+  };
+
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(playNow).catch(playNow);
+  } else {
+    playNow();
   }
 }
 

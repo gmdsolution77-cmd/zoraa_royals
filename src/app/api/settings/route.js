@@ -27,17 +27,20 @@ export async function GET() {
         welcomeBonusPercent: welcomePct,
         welcomeBonusPercentage: welcomePct,
         welcomeBonusTitle: settings?.welcomeBonusTitle || 'FIRST DEPOSIT BONUS',
-        welcomeBonusSubtitle: settings?.welcomeBonusSubtitle || 'Claim a royal match on your first deposit! Fast credits & prompt payouts.',
+        welcomeBonusActive: settings?.welcomeBonusActive !== false,
         regularBonusPercent: regularPct,
         regularBonusPercentage: regularPct,
         regularBonusTitle: settings?.regularBonusTitle || 'REGULAR RELOAD BONUS',
         regularBonusSubtitle: settings?.regularBonusSubtitle || 'Enjoy bonus on every reload! Boost your palace treasury anytime.',
+        regularBonusActive: settings?.regularBonusActive !== false,
         referralBonusPercent: refPct,
         referralBonusPercentage: refPct,
         referralBonusTitle: settings?.referralBonusTitle || 'FRIEND REFERRAL BONUS',
         referralBonusSubtitle: settings?.referralBonusSubtitle || 'Earn instant bonus directly in your wallet when your friends join and make their first deposit!',
+        referralBonusActive: settings?.referralBonusActive !== false,
         freeplayAmountSC: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0),
         signupBonusAmount: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0),
+        freeplayActive: settings?.freeplayActive !== false,
         dailyRewards: Array.isArray(settings?.dailyRewards) && settings.dailyRewards.length === 7
           ? settings.dailyRewards.map(Number)
           : [

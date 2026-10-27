@@ -111,6 +111,13 @@ export async function GET(req) {
         .sort({ createdAt: 1 })
         .toArray();
 
+      // Guarantee strictly chronological ascending order (oldest first, newest at the bottom)
+      messages.sort((a, b) => {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tA - tB;
+      });
+
       // Mark staff-read: unconditionally mark all player messages in thread as read
       try {
         await chatCol.updateMany(
@@ -171,6 +178,13 @@ export async function GET(req) {
       .sort({ createdAt: 1 })
       .toArray();
 
+    // Guarantee strictly chronological ascending order (oldest first, newest at the bottom)
+    playerMessages.sort((a, b) => {
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tA - tB;
+    });
+
     return Response.json({ success: true, messages: playerMessages });
   } catch (err) {
     return Response.json({ success: false, error: err.message }, { status: 500 });
@@ -186,9 +200,10 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { text, imageUrl, isStaffReply, targetUserId, targetUsername, conversationId } = body;
+    const { text, message, imageUrl, isStaffReply, targetUserId, targetUsername, conversationId } = body;
 
-    const cleanText = typeof text === 'string' ? text.trim() : '';
+    const rawText = text !== undefined ? text : (message !== undefined ? message : '');
+    const cleanText = typeof rawText === 'string' ? rawText.trim() : '';
     const cleanImage = typeof imageUrl === 'string' && imageUrl.trim() ? imageUrl.trim() : null;
 
     if (!cleanText && !cleanImage) {
@@ -221,7 +236,7 @@ export async function POST(req) {
       text: cleanText,
       imageUrl: cleanImage,
       read: false,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     };
 
     const result = await chatCol.insertOne(messageDoc);
@@ -265,14 +280,18 @@ export async function POST(req) {
               text: 'Hello! Thank you for contacting Zorra Royals VIP Concierge. Our 24/7 support officer has received your inquiry & attachments and will attend to you immediately.',
               imageUrl: null,
               read: false,
-              createdAt: new Date(),
+              createdAt: new Date().toISOString(),
             });
           } catch {}
         }, 800);
       }
     }
 
-    return Response.json({ success: true, messageId: result.insertedId });
+    return Response.json({
+      success: true,
+      messageId: result.insertedId,
+      chatMessage: { ...messageDoc, _id: result.insertedId },
+    });
   } catch (err) {
     return Response.json({ success: false, error: err.message }, { status: 500 });
   }

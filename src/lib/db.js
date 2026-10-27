@@ -44,8 +44,21 @@ class FallbackCollection {
         const [field, direction] = Object.entries(sortSpec || {})[0] || [];
         if (field) {
           data.sort((a, b) => {
-            const valA = a[field] instanceof Date ? a[field].getTime() : a[field];
-            const valB = b[field] instanceof Date ? b[field].getTime() : b[field];
+            const toComparable = (v) => {
+              if (v === null || v === undefined) return 0;
+              if (v instanceof Date) return v.getTime();
+              if (typeof v === 'string') {
+                const parsed = Date.parse(v);
+                if (!isNaN(parsed) && v.length >= 10 && (v.includes('-') || v.includes(':'))) {
+                  return parsed;
+                }
+                return v.toLowerCase();
+              }
+              if (typeof v === 'number') return v;
+              return v;
+            };
+            const valA = toComparable(a[field]);
+            const valB = toComparable(b[field]);
             if (valA < valB) return direction === -1 ? 1 : -1;
             if (valA > valB) return direction === -1 ? -1 : 1;
             return 0;
@@ -117,7 +130,9 @@ class FallbackCollection {
     const newDoc = {
       _id: doc._id ? String(doc._id) : hexId,
       ...doc,
-      createdAt: doc.createdAt || new Date(),
+      createdAt: doc.createdAt
+        ? (doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt)
+        : new Date().toISOString(),
     };
     items.unshift(newDoc);
     this.saveStore();
@@ -135,7 +150,9 @@ class FallbackCollection {
       const newDoc = {
         _id: doc._id ? String(doc._id) : hexId,
         ...doc,
-        createdAt: doc.createdAt || new Date(),
+        createdAt: doc.createdAt
+          ? (doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt)
+          : new Date().toISOString(),
       };
       items.unshift(newDoc);
       insertedIds.push(newDoc._id);

@@ -12,6 +12,13 @@ export async function GET() {
     const db = await getDb();
     const messages = await db.collection('chat_messages').find().sort({ createdAt: 1 }).toArray();
 
+    // Ensure strictly chronological ascending order (oldest first, newest at the bottom)
+    messages.sort((a, b) => {
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tA - tB;
+    });
+
     // Group by user
     const threads = {};
     for (const msg of messages) {
@@ -51,19 +58,22 @@ export async function POST(req) {
 
     const db = await getDb();
     const replyDoc = {
+      conversationId: targetUserId || targetEmail,
       userId: targetUserId,
       userEmail: targetEmail,
       username: 'VIP Support',
+      customerUserId: targetUserId,
       sender: 'support',
+      senderRole: 'staff',
       agentName: session.username,
       text: text.trim(),
       read: false,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     };
 
     const result = await db.collection('chat_messages').insertOne(replyDoc);
 
-    return Response.json({ success: true, messageId: result.insertedId });
+    return Response.json({ success: true, messageId: result.insertedId, chatMessage: { ...replyDoc, _id: result.insertedId } });
   } catch (err) {
     return Response.json({ success: false, error: err.message }, { status: 500 });
   }

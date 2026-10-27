@@ -92,6 +92,7 @@ export default function PromotionsPage() {
               referralBonusPercent: Number(d.settings.referralBonusPercent ?? d.settings.referralBonusPercentage ?? 50),
               referralBonusTitle: d.settings.referralBonusTitle || prev.referralBonusTitle,
               referralBonusSubtitle: d.settings.referralBonusSubtitle || prev.referralBonusSubtitle,
+              freeplayAmountSC: Number(d.settings.freeplayAmountSC ?? 5.0),
             }));
           }
         })
@@ -197,7 +198,7 @@ export default function PromotionsPage() {
       name: 'Bronze Royal',
       badge: 'TIER 1',
       perks: [
-        'Free $3.00 Welcome Package',
+        `Free $${Number(sysSettings.freeplayAmountSC || 5).toFixed(0)} Welcome Freeplay`,
         'Daily Mystery Crate',
         '24/7 Concierge Support',
         'Standard Cashout Queue',

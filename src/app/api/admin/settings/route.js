@@ -50,6 +50,23 @@ export async function POST(req) {
       updatedData.minCashoutThreshold = Number(updatedData.minWithdrawal);
     }
 
+    if (updatedData.freeplayActive !== undefined) {
+      updatedData.freeplayActive = Boolean(updatedData.freeplayActive);
+    }
+    if (updatedData.freeplayAmountSC !== undefined) {
+      updatedData.freeplayAmountSC = Number(updatedData.freeplayAmountSC);
+      updatedData.signupBonusAmount = updatedData.freeplayAmountSC;
+    }
+    if (updatedData.welcomeBonusActive !== undefined) {
+      updatedData.welcomeBonusActive = Boolean(updatedData.welcomeBonusActive);
+    }
+    if (updatedData.regularBonusActive !== undefined) {
+      updatedData.regularBonusActive = Boolean(updatedData.regularBonusActive);
+    }
+    if (updatedData.referralBonusActive !== undefined) {
+      updatedData.referralBonusActive = Boolean(updatedData.referralBonusActive);
+    }
+
     await db.collection('system_settings').updateOne(
       { key: 'general' },
       {

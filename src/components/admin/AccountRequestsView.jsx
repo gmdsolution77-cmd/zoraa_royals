@@ -26,6 +26,7 @@ export default function AccountRequestsView({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+  const [previewScreenshot, setPreviewScreenshot] = useState(null);
 
   const handleCopy = (text, id) => {
     if (!text) return;
@@ -164,6 +165,22 @@ export default function AccountRequestsView({
                       <td className="p-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1">
                           <span className="font-heading font-black text-amber-400 text-sm">{req.gameTitle}</span>
+                          {Boolean(req.freeplayPending) && (
+                            <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-lg shadow-sm">
+                                🎁 Freeplay: ${Number(req.freeplayAmount || 5).toFixed(2)} SC
+                              </span>
+                              {(req.freeplayScreenshot || req.screenshot) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewScreenshot(req.freeplayScreenshot || req.screenshot)}
+                                  className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
+                                >
+                                  View Proof
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {req.source === 'auto_from_approved_deposit' && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-lg w-fit">
                               ✨ Auto: From Approved Deposit {req.initialDepositAmount ? `($${req.initialDepositAmount})` : ''}
@@ -310,6 +327,26 @@ export default function AccountRequestsView({
                       </div>
                     </div>
 
+                    {Boolean(req.freeplayPending) && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-amber-300 font-bold">Freeplay Task:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded">
+                            ${Number(req.freeplayAmount || 5).toFixed(2)} SC
+                          </span>
+                          {(req.freeplayScreenshot || req.screenshot) && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScreenshot(req.freeplayScreenshot || req.screenshot)}
+                              className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
+                            >
+                              View Proof
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {Boolean(req.transferAmount && req.transferAmount > 0) && (
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-400 font-bold">Initial Load SC:</span>
@@ -370,6 +407,33 @@ export default function AccountRequestsView({
             })}
           </div>
         </>
+      )}
+
+      {/* Proof Screenshot Preview Modal */}
+      {previewScreenshot && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="relative max-w-2xl w-full bg-[#0c0e18] border border-amber-500/40 rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <span className="font-heading font-black text-amber-400 text-sm">
+                Player Inbox Screenshot Proof
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewScreenshot(null)}
+                className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-h-[75vh] overflow-auto flex items-center justify-center bg-black rounded-xl p-2">
+              <img
+                src={previewScreenshot}
+                alt="Freeplay proof screenshot"
+                className="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

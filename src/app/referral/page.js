@@ -149,7 +149,7 @@ export default function ReferralPage() {
                 INVITE FRIENDS &amp; <span className="text-gold-gradient">EARN DAILY</span>
               </h1>
               <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
-                Earn up to <strong className="text-[#ffd700]">{stats?.commissionRate ?? 20}% lifetime bonus</strong> on every single deposit made by players you introduce to the VIP palace. Uncapped daily cash payouts.
+                Earn up to <strong className="text-[#ffd700]">{stats?.referralBonusPercent || stats?.commissionRate || 50}% lifetime bonus</strong> on every single deposit made by players you introduce to the VIP palace. Uncapped daily cash payouts.
               </p>
             </div>
           </div>

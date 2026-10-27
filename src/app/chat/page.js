@@ -41,7 +41,44 @@ export default function ChatPage() {
   const [selectedPreviewImage, setSelectedPreviewImage] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  const scrollToBottom = (smooth = true) => {
+    if (chatScrollRef.current) {
+      try {
+        chatScrollRef.current.scrollTo({
+          top: chatScrollRef.current.scrollHeight + 1000,
+          behavior: smooth ? 'smooth' : 'auto',
+        });
+      } catch {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  };
+
+  const safeSetSortedMessages = (incoming) => {
+    if (!Array.isArray(incoming)) return;
+    setMessages((prev) => {
+      const map = new Map();
+      for (const m of incoming) {
+        const key = m._id || `${m.createdAt || m.timestamp}_${m.text || m.message}_${m.sender}`;
+        map.set(key, m);
+      }
+      for (const p of prev) {
+        if (p.optimistic) {
+          const key = p._id || `${p.createdAt || p.timestamp}_${p.text || p.message}_${p.sender}`;
+          if (!map.has(key)) map.set(key, p);
+        }
+      }
+      return Array.from(map.values()).sort((a, b) => {
+        const tA = (a.createdAt || a.timestamp) ? new Date(a.createdAt || a.timestamp).getTime() : 0;
+        const tB = (b.createdAt || b.timestamp) ? new Date(b.createdAt || b.timestamp).getTime() : 0;
+        return tA - tB;
+      });
+    });
+  };
 
   // Load user & guest ID
   useEffect(() => {
@@ -74,8 +111,8 @@ export default function ChatPage() {
         : `/api/chat?guestId=${gid}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.success && data.messages) {
-        setMessages(data.messages);
+      if (data.success && Array.isArray(data.messages)) {
+        safeSetSortedMessages(data.messages);
       }
     } catch (e) {
       console.error('Failed to load chat:', e);
@@ -89,8 +126,10 @@ export default function ChatPage() {
   }, [user, guestId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, attachedImage]);
+    scrollToBottom(false);
+    const timer = setTimeout(() => scrollToBottom(true), 120);
+    return () => clearTimeout(timer);
+  }, [messages.length, attachedImage]);
 
   // Compress & attach image
   const handleFileChange = (e) => {
@@ -157,11 +196,26 @@ export default function ChatPage() {
     setSending(true);
     setSendError(null);
 
+    // Optimistic append at bottom
+    const optimisticMsg = {
+      _id: 'temp_' + Date.now(),
+      sender: 'player',
+      senderRole: 'player',
+      text: textToSend,
+      message: textToSend,
+      imageUrl: imageToSend,
+      createdAt: new Date().toISOString(),
+      optimistic: true,
+    };
+    safeSetSortedMessages([...messages, optimisticMsg]);
+    setTimeout(() => scrollToBottom(false), 20);
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          text: textToSend,
           message: textToSend,
           imageUrl: imageToSend,
           guestId: user ? undefined : guestId,
@@ -169,8 +223,8 @@ export default function ChatPage() {
       });
 
       const data = await res.json();
-      if (data.success && data.chatMessage) {
-        setMessages((prev) => [...prev, data.chatMessage]);
+      if (data.success) {
+        fetchMessages();
       } else {
         setSendError(data.error || 'Failed to send message.');
         if (textToSend) setInputMessage(textToSend);
@@ -182,6 +236,7 @@ export default function ChatPage() {
       if (imageToSend) setAttachedImage(imageToSend);
     } finally {
       setSending(false);
+      setTimeout(() => scrollToBottom(true), 80);
     }
   };
 
@@ -242,7 +297,10 @@ export default function ChatPage() {
           </div>
 
           {/* Messages Stream Container */}
-          <div className="flex-1 rounded-2xl bg-[#0d0f17]/90 border border-[#d4af37]/20 p-4 overflow-y-auto space-y-4 shadow-inner min-h-[420px] max-h-[60vh] scrollbar-thin">
+          <div
+            ref={chatScrollRef}
+            className="flex-1 rounded-2xl bg-[#0d0f17]/90 border border-[#d4af37]/20 p-4 overflow-y-auto space-y-4 shadow-inner min-h-[420px] max-h-[60vh] scrollbar-thin"
+          >
             {messages.length === 0 ? (
               <div className="text-center py-16 space-y-3">
                 <div className="w-12 h-12 rounded-full bg-[#d4af37]/15 text-[#ffd700] mx-auto flex items-center justify-center border border-[#d4af37]/30">
@@ -255,10 +313,10 @@ export default function ChatPage() {
               </div>
             ) : (
               messages.map((m, idx) => {
-                const isUser = m.sender === 'user' || m.senderRole === 'player' || m.senderRole === 'user';
+                const isUser = m.sender === 'user' || m.sender === 'player' || m.senderRole === 'player' || m.senderRole === 'user';
                 return (
                   <div
-                    key={idx}
+                    key={m._id || idx}
                     className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
                   >
                     <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-500 px-1">
@@ -291,7 +349,9 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      {m.message && <div className="whitespace-pre-wrap">{m.message}</div>}
+                      {(m.text || m.message) && (
+                        <div className="whitespace-pre-wrap">{m.text || m.message}</div>
+                      )}
                     </div>
                   </div>
                 );
