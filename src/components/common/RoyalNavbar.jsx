@@ -89,7 +89,7 @@ export default function RoyalNavbar({
     return () => window.removeEventListener('royal-user-sync', handleSync);
   }, []);
 
-  const activeUser = user || (mounted ? cachedUser : null);
+  const activeUser = mounted ? (user || cachedUser) : null;
 
   const handleLogoutClick = () => {
     setDropdownOpen(false);
@@ -122,14 +122,14 @@ export default function RoyalNavbar({
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleSidebar}
-            className="p-2 text-gray-300 hover:text-[#d4af37] lg:hidden rounded-lg hover:bg-white/5 transition"
+            className="p-1.5 sm:p-2 text-gray-300 hover:text-[#d4af37] lg:hidden rounded-lg hover:bg-white/5 transition cursor-pointer shrink-0"
             aria-label="Toggle Navigation Menu"
           >
-            <Menu className="w-6 h-6" />
+            <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
-          <Link href="/" className="flex items-center gap-2 group lg:hidden">
-            <div className="relative w-8 h-8 rounded-full overflow-hidden p-0.5 bg-gradient-to-tr from-[#d4af37] via-[#fff0a8] to-[#997b24] shadow-[0_0_12px_rgba(212,175,55,0.4)]">
+          <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group lg:hidden shrink-0">
+            <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden p-0.5 bg-gradient-to-tr from-[#d4af37] via-[#fff0a8] to-[#997b24] shadow-[0_0_12px_rgba(212,175,55,0.4)] shrink-0">
               <Image
                 src="/logo.png"
                 alt="Zorra Royals Logo"
@@ -139,7 +139,7 @@ export default function RoyalNavbar({
                 priority
               />
             </div>
-            <span className="font-extrabold text-sm tracking-wider text-gold-gradient font-serif">
+            <span className="font-extrabold text-xs sm:text-sm tracking-wider text-gold-gradient font-serif truncate max-w-[85px] xs:max-w-none">
               ZORRA ROYALS
             </span>
           </Link>
@@ -154,74 +154,75 @@ export default function RoyalNavbar({
         </div>
 
         {/* Right: Actions, Currency, Balance & User Menu */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {activeUser ? (
             <>
               {/* Single Dollar Balance ($ USD) */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="flex items-center gap-2 bg-[#0d0f17] border border-[#d4af37]/35 hover:border-[#ffd700] rounded-xl px-3 py-1.5 shadow-md transition group text-left"
+                className="flex items-center gap-1.5 sm:gap-2 bg-[#0d0f17] border border-[#d4af37]/35 hover:border-[#ffd700] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-md transition group text-left cursor-pointer shrink-0"
                 title={`Total Balance: $${(activeUser.balance || 0).toFixed(2)} USD • Available: $${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}`}
               >
-                <div className="p-1 rounded-md bg-[#d4af37]/15 text-[#ffd700]">
+                <div className="p-1 rounded-md bg-[#d4af37]/15 text-[#ffd700] shrink-0">
                   <Wallet className="w-3.5 h-3.5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1 mb-0.5">
                     <span className="text-[9px] uppercase tracking-wider text-gray-400 block font-bold leading-none">
-                      {activeUser.frozenBalance > 0 ? 'Available' : 'Balance'}
+                      {activeUser.frozenBalance > 0 ? 'Avail' : 'Balance'}
                     </span>
                     {activeUser.frozenBalance > 0 && (
                       <span className="text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold px-1 rounded font-mono">
-                        ❄️ ${activeUser.frozenBalance.toFixed(2)}
+                        ❄️ ${activeUser.frozenBalance.toFixed(0)}
                       </span>
                     )}
                   </div>
-                  <span className="text-xs sm:text-sm font-mono font-black text-gold-gradient group-hover:brightness-110 leading-none">
+                  <span className="text-xs sm:text-sm font-mono font-black text-gold-gradient group-hover:brightness-110 leading-none block">
                     ${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}
                   </span>
                 </div>
               </button>
 
-              {/* Quick Deposit Button */}
+              {/* Quick Deposit Button (Desktop & Tablet only - Mobile has bottom nav deposit) */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold flex items-center gap-1.5 cursor-pointer"
+                className="hidden sm:flex btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Wallet className="w-4 h-4" />
-                <span className="hidden sm:inline">Deposit</span>
+                <span>Deposit</span>
               </button>
 
-              {/* Freeplay Signup Reward Quick Button if active & not claimed */}
+              {/* Freeplay Signup Reward Quick Button if active & not claimed (Hidden on mobile) */}
               {bonusSettings?.freeplayActive !== false && !activeUser.signupBonusClaimed && !activeUser.freeplayClaimed && (
                 <button
                   onClick={onOpenFreeplay}
-                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition flex items-center gap-1.5 text-xs font-black shadow-md cursor-pointer"
+                  className="hidden md:flex px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition items-center gap-1.5 text-xs font-black shadow-md cursor-pointer shrink-0"
                   title={`Claim $${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Signup Freeplay`}
                 >
                   <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span className="hidden md:inline">${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Freeplay</span>
+                  <span>${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Freeplay</span>
                 </button>
               )}
 
               {/* Notifications Button */}
               <button
                 onClick={onOpenNotifications}
-                className="relative p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#d4af37]/40 transition"
+                className="relative p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#d4af37]/40 transition shrink-0 cursor-pointer"
                 aria-label="View notifications"
               >
                 <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#d4af37] ring-2 ring-black animate-ping" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#d4af37]" />
+                <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-[#d4af37] ring-2 ring-black animate-ping" />
+                <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-[#d4af37]" />
               </button>
 
               {/* User Dropdown */}
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 border border-[#d4af37]/30 hover:border-[#d4af37] transition cursor-pointer"
+                  className="flex items-center gap-1 sm:gap-2 p-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/5 border border-[#d4af37]/30 hover:border-[#d4af37] transition cursor-pointer"
+                  aria-label="User Profile Menu"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#131622] flex items-center justify-center text-xs font-black text-black">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#131622] flex items-center justify-center text-xs font-black text-black shrink-0">
                     {activeUser.username ? activeUser.username[0].toUpperCase() : 'U'}
                   </div>
                   <span className="text-xs font-bold text-gray-200 hidden md:inline max-w-[90px] truncate">

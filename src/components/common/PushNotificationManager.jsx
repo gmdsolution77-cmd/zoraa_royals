@@ -121,7 +121,15 @@ export default function PushNotificationManager() {
             await PushNotifications.addListener('registration', async (token) => {
               if (token?.value) {
                 try {
-                  const storedEmail = localStorage.getItem('zorra_user_email') || '';
+                  let storedEmail = localStorage.getItem('zorra_user_email') || '';
+                  try {
+                    const raw = localStorage.getItem('zr_user_session');
+                    if (raw) {
+                      const u = JSON.parse(raw);
+                      if (u?.email) storedEmail = u.email;
+                    }
+                  } catch {}
+
                   await fetch('/api/notifications', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },

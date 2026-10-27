@@ -53,7 +53,9 @@ export async function GET(req) {
       initialDepositAmount: r.initialDepositAmount || null,
       depositId: r.depositId || null,
       notes: r.notes || '',
-      rejectionReason: r.rejectionReason || r.rejectReason || '',
+      rejectionReason: r.rejectionReason || r.rejectReason || r.adminNote || r.notes || '',
+      rejectReason: r.rejectionReason || r.rejectReason || r.adminNote || r.notes || '',
+      adminNote: r.rejectionReason || r.rejectReason || r.adminNote || r.notes || '',
       createdAt: r.createdAt || new Date(),
     }));
 
@@ -419,6 +421,8 @@ export async function PUT(req) {
           $set: {
             status: 'REJECTED',
             rejectionReason: reason,
+            rejectReason: reason,
+            adminNote: reason,
             cancelledBy: session.username,
             cancelledAt: new Date(),
           },
@@ -426,13 +430,17 @@ export async function PUT(req) {
       );
 
       notifyPlayer({
+        userId: targetRequest.userId,
         userEmail: cleanEmail,
+        username: targetRequest.userName,
         title: `${cleanTitle} Request Update ⚠️`,
         message: targetRequest.freeplayPending
-          ? `Your Freeplay verification task for ${cleanTitle} was not approved: ${reason}`
-          : `Your request for ${cleanTitle} was rejected: ${reason}`,
+          ? `Your Freeplay verification task for ${cleanTitle} was declined: ${reason}`
+          : originalFrozen > 0
+          ? `Your $${Number(originalFrozen).toFixed(2)} SC load request for ${cleanTitle} was declined: ${reason}. Your $${Number(originalFrozen).toFixed(2)} SC has been refunded back to your wallet.`
+          : `Your game account request for ${cleanTitle} was declined: ${reason}`,
         type: 'account_rejected',
-        data: { gameTitle: cleanTitle },
+        data: { gameTitle: cleanTitle, rejectionReason: reason },
       });
 
       return NextResponse.json({

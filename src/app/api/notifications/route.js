@@ -42,12 +42,19 @@ export async function GET(req) {
     }
 
     // Player view: notifications broadcast to all or specific user
-    const userConditions = [{ target: 'all' }];
+    const userConditions = [
+      { target: 'all' },
+      { channel: 'all', target: { $ne: 'staff' } },
+    ];
+
     if (session) {
       const uid = session.id || session.userId;
       if (uid) {
         userConditions.push({ userId: uid });
         userConditions.push({ userId: uid.toString() });
+        try {
+          userConditions.push({ userId: toIdQuery(uid)._id });
+        } catch {}
       }
       if (session.email) {
         userConditions.push({ userEmail: session.email.toLowerCase().trim() });
@@ -57,8 +64,14 @@ export async function GET(req) {
       }
     }
 
+    // STRICT: Never return staff alerts to players, strictly personal + public
     const items = await notifsCol
-      .find({ $or: userConditions })
+      .find({
+        $and: [
+          { $or: userConditions },
+          { target: { $ne: 'staff' } },
+        ],
+      })
       .sort({ createdAt: -1 })
       .limit(30)
       .toArray();
@@ -120,6 +133,7 @@ export async function POST(req) {
         title: title.trim(),
         body: message.trim(),
         data: { url },
+        broadcast: true,
       });
     } catch (fcmErr) {
       console.warn('FCM delivery note:', fcmErr.message);

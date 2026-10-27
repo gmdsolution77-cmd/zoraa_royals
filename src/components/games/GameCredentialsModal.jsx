@@ -110,7 +110,13 @@ export default function GameCredentialsModal({
           setRejectionReason(null);
         } else if (s === 'REJECTED' || s === 'CANCELLED') {
           setAccountStatus('REJECTED');
-          setRejectionReason(matchReq.rejectionReason || 'Staff desk rejected request. Please contact 24/7 support.');
+          setRejectionReason(
+            matchReq.rejectionReason ||
+            matchReq.rejectReason ||
+            matchReq.adminNote ||
+            matchReq.notes ||
+            'Staff desk rejected request or platform currently unavailable. Please contact 24/7 support.'
+          );
         }
       }
     } catch (err) {
@@ -397,13 +403,16 @@ export default function GameCredentialsModal({
                 <div className="w-16 h-16 rounded-full bg-red-500/15 border-2 border-red-400/50 flex items-center justify-center mx-auto text-red-400 shadow-[0_0_25px_rgba(239,68,68,0.25)]">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <h4 className="text-lg font-black text-white font-serif">
                     Request Declined
                   </h4>
-                  <p className="text-xs text-red-300 max-w-sm mx-auto leading-relaxed">
-                    {rejectionReason || 'Staff desk could not process this request. Please try again or contact 24/7 Live Support.'}
-                  </p>
+                  <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-200 max-w-sm mx-auto text-left">
+                    <p className="text-[10px] uppercase font-black text-red-400 mb-1 tracking-wider">Note from Staff Desk:</p>
+                    <p className="leading-relaxed text-gray-200">
+                      {rejectionReason || 'Staff desk could not process this request. The game may be temporarily unavailable or in maintenance.'}
+                    </p>
+                  </div>
                 </div>
 
                 <button

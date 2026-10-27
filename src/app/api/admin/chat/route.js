@@ -73,6 +73,21 @@ export async function POST(req) {
 
     const result = await db.collection('chat_messages').insertOne(replyDoc);
 
+    // Dispatch instant push & in-app notification STRICTLY to the targeted player
+    if (targetEmail || targetUserId) {
+      try {
+        const { notifyPlayer } = await import('@/lib/notify');
+        notifyPlayer({
+          userId: targetUserId,
+          userEmail: targetEmail,
+          title: '💬 VIP Support Reply',
+          message: text.trim().slice(0, 120),
+          type: 'chat_message',
+          data: { url: '/chat' },
+        });
+      } catch {}
+    }
+
     return Response.json({ success: true, messageId: result.insertedId, chatMessage: { ...replyDoc, _id: result.insertedId } });
   } catch (err) {
     return Response.json({ success: false, error: err.message }, { status: 500 });

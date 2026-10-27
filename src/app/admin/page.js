@@ -818,16 +818,24 @@ export default function AdminPortal({ initialTab }) {
     }
   };
 
-  const handleCancelRequest = async (id) => {
-    const reason = prompt('Enter rejection reason for player:', 'Temporary platform maintenance. Escrow balance refunded to your wallet.');
-    if (!reason) return;
+  const handleCancelRequest = async (id, reason) => {
     try {
-      await fetch('/api/account-requests', {
+      const res = await fetch('/api/account-requests', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'cancel', reason }),
+        body: JSON.stringify({
+          id,
+          action: 'reject',
+          reason: reason || 'Platform currently unavailable or undergoing technical maintenance.',
+        }),
       });
-      fetchAccountRequests();
+      const data = await res.json();
+      if (data.success) {
+        fetchAccountRequests();
+        syncRequestsAndAlerts();
+      } else {
+        alert(data.message || 'Failed to reject request');
+      }
     } catch (e) {
       console.error(e);
     }

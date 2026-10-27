@@ -478,25 +478,47 @@ export default function PlayerGameAccountsHub({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rejectedRequests.map((req, idx) => (
-              <div
-                key={`rejected_${idx}`}
-                className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200 flex flex-col justify-between"
-              >
-                <div>
-                  <h4 className="font-bold text-white mb-1">{req.gameTitle}</h4>
-                  <p className="text-[11px] text-gray-300 mb-2">
-                    Reason: {req.rejectionReason || req.notes || 'Operator declined request.'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRequestAccount({ title: req.gameTitle, gameId: req.gameId })}
-                  className="mt-2 py-1.5 px-3 rounded-lg bg-rose-500/20 border border-rose-500/40 text-white font-black text-[11px] hover:bg-rose-500/30 transition"
+            {rejectedRequests.map((req, idx) => {
+              const reasonText =
+                req.rejectionReason ||
+                req.rejectReason ||
+                req.adminNote ||
+                req.notes ||
+                'Staff desk declined request or platform temporarily unavailable.';
+              return (
+                <div
+                  key={`rejected_${idx}`}
+                  className="p-4 rounded-2xl bg-gradient-to-br from-rose-950/40 to-black/60 border border-rose-500/40 text-xs text-rose-200 flex flex-col justify-between shadow-lg"
                 >
-                  Request Again
-                </button>
-              </div>
-            ))}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-heading font-black text-white text-sm">{req.gameTitle}</h4>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        Declined
+                      </span>
+                    </div>
+                    {Boolean(req.transferAmount && Number(req.transferAmount) > 0) && (
+                      <p className="text-[11px] text-emerald-400 font-bold">
+                        💰 ${Number(req.transferAmount).toFixed(2)} SC refunded to your wallet
+                      </p>
+                    )}
+                    <div className="p-2.5 rounded-xl bg-black/60 border border-rose-500/25 text-rose-200">
+                      <p className="text-[10px] uppercase font-black text-rose-400 mb-1 tracking-wider">
+                        Staff Note / Reason:
+                      </p>
+                      <p className="text-xs leading-relaxed text-gray-200">{reasonText}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRequestAccount({ title: req.gameTitle, gameId: req.gameId })}
+                    className="mt-3 py-2 px-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-white font-black text-xs hover:bg-rose-500/30 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Request Again</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

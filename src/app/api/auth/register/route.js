@@ -112,10 +112,12 @@ export async function POST(req) {
     const result = await usersCol.insertOne(newUser);
     const userId = result.insertedId;
 
-    // Notify referrer that a friend joined
+    // Notify referrer that a friend joined (strictly to referrer)
     if (referrer) {
       await db.collection('notifications').insertOne({
-        userId: referrer._id,
+        userId: referrer._id.toString(),
+        userEmail: referrer.email ? referrer.email.toLowerCase().trim() : undefined,
+        target: 'player',
         title: '🤝 New Friend Joined!',
         message: `Your friend @${cleanUsername} just registered using your referral! When they make their first deposit, you will receive a royal bonus reward directly into your wallet balance.`,
         type: 'referral',
@@ -124,9 +126,12 @@ export async function POST(req) {
       });
     }
 
-    // Create welcome notification
+    // Create welcome notification strictly for this new user ONLY
     await db.collection('notifications').insertOne({
-      userId,
+      userId: userId.toString(),
+      userEmail: cleanEmail,
+      username: cleanUsername,
+      target: 'player',
       title: '👑 Welcome to Zorra Royals!',
       message: `Welcome! Click 'GET FREEPLAY' in the lobby to claim your complimentary $${signupBonus.toFixed(2)} welcome bonus!`,
       type: 'bonus',

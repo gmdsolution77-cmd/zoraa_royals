@@ -7,9 +7,9 @@
       "password": "$2b$10$wiPBoFV7f.TwhYsBReH2v.2nhlyqGzPYsUBJS4Au3K4M.6YaPYydi",
       "role": "player",
       "vipTier": "Bronze",
-      "balance": 107,
-      "balanceSC": 57,
-      "balanceGC": 510000,
+      "balance": 230,
+      "balanceSC": 130,
+      "balanceGC": 1510000,
       "availableSpins": 0,
       "referralCode": "NABICKF3",
       "referredBy": null,
@@ -20,11 +20,12 @@
       "isVerified": false,
       "createdAt": "2026-10-25T11:56:02.902Z",
       "freeplayClaimedAt": "2026-10-25T11:56:09.269Z",
-      "updatedAt": "2026-10-27T12:53:52.079Z",
+      "updatedAt": "2026-10-27T13:23:43.280Z",
       "welcomeBonusClaimed": true,
-      "totalDeposited": 50,
+      "totalDeposited": 150,
       "frozenBalance": 0,
-      "lastDailySpin": "2026-10-27T12:53:52.079Z"
+      "lastDailySpin": "2026-10-27T13:23:43.280Z",
+      "totalRedeemed": 250
     },
     {
       "_id": "id_t7akpe85qmvf92gqc",
@@ -140,8 +141,127 @@
     }
   ],
   "promotions": [],
-  "redemptions": [],
+  "redemptions": [
+    {
+      "_id": "6ae0a55cf63099c99208ef4c",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "amount": 250,
+      "gameTitle": "Orion star",
+      "gameUsername": "nabilahmad115",
+      "gameScreenshot": "data:image/webp;base64,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",
+      "qrCodeImage": "data:image/webp;base64,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",
+      "payoutMethod": "Chime",
+      "destinationAddress": "$dkjfkhjds",
+      "notes": "",
+      "status": "approved",
+      "stage": "completed",
+      "processedBy": "RoyalAdmin (super_admin)",
+      "createdAt": "2026-10-27T13:21:32.357Z",
+      "updatedAt": "2026-10-27T13:21:49.950Z"
+    }
+  ],
   "ledger": [
+    {
+      "_id": "6ae0a5df5f26a2f17f82a280",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "depositor_spin_bonus",
+      "currency": "SC",
+      "amount": 1,
+      "balanceBefore": 129,
+      "balanceAfter": 130,
+      "referenceId": "SPIN-1793107423280",
+      "notes": "Depositor Free Spin Reward: Won $1.00 SC on wheel spin",
+      "createdAt": "2026-10-27T13:23:43.280Z"
+    },
+    {
+      "_id": "6ae0a5d649f27abd02776d12",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "depositor_spin_bonus",
+      "currency": "SC",
+      "amount": 2,
+      "balanceBefore": 127,
+      "balanceAfter": 129,
+      "referenceId": "SPIN-1793107414448",
+      "notes": "Depositor Free Spin Reward: Won $2.00 SC on wheel spin",
+      "createdAt": "2026-10-27T13:23:34.448Z"
+    },
+    {
+      "_id": "6ae0a5b0a4711e7270085638",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "deposit",
+      "currency": "USD",
+      "amount": 120,
+      "balanceBefore": 7,
+      "balanceAfter": 127,
+      "performedBy": "RoyalAdmin",
+      "staffRole": "super_admin",
+      "referenceId": "6ae0a5a086962f7362353b09",
+      "notes": "Deposit $100 approved ($120 credited: $100 base + $20 regular bonus). Method: Cash App. Tag: $dfsadfsadf. Email: N/A. TXID: 113413413",
+      "createdAt": "2026-10-27T13:22:56.580Z"
+    },
+    {
+      "_id": "6ae0a56d607d64f98f18f6ec",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "redemption_dispatched",
+      "currency": "USD",
+      "amount": 250,
+      "balanceBefore": 7,
+      "balanceAfter": 7,
+      "performedBy": "RoyalAdmin",
+      "staffRole": "super_admin",
+      "referenceId": "6ae0a55cf63099c99208ef4c",
+      "notes": "Cashout ($250) approved & dispatched via Chime to Tag/Address: $dkjfkhjds. Platform: Orion star",
+      "createdAt": "2026-10-27T13:21:49.953Z"
+    },
+    {
+      "_id": "6ae0a55c69ea0da414b8d45a",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "redemption_requested",
+      "currency": "USD",
+      "amount": 250,
+      "balanceBefore": 7,
+      "balanceAfter": 7,
+      "performedBy": "player",
+      "referenceId": "6ae0a55cf63099c99208ef4c",
+      "notes": "Cashout request ($250) submitted for Orion star via Chime to Tag: $dkjfkhjds",
+      "createdAt": "2026-10-27T13:21:32.360Z"
+    },
+    {
+      "_id": "6ae0a51e257ab18146c66028",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "game_transfer",
+      "currency": "SC",
+      "amount": -50,
+      "balanceBefore": 57,
+      "balanceAfter": 7,
+      "performedBy": "RoyalAdmin",
+      "staffRole": "super_admin",
+      "referenceId": "6ae0a501ab0d0e16db06d9d5",
+      "notes": "Game account coin load into Orion star (Account ID: nabilahmad115)",
+      "createdAt": "2026-10-27T13:20:30.675Z"
+    },
+    {
+      "_id": "6ae0a5013643cf9fe264cb95",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "type": "game_load_freeze",
+      "currency": "SC",
+      "amount": 50,
+      "balanceBefore": 57,
+      "balanceAfter": 57,
+      "frozenAmount": 50,
+      "performedBy": "player",
+      "referenceId": "Orion star",
+      "notes": "Frozen $50.00 SC in escrow for loading into Orion star",
+      "createdAt": "2026-10-27T13:20:01.436Z"
+    },
     {
       "_id": "6ae09ee0942a385ba3c04896",
       "userId": "6addee5228a8f0e4dae1f138",
@@ -243,6 +363,33 @@
   ],
   "deposits": [
     {
+      "_id": "6ae0a5a086962f7362353b09",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "username": "Nabil Ahmad",
+      "amount": 100,
+      "methodId": "cashapp",
+      "methodName": "Cash App",
+      "senderTag": "$dfsadfsadf",
+      "senderEmail": "",
+      "senderNote": "$dfsadfsadf",
+      "proofImage": "data:image/webp;base64,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",
+      "txHash": "113413413",
+      "gameTitle": "Orion Stars",
+      "gameUsername": "nabilahmad115",
+      "hasGameAccount": true,
+      "bonusType": "regular",
+      "bonusPercent": 20,
+      "bonusSC": 20,
+      "totalSC": 120,
+      "totalGC": 1000000,
+      "status": "approved",
+      "processedBy": "RoyalAdmin (super_admin)",
+      "createdAt": "2026-10-27T13:22:40.500Z",
+      "updatedAt": "2026-10-27T13:22:56.578Z",
+      "creditedSC": 120,
+      "creditedGC": 1000000
+    },
+    {
       "_id": "6addeeaa1d3fa4268ee6ef81",
       "userId": "6addee5228a8f0e4dae1f138",
       "username": "Nabil Ahmad",
@@ -274,6 +421,51 @@
   "game_activity": [],
   "otps": [],
   "accountRequests": [
+    {
+      "_id": "6ae0a501ab0d0e16db06d9d5",
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "userName": "Nabil Ahmad",
+      "gameTitle": "Orion star",
+      "gameId": "orion-star-mvnrz1t5",
+      "gameAccountUsername": "nabilahmad115",
+      "transferAmount": 50,
+      "status": "READY",
+      "createdAt": "2026-10-27T13:20:01.441Z",
+      "gameAccountPassword": "Zr@cnt3994",
+      "approvedBy": "RoyalAdmin",
+      "approvedAt": "2026-10-27T13:20:30.678Z",
+      "updatedAt": "2026-10-27T13:20:30.678Z"
+    },
+    {
+      "_id": "6ae0a4db35bcbdfec982f7c5",
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "userName": "Nabil Ahmad",
+      "gameTitle": "Juwa",
+      "gameId": "juwa-mvnrynep",
+      "gameAccountUsername": "nabilahmad115",
+      "transferAmount": 0,
+      "status": "READY",
+      "createdAt": "2026-10-27T13:19:23.884Z",
+      "gameAccountPassword": "Rz@5i06368",
+      "approvedBy": "RoyalAdmin",
+      "approvedAt": "2026-10-27T13:19:35.188Z",
+      "updatedAt": "2026-10-27T13:19:35.188Z"
+    },
+    {
+      "_id": "6ae0a4bb51bd8894fd5ab9e9",
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "userName": "Nabil Ahmad",
+      "gameTitle": "Orion star",
+      "gameId": "orion-star-mvnrz1t5",
+      "gameAccountUsername": "nabilahmad298",
+      "transferAmount": 0,
+      "status": "READY",
+      "createdAt": "2026-10-27T13:18:51.081Z",
+      "gameAccountPassword": "Rz@jgk7028",
+      "approvedBy": "RoyalAdmin",
+      "approvedAt": "2026-10-27T13:19:07.952Z",
+      "updatedAt": "2026-10-27T13:19:07.952Z"
+    },
     {
       "_id": "6addef52dcb0f8a657478ba4",
       "userEmail": "ahmadnabeel634@gmail.com",
@@ -326,7 +518,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T13:08:02.643Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae0a22976d6005d8d9424dc",
@@ -360,7 +552,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:59:58.327Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae09e4c641f0391c72638b6",
@@ -377,7 +569,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:51:24.100Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae09dd278b93f80c40dc570",
@@ -394,7 +586,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:49:22.741Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae09dc70e1a63109cde582b",
@@ -411,7 +603,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:49:11.616Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae09ab370c226f1b4f6aea2",
@@ -428,7 +620,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:36:03.212Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae09aa80287f6efed3fe35e",
@@ -445,7 +637,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:35:52.668Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6ae09aa13937d66efc619098",
@@ -462,7 +654,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-27T12:35:45.968Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6adfa18bd74364c651f9dc1b",
@@ -479,7 +671,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-26T18:52:59.692Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6adf762898adbc835d323e51",
@@ -496,7 +688,7 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-26T15:47:52.874Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     },
     {
       "_id": "6adf761c61a1b36d314f2596",
@@ -547,10 +739,94 @@
       "imageUrl": null,
       "read": true,
       "createdAt": "2026-10-25T12:01:00.963Z",
-      "updatedAt": "2026-10-27T13:09:31.784Z"
+      "updatedAt": "2026-10-27T17:59:00.399Z"
     }
   ],
   "notifications": [
+    {
+      "_id": "6ae0a5dfb4d014756b56c804",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "title": "🎡 Lucky Wheel Prize Won!",
+      "message": "Congratulations! You won $1.00 SC on the Lucky Spin Wheel!",
+      "type": "bonus",
+      "read": false,
+      "createdAt": "2026-10-27T13:23:43.280Z"
+    },
+    {
+      "_id": "6ae0a5d64db13f0b7b868f66",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "title": "🎡 Lucky Wheel Prize Won!",
+      "message": "Congratulations! You won $2.00 SC on the Lucky Spin Wheel!",
+      "type": "bonus",
+      "read": false,
+      "createdAt": "2026-10-27T13:23:34.448Z"
+    },
+    {
+      "_id": "6ae0a5b0840740fad46026a8",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "title": "✅ Deposit Verified & Credited!",
+      "message": "Your deposit of $100.00 via Cash App has been approved! +$120.00 USD has been credited directly to your royal wallet balance.",
+      "type": "deposit",
+      "read": false,
+      "createdAt": "2026-10-27T13:22:56.582Z"
+    },
+    {
+      "_id": "6ae0a56dc97e7ebd56f1a85a",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "title": "✅ Cashout Dispatched Successfully!",
+      "message": "Your cashout of $250.00 from Orion star has been dispatched via Chime to your tag: $dkjfkhjds.",
+      "type": "withdraw_approved",
+      "read": false,
+      "createdAt": "2026-10-27T13:21:49.955Z"
+    },
+    {
+      "_id": "6ae0a55ca856ab518be9c30d",
+      "userId": "6addee5228a8f0e4dae1f138",
+      "title": "💸 Cashout Request Submitted",
+      "message": "Your cashout request for $250.00 from Orion star has been queued. Our financial desk is verifying your game screenshot and will dispatch to $dkjfkhjds.",
+      "type": "withdraw",
+      "read": false,
+      "createdAt": "2026-10-27T13:21:32.362Z"
+    },
+    {
+      "_id": "6ae0a51e9fb64da4b8ef7f0f",
+      "userId": null,
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "target": "player",
+      "username": "ahmadnabeel634",
+      "title": "Game Loaded: Orion star! ⚡",
+      "message": "$50.00 SC loaded into your Orion star account! Good luck!",
+      "type": "coin_load_approved",
+      "url": "/",
+      "read": false,
+      "createdAt": "2026-10-27T13:20:30.683Z"
+    },
+    {
+      "_id": "6ae0a4e7c3f956718cd73534",
+      "userId": null,
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "target": "player",
+      "username": "ahmadnabeel634",
+      "title": "Game ID Ready: Juwa! 🎮",
+      "message": "Your Juwa credentials have been issued! Username: nabilahmad115",
+      "type": "account_ready",
+      "url": "/",
+      "read": false,
+      "createdAt": "2026-10-27T13:19:35.193Z"
+    },
+    {
+      "_id": "6ae0a4cb72555c3f99bb2bc6",
+      "userId": null,
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "target": "player",
+      "username": "ahmadnabeel634",
+      "title": "Game ID Ready: Orion star! 🎮",
+      "message": "Your Orion star credentials have been issued! Username: nabilahmad298",
+      "type": "account_ready",
+      "url": "/",
+      "read": false,
+      "createdAt": "2026-10-27T13:19:07.962Z"
+    },
     {
       "_id": "6ae09ee0c379e69b29f40ecf",
       "userId": "6addee5228a8f0e4dae1f138",
@@ -608,6 +884,26 @@
   ],
   "gameAccounts": [
     {
+      "_id": "6ae0a4e7eb7c30980bdef956",
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "gameTitle": "Juwa",
+      "username": "nabilahmad115",
+      "password": "Rz@5i06368",
+      "status": "READY",
+      "updatedAt": "2026-10-27T13:19:35.191Z",
+      "createdAt": "2026-10-27T13:19:35.191Z"
+    },
+    {
+      "_id": "6ae0a4cbea9971ae4d81cc08",
+      "userEmail": "ahmadnabeel634@gmail.com",
+      "gameTitle": "Orion star",
+      "username": "nabilahmad115",
+      "password": "Zr@cnt3994",
+      "status": "READY",
+      "updatedAt": "2026-10-27T13:20:30.680Z",
+      "createdAt": "2026-10-27T13:19:07.956Z"
+    },
+    {
       "_id": "6addeec9f88989d0b214b5f7",
       "userEmail": "ahmadnabeel634@gmail.com",
       "gameTitle": "Fire Kirin",
@@ -618,5 +914,8 @@
       "createdAt": "2026-10-25T11:58:01.809Z"
     }
   ],
-  "game_accounts": []
+  "game_accounts": [],
+  "subscriptions": [],
+  "withdrawals": [],
+  "game_load_requests": []
 }

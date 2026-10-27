@@ -256,6 +256,30 @@ export async function POST(req) {
           { $set: { read: true } }
         );
       } catch {}
+
+      // Dispatch targeted push notification to this specific user ONLY
+      try {
+        const { notifyPlayer } = await import('@/lib/notify');
+        notifyPlayer({
+          userId: targetUserId || resolvedConvId,
+          userEmail: targetUsername || resolvedConvId,
+          title: '💬 VIP Concierge Reply',
+          message: cleanText ? cleanText.slice(0, 120) : 'New attachment sent to your chat.',
+          type: 'chat_message',
+          data: { url: '/chat' },
+        });
+      } catch {}
+    } else {
+      // Player sent message -> Dispatch alert strictly to Staff Concierge desk ONLY
+      try {
+        const { notifyStaff } = await import('@/lib/notify');
+        notifyStaff({
+          title: '💬 New Live Chat Inquiry',
+          message: `${session.username || 'VIP Patron'}: ${cleanText ? cleanText.slice(0, 100) : 'Sent an image attachment'}`,
+          type: 'chat_message',
+          data: { conversationId: resolvedConvId, url: '/admin' },
+        });
+      } catch {}
     }
 
     // Auto-bot assistant reply for first user message

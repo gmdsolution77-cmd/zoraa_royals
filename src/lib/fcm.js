@@ -144,7 +144,7 @@ function buildFcmPayload({ title, body, data = {} }) {
   };
 }
 
-export async function sendPushNotification({ token, topic, title, body, data = {} }) {
+export async function sendPushNotification({ token, topic, title, body, data = {}, broadcast = false }) {
   const messaging = await getFirebaseMessaging();
   if (!messaging) {
     console.log(`[ZORRA ROYALS SIMULATED PUSH] Title: "${title}" | Body: "${body}"`);
@@ -153,7 +153,7 @@ export async function sendPushNotification({ token, topic, title, body, data = {
 
   const payload = buildFcmPayload({ title, body, data });
 
-  // 1. Send to single device token if specified
+  // 1. Send strictly to single device token if specified (1-to-1 personal push)
   if (token) {
     try {
       const res = await messaging.send({ ...payload, token });
@@ -164,83 +164,75 @@ export async function sendPushNotification({ token, topic, title, body, data = {
     }
   }
 
-  // 2. Multicast to ALL active device tokens registered in subscriptions
-  let multicastCount = 0;
-  let allTokens = [];
-  try {
-    const db = await getDb();
-    const subs = await db
-      .collection('subscriptions')
-      .find({
-        $or: [
-          { fcmToken: { $exists: true, $ne: null } },
-          { token: { $exists: true, $ne: null } },
-        ],
-      })
-      .toArray();
-
-    allTokens = [
-      ...new Set(
-        subs
-          .map((s) => s.fcmToken || s.token)
-          .filter((t) => typeof t === 'string' && t.trim().length > 15)
-      ),
-    ];
-
-    if (allTokens.length > 0) {
-      const batchSize = 500;
-      for (let i = 0; i < allTokens.length; i += batchSize) {
-        const tokenBatch = allTokens.slice(i, i + batchSize);
-        try {
-          const multiRes = await messaging.sendEachForMulticast({
-            tokens: tokenBatch,
-            ...payload,
-          });
-          multicastCount += multiRes.successCount;
-        } catch (mErr) {
-          console.warn('[FCM] Multicast batch error:', mErr.message);
-        }
-      }
-
-      // Ensure all tokens are subscribed to broadcast topics
-      try {
-        await messaging.subscribeToTopic(allTokens, 'zorra_all_players');
-        await messaging.subscribeToTopic(allTokens, 'all_players');
-      } catch {}
-    }
-  } catch (dbErr) {
-    console.warn('[FCM] Subscription lookup notice:', dbErr.message);
-  }
-
-  // 3. Send to broadcast topics
-  const topicsToSend = [
-    topic || 'zorra_all_players',
-    'zorra_all_players',
-    'all_players',
-  ];
-  const uniqueTopics = [...new Set(topicsToSend.filter(Boolean))];
-  const topicResults = [];
-
-  for (const t of uniqueTopics) {
+  // 2. Send strictly to requested topic if specified (e.g. 'zorra_staff_alerts')
+  // CRITICAL: NEVER multicast or send to general players when a specific topic is specified!
+  if (topic) {
     try {
       const topicRes = await messaging.send({
         ...payload,
-        topic: t,
+        topic,
       });
-      topicResults.push({ topic: t, success: true, messageId: topicRes });
+      return { success: true, topic, messageId: topicRes };
     } catch (tErr) {
-      topicResults.push({ topic: t, success: false, error: tErr.message });
+      console.warn(`[FCM] Send to topic ${topic} error:`, tErr.message);
+      return { success: false, error: tErr.message };
     }
   }
 
-  const anyTopicSuccess = topicResults.some((r) => r.success);
-  console.log(`[ZORRA FCM BROADCAST] Multicast delivered: ${multicastCount} devices | Topics: ${JSON.stringify(topicResults)}`);
+  // 3. ONLY if broadcast is explicitly requested (e.g. Admin Console Broadcast)
+  if (broadcast || data?.target === 'all') {
+    let multicastCount = 0;
+    let allTokens = [];
+    try {
+      const db = await getDb();
+      const subs = await db
+        .collection('subscriptions')
+        .find({
+          $or: [
+            { fcmToken: { $exists: true, $ne: null } },
+            { token: { $exists: true, $ne: null } },
+          ],
+        })
+        .toArray();
 
-  return {
-    success: multicastCount > 0 || anyTopicSuccess,
-    multicastCount,
-    totalTokens: allTokens.length,
-    topicResults,
-    source: loadedAccountSource,
-  };
+      allTokens = [
+        ...new Set(
+          subs
+            .map((s) => s.fcmToken || s.token)
+            .filter((t) => typeof t === 'string' && t.trim().length > 15)
+        ),
+      ];
+
+      if (allTokens.length > 0) {
+        const batchSize = 500;
+        for (let i = 0; i < allTokens.length; i += batchSize) {
+          const tokenBatch = allTokens.slice(i, i + batchSize);
+          try {
+            const multiRes = await messaging.sendEachForMulticast({
+              tokens: tokenBatch,
+              ...payload,
+            });
+            multicastCount += multiRes.successCount;
+          } catch (mErr) {
+            console.warn('[FCM] Multicast batch error:', mErr.message);
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[FCM] Subscription lookup notice:', dbErr.message);
+    }
+
+    try {
+      await messaging.send({ ...payload, topic: 'zorra_all_players' });
+    } catch {}
+
+    return {
+      success: multicastCount > 0,
+      multicastCount,
+      totalTokens: allTokens.length,
+      source: loadedAccountSource,
+    };
+  }
+
+  return { success: false, error: 'No recipient token, topic, or broadcast flag specified.' };
 }

@@ -186,7 +186,13 @@ export default function GameStationPage() {
           setRejectionReason(null);
         } else if (s === 'REJECTED' || s === 'CANCELLED') {
           setAccountStatus('REJECTED');
-          setRejectionReason(latestReq.rejectionReason || 'Staff desk rejected request. Please contact support.');
+          setRejectionReason(
+            latestReq.rejectionReason ||
+            latestReq.rejectReason ||
+            latestReq.adminNote ||
+            latestReq.notes ||
+            'Staff desk rejected request or platform currently unavailable. Please contact support.'
+          );
         }
       }
     } catch (err) {
@@ -501,13 +507,16 @@ export default function GameStationPage() {
                       <div className="w-16 h-16 rounded-full bg-red-500/15 border-2 border-red-400/50 flex items-center justify-center mx-auto text-red-400">
                         <AlertCircle className="w-8 h-8" />
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <h4 className="text-xl font-black text-white font-serif">
                           Account Request Declined
                         </h4>
-                        <p className="text-xs text-red-300 max-w-md mx-auto leading-relaxed">
-                          {rejectionReason || 'Staff desk could not process this request. Please contact 24/7 support or retry below.'}
-                        </p>
+                        <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-200 max-w-md mx-auto text-left">
+                          <p className="text-[10px] uppercase font-black text-red-400 mb-1 tracking-wider">Note from Staff Desk:</p>
+                          <p className="leading-relaxed text-gray-200">
+                            {rejectionReason || 'Staff desk could not process this request. The game may be temporarily unavailable or undergoing maintenance.'}
+                          </p>
+                        </div>
                       </div>
 
                       <button

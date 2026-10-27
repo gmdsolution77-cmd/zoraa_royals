@@ -235,7 +235,7 @@ export async function POST(req) {
 
       return Response.json({ success: true, message: `Deposit of $${totalToCredit.toFixed(2)} credited successfully` });
     } else if (action === 'reject') {
-      const reason = rejectionReason || 'Payment could not be verified by cashier';
+      const reason = rejectionReason?.trim() || 'Payment could not be verified by cashier';
 
       await db.collection('deposits').updateOne(
         { _id: deposit._id },
@@ -243,6 +243,8 @@ export async function POST(req) {
           $set: {
             status: 'rejected',
             rejectionReason: reason,
+            rejectReason: reason,
+            adminNote: reason,
             processedBy: session.username,
             processedAt: new Date(),
           },

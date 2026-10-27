@@ -431,7 +431,7 @@ export async function PUT(req) {
 
       return NextResponse.json({ success: true, message: `Deposit approved! Credited $${creditedSC} to ${user.username}.` });
     } else if (action === 'reject') {
-      const reason = rejectReason?.trim() || 'Payment receipt could not be verified in ledger.';
+      const reason = rejectReason?.trim() || body.rejectionReason?.trim() || 'Payment receipt could not be verified in ledger.';
 
       await depositsCol.updateOne(
         { _id: deposit._id },
@@ -439,6 +439,8 @@ export async function PUT(req) {
           $set: {
             status: 'rejected',
             rejectReason: reason,
+            rejectionReason: reason,
+            adminNote: reason,
             processedBy: `${session.username} (${session.role})`,
             updatedAt: new Date(),
           },

@@ -13,6 +13,8 @@ import {
   Coins,
   ShieldCheck,
   RefreshCw,
+  AlertCircle,
+  XCircle,
 } from 'lucide-react';
 
 export default function AccountRequestsView({
@@ -27,6 +29,7 @@ export default function AccountRequestsView({
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState(null);
   const [previewScreenshot, setPreviewScreenshot] = useState(null);
+  const [rejectModal, setRejectModal] = useState({ open: false, request: null, reason: '' });
 
   const handleCopy = (text, id) => {
     if (!text) return;
@@ -35,9 +38,21 @@ export default function AccountRequestsView({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleConfirmReject = async () => {
+    if (!rejectModal.request) return;
+    const reason = rejectModal.reason.trim() || 'Game platform currently unavailable or undergoing technical maintenance.';
+    await onCancelRequest(rejectModal.request.id, reason);
+    setRejectModal({ open: false, request: null, reason: '' });
+  };
+
   const filtered = requests.filter((r) => {
+    const s = (r.status || '').toUpperCase();
     const matchesFilter =
-      filter === 'ALL' ? true : (r.status || '').toUpperCase() === filter.toUpperCase();
+      filter === 'ALL'
+        ? true
+        : filter === 'REJECTED'
+        ? s === 'REJECTED' || s === 'CANCELLED'
+        : s === filter.toUpperCase();
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -50,6 +65,9 @@ export default function AccountRequestsView({
 
   const pendingCount = requests.filter((r) => (r.status || '').toUpperCase() === 'PENDING').length;
   const readyCount = requests.filter((r) => (r.status || '').toUpperCase() === 'READY').length;
+  const rejectedCount = requests.filter(
+    (r) => (r.status || '').toUpperCase() === 'REJECTED' || (r.status || '').toUpperCase() === 'CANCELLED'
+  ).length;
 
   const formatRelativeTime = (dateStr) => {
     if (!dateStr) return '';
@@ -69,7 +87,7 @@ export default function AccountRequestsView({
       {/* Top Filter & Search Bar */}
       <div className="bg-[#0b0e1e]/90 border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-md shadow-xl">
         <div className="flex items-center gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 w-full md:w-auto overflow-x-auto">
-          {['PENDING', 'READY', 'ALL'].map((f) => (
+          {['PENDING', 'READY', 'REJECTED', 'ALL'].map((f) => (
             <button
               key={f}
               onClick={() => onFilterChange(f)}
@@ -79,12 +97,14 @@ export default function AccountRequestsView({
                     ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
                     : f === 'READY'
                     ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/30'
+                    : f === 'REJECTED'
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
                     : 'bg-white/15 text-white'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               {f === 'PENDING' && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />}
-              {f} ({f === 'PENDING' ? pendingCount : f === 'READY' ? readyCount : requests.length})
+              {f} ({f === 'PENDING' ? pendingCount : f === 'READY' ? readyCount : f === 'REJECTED' ? rejectedCount : requests.length})
             </button>
           ))}
         </div>
@@ -205,6 +225,21 @@ export default function AccountRequestsView({
                             <Check size={11} strokeWidth={3} />
                             READY
                           </span>
+                        ) : (req.status || '').toUpperCase() === 'REJECTED' || (req.status || '').toUpperCase() === 'CANCELLED' ? (
+                          <div className="flex flex-col gap-1 max-w-[220px]">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/40 w-fit">
+                              <XCircle size={11} strokeWidth={2.5} />
+                              REJECTED
+                            </span>
+                            {(req.rejectionReason || req.rejectReason || req.adminNote || req.notes) && (
+                              <span
+                                className="text-[10px] text-red-300/90 truncate block"
+                                title={req.rejectionReason || req.rejectReason || req.adminNote || req.notes}
+                              >
+                                &quot;{req.rejectionReason || req.rejectReason || req.adminNote || req.notes}&quot;
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/40">
                             {req.status}
@@ -249,15 +284,15 @@ export default function AccountRequestsView({
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => onOpenApproveModal(req)}
-                              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95"
+                              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
                             >
                               <Key size={13} />
                               <span>Issue Credentials</span>
                             </button>
                             <button
-                              onClick={() => onCancelRequest(req.id)}
-                              className="p-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-bold transition active:scale-95"
-                              title="Cancel Request"
+                              onClick={() => setRejectModal({ open: true, request: req, reason: '' })}
+                              className="p-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-bold transition active:scale-95 cursor-pointer"
+                              title="Reject Request with Note"
                             >
                               <X size={14} />
                             </button>
@@ -265,7 +300,7 @@ export default function AccountRequestsView({
                         ) : (
                           <button
                             onClick={() => onOpenApproveModal(req)}
-                            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 text-xs font-bold transition"
+                            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 text-xs font-bold transition cursor-pointer"
                           >
                             Edit Credentials
                           </button>
@@ -306,6 +341,11 @@ export default function AccountRequestsView({
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                         PENDING
+                      </span>
+                    ) : (req.status || '').toUpperCase() === 'REJECTED' || (req.status || '').toUpperCase() === 'CANCELLED' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">
+                        <XCircle size={10} strokeWidth={2.5} />
+                        REJECTED
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -356,6 +396,18 @@ export default function AccountRequestsView({
                       </div>
                     )}
 
+                    {((req.status || '').toUpperCase() === 'REJECTED' || (req.status || '').toUpperCase() === 'CANCELLED') &&
+                      (req.rejectionReason || req.rejectReason || req.adminNote || req.notes) && (
+                        <div className="p-2.5 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-200">
+                          <p className="text-[10px] uppercase font-black text-red-400 mb-0.5 tracking-wider">
+                            Rejection Note:
+                          </p>
+                          <p className="text-[11px] leading-relaxed">
+                            {req.rejectionReason || req.rejectReason || req.adminNote || req.notes}
+                          </p>
+                        </div>
+                      )}
+
                     <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1 border-t border-white/5">
                       <span>Time:</span>
                       <span>{formatRelativeTime(req.createdAt)}</span>
@@ -381,23 +433,23 @@ export default function AccountRequestsView({
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         onClick={() => onOpenApproveModal(req)}
-                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95"
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
                       >
                         <Key size={13} />
                         <span>Issue Login</span>
                       </button>
                       <button
-                        onClick={() => onCancelRequest(req.id)}
-                        className="w-full py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-black text-xs flex items-center justify-center gap-1 active:scale-95"
+                        onClick={() => setRejectModal({ open: true, request: req, reason: '' })}
+                        className="w-full py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-black text-xs flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                       >
                         <X size={13} />
-                        <span>Cancel</span>
+                        <span>Reject</span>
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => onOpenApproveModal(req)}
-                      className="w-full py-2 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 text-xs font-bold transition"
+                      className="w-full py-2 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 text-xs font-bold transition cursor-pointer"
                     >
                       Edit Credentials
                     </button>
@@ -407,6 +459,96 @@ export default function AccountRequestsView({
             })}
           </div>
         </>
+      )}
+
+      {/* Reject Request Modal */}
+      {rejectModal.open && rejectModal.request && (
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#101426] border border-red-500/40 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 animate-in fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2 text-rose-400">
+                <XCircle size={20} />
+                <h3 className="font-heading font-black text-white text-base">Reject Game Account Request</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRejectModal({ open: false, request: null, reason: '' })}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Rejecting request for <strong className="text-amber-400">{rejectModal.request.gameTitle}</strong> from{' '}
+              <strong className="text-white">{rejectModal.request.userName || rejectModal.request.userEmail}</strong>.
+              {Boolean(rejectModal.request.transferAmount && Number(rejectModal.request.transferAmount) > 0) && (
+                <span className="block mt-1 text-emerald-400 font-bold">
+                  💰 Escrow load of ${Number(rejectModal.request.transferAmount).toFixed(2)} SC will be automatically unfrozen &amp; returned to player&apos;s wallet.
+                </span>
+              )}
+            </p>
+
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 block mb-1.5 uppercase tracking-wider">
+                Quick Reason Presets:
+              </label>
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  '🎮 Game platform currently unavailable / out of stock',
+                  '⚙️ Technical maintenance in progress on this game platform',
+                  '⚠️ Platform temporarily offline - please try again later',
+                  '❌ Duplicate request or verification failed',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setRejectModal((prev) => ({ ...prev, reason: preset }))}
+                    className={`text-left text-xs p-2.5 rounded-xl border transition cursor-pointer ${
+                      rejectModal.reason === preset
+                        ? 'bg-rose-500/20 border-rose-500 text-rose-200 font-bold'
+                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 block mb-1.5 uppercase tracking-wider">
+                Reason Note (Sent directly to player) *
+              </label>
+              <textarea
+                rows={3}
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder="Explain why this request is rejected or when it will be available..."
+                className="w-full bg-black/60 border border-white/15 focus:border-rose-500 rounded-xl p-3 text-xs text-white placeholder-gray-500 outline-none resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setRejectModal({ open: false, request: null, reason: '' })}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={!rejectModal.reason.trim()}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-red-500/20 cursor-pointer active:scale-95 transition"
+              >
+                <XCircle size={14} />
+                <span>Confirm Rejection &amp; Send Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Proof Screenshot Preview Modal */}

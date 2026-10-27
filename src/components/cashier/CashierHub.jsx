@@ -1724,12 +1724,12 @@ export default function CashierHub({
                       </div>
 
                       {/* Prominent Rejection Reason Display */}
-                      {isRejected && item.rejectionReason && (
-                        <div className="mt-3 pt-3 border-t border-red-500/20 flex items-start gap-2 text-xs text-red-300 bg-red-950/30 p-2.5 rounded-xl">
-                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                      {isRejected && (item.rejectionReason || item.rejectReason || item.adminNote) && (
+                        <div className="mt-3 pt-3 border-t border-red-500/20 flex items-start gap-2.5 text-xs text-rose-200 bg-rose-950/40 p-3 rounded-xl border border-rose-500/30">
+                          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                           <div>
-                            <strong className="font-bold text-red-200">Rejection Reason: </strong>
-                            <span>{item.rejectionReason}</span>
+                            <strong className="font-bold text-rose-300 block mb-0.5">Staff Note / Rejection Reason:</strong>
+                            <span className="leading-relaxed">{item.rejectionReason || item.rejectReason || item.adminNote}</span>
                           </div>
                         </div>
                       )}
