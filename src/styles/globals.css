@@ -120,6 +120,12 @@ body {
   display: inline-block;
 }
 
+@media (max-width: 639px) {
+  .header-deposit-btn {
+    display: none !important;
+  }
+}
+
 /* Gold Buttons */
 .btn-gold {
   background: var(--gold-gradient);

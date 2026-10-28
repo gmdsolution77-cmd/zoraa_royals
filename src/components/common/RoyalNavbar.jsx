@@ -117,18 +117,18 @@ export default function RoyalNavbar({
       style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
       className="sticky top-0 z-40 w-full border-b border-[rgba(212,175,55,0.2)] bg-[#07080b]/90 backdrop-blur-md"
     >
-      <div className="w-full px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-1.5 sm:gap-4 overflow-x-clip">
         {/* Left: Mobile Toggle & Logo (Hidden on desktop since Sidebar already displays logo) */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 sm:p-2 text-gray-300 hover:text-[#d4af37] lg:hidden rounded-lg hover:bg-white/5 transition cursor-pointer shrink-0"
+            className="p-1 sm:p-2 text-gray-300 hover:text-[#d4af37] lg:hidden rounded-lg hover:bg-white/5 transition cursor-pointer shrink-0"
             aria-label="Toggle Navigation Menu"
           >
             <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
-          <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group lg:hidden shrink-0">
+          <Link href="/" className="flex items-center gap-1 sm:gap-2 group lg:hidden shrink-0">
             <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden p-0.5 bg-gradient-to-tr from-[#d4af37] via-[#fff0a8] to-[#997b24] shadow-[0_0_12px_rgba(212,175,55,0.4)] shrink-0">
               <Image
                 src="/logo.png"
@@ -139,7 +139,7 @@ export default function RoyalNavbar({
                 priority
               />
             </div>
-            <span className="font-extrabold text-xs sm:text-sm tracking-wider text-gold-gradient font-serif truncate max-w-[85px] xs:max-w-none">
+            <span className="font-extrabold text-[11px] sm:text-sm tracking-wider text-gold-gradient font-serif whitespace-nowrap">
               ZORRA ROYALS
             </span>
           </Link>
@@ -154,21 +154,21 @@ export default function RoyalNavbar({
         </div>
 
         {/* Right: Actions, Currency, Balance & User Menu */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
           {activeUser ? (
             <>
               {/* Single Dollar Balance ($ USD) */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="flex items-center gap-1.5 sm:gap-2 bg-[#0d0f17] border border-[#d4af37]/35 hover:border-[#ffd700] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-md transition group text-left cursor-pointer shrink-0"
+                className="flex items-center gap-1 sm:gap-2 bg-[#0d0f17] border border-[#d4af37]/35 hover:border-[#ffd700] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-md transition group text-left cursor-pointer shrink-0"
                 title={`Total Balance: $${(activeUser.balance || 0).toFixed(2)} USD • Available: $${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}`}
               >
-                <div className="p-1 rounded-md bg-[#d4af37]/15 text-[#ffd700] shrink-0">
+                <div className="p-0.5 sm:p-1 rounded-md bg-[#d4af37]/15 text-[#ffd700] shrink-0">
                   <Wallet className="w-3.5 h-3.5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1 mb-0.5">
-                    <span className="text-[9px] uppercase tracking-wider text-gray-400 block font-bold leading-none">
+                    <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-gray-400 block font-bold leading-none">
                       {activeUser.frozenBalance > 0 ? 'Avail' : 'Balance'}
                     </span>
                     {activeUser.frozenBalance > 0 && (
@@ -186,7 +186,7 @@ export default function RoyalNavbar({
               {/* Quick Deposit Button (Desktop & Tablet only - Mobile has bottom nav deposit) */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="hidden sm:flex btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold items-center gap-1.5 cursor-pointer shrink-0"
+                className="header-deposit-btn hidden sm:inline-flex btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Wallet className="w-4 h-4" />
                 <span>Deposit</span>
@@ -196,7 +196,7 @@ export default function RoyalNavbar({
               {bonusSettings?.freeplayActive !== false && !activeUser.signupBonusClaimed && !activeUser.freeplayClaimed && (
                 <button
                   onClick={onOpenFreeplay}
-                  className="hidden md:flex px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition items-center gap-1.5 text-xs font-black shadow-md cursor-pointer shrink-0"
+                  className="hidden md:inline-flex px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition items-center gap-1.5 text-xs font-black shadow-md cursor-pointer shrink-0"
                   title={`Claim $${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Signup Freeplay`}
                 >
                   <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
@@ -207,7 +207,7 @@ export default function RoyalNavbar({
               {/* Notifications Button */}
               <button
                 onClick={onOpenNotifications}
-                className="relative p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#d4af37]/40 transition shrink-0 cursor-pointer"
+                className="relative p-1.5 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#d4af37]/40 transition shrink-0 cursor-pointer"
                 aria-label="View notifications"
               >
                 <Bell className="w-4 h-4" />
