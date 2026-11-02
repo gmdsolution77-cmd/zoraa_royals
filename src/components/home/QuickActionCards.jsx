@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Wallet, Key, Gift, Download, ArrowUpRight } from 'lucide-react';
+import { Wallet, Key, Gift, Download, ArrowUpRight, MessageSquare } from 'lucide-react';
 
 export default function QuickActionCards({
   onOpenCashier,
@@ -37,17 +37,19 @@ export default function QuickActionCards({
       tab: 'withdraw',
     },
     {
-      title: 'Load Game Credits',
-      subtitle: 'Orion, Kirin, Juwa & Milky Way',
-      badge: 'TRANSFER CREDITS',
-      icon: Key,
-      iconColor: 'text-purple-300',
-      iconBg: 'bg-purple-500/20 border border-purple-400/40',
-      gradient: 'from-[#1e0f2d] via-[#13151f] to-[#090b12]',
-      border: 'border-purple-500/35 hover:border-purple-400',
-      glow: 'hover:shadow-[0_10px_35px_rgba(168,85,247,0.3)]',
-      badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-400/40',
-      tab: 'load',
+      title: '24/7 VIP Concierge',
+      subtitle: 'Instant Chat & Deposit Support',
+      badge: 'LIVE SUPPORT',
+      icon: MessageSquare,
+      iconColor: 'text-[#ffd700]',
+      iconBg: 'bg-[#ffd700]/20 border border-[#ffd700]/40',
+      gradient: 'from-[#1e1708] via-[#13151f] to-[#090b12]',
+      border: 'border-[#ffd700]/35 hover:border-[#ffd700]',
+      glow: 'hover:shadow-[0_10px_35px_rgba(212,175,55,0.3)]',
+      badgeClass: 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/40',
+      action: () => {
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openRoyalChat'));
+      },
     },
     {
       title: 'Transaction History',
@@ -71,7 +73,10 @@ export default function QuickActionCards({
         return (
           <div
             key={i}
-            onClick={() => onOpenCashier && onOpenCashier(c.tab)}
+            onClick={() => {
+              if (c.action) c.action();
+              else if (onOpenCashier) onOpenCashier(c.tab);
+            }}
             className={`p-4 sm:p-5 rounded-2xl bg-gradient-to-br ${c.gradient} border ${c.border} ${c.glow} transition-all duration-300 cursor-pointer shadow-xl group flex flex-col justify-between min-h-[118px] relative overflow-hidden`}
           >
             <div className="flex items-center justify-between z-10">

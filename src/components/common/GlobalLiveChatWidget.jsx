@@ -162,10 +162,6 @@ export default function GlobalLiveChatWidget() {
   }
 
   const handleOpenClick = () => {
-    if (!user) {
-      setAuthModalOpen(true);
-      return;
-    }
     setChatOpen(true);
     markMessagesAsRead();
   };

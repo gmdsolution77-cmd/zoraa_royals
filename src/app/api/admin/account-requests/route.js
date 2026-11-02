@@ -1,5 +1,6 @@
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser, hasPermission } from '@/lib/auth';
+import { notifyPlayer } from '@/lib/notify';
 
 export async function GET() {
   try {
@@ -69,14 +70,15 @@ export async function POST(req) {
         }
       );
 
-      // Notify player
-      await db.collection('notifications').insertOne({
+      // Notify player via in-app & push
+      notifyPlayer({
         userId: request.userId,
+        userEmail: request.userEmail,
+        username: request.userName || request.username,
         title: `🔑 ${request.gameTitle} Credentials Ready!`,
         message: `Your gaming account has been created! Username: "${platformUsername.trim()}". Open your Game Vault to view credentials and start playing!`,
-        type: 'game_account',
-        read: false,
-        createdAt: new Date(),
+        type: 'account_ready',
+        data: { gameTitle: request.gameTitle, username: platformUsername.trim(), url: '/accounts' },
       });
 
       return Response.json({ success: true, message: 'Game credentials assigned successfully' });
@@ -91,6 +93,18 @@ export async function POST(req) {
           },
         }
       );
+
+      // Notify player on decline
+      notifyPlayer({
+        userId: request.userId,
+        userEmail: request.userEmail,
+        username: request.userName || request.username,
+        title: `⚠️ ${request.gameTitle} Request Declined`,
+        message: `Your game account request for ${request.gameTitle} was declined. Contact 24/7 Concierge for assistance.`,
+        type: 'account_rejected',
+        data: { gameTitle: request.gameTitle, url: '/accounts' },
+      });
+
       return Response.json({ success: true, message: 'Request declined' });
     }
 

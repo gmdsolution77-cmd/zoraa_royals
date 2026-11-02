@@ -38,7 +38,7 @@ export default function PromotionsPage() {
   const [promoMessage, setPromoMessage] = useState(null);
   const [promoError, setPromoError] = useState(null);
 
-  // Dynamic system settings & running active promo campaigns
+  // Dynamic system settings
   const [sysSettings, setSysSettings] = useState({
     welcomeBonusPercent: 100,
     welcomeBonusTitle: 'FIRST DEPOSIT DOUBLE PACKAGE',
@@ -46,15 +46,7 @@ export default function PromotionsPage() {
     regularBonusPercent: 20,
     regularBonusTitle: 'REGULAR RELOAD BONUS',
     regularBonusSubtitle: 'Enjoy bonus on every reload! Boost your palace treasury anytime.',
-    referralBonusPercent: 50,
-    referralBonusTitle: 'FRIEND REFERRAL BONUS',
-    referralBonusSubtitle: 'Earn instant % bonus directly into your wallet when friends join and complete their first deposit!',
   });
-  const [runningPromos, setRunningPromos] = useState([]);
-  const [loadingPromos, setLoadingPromos] = useState(true);
-  const [couponInput, setCouponInput] = useState('');
-  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(null);
 
   // Fetch user session
   const refreshUser = async () => {
@@ -73,10 +65,9 @@ export default function PromotionsPage() {
     }
   };
 
-  // Fetch dynamic settings & running campaigns
+  // Fetch dynamic settings
   const loadPromosAndSettings = async () => {
     try {
-      // 1. Dynamic Settings
       fetch('/api/settings')
         .then(r => r.json())
         .then(d => {
@@ -89,25 +80,13 @@ export default function PromotionsPage() {
               regularBonusPercent: Number(d.settings.regularBonusPercent ?? d.settings.regularBonusPercentage ?? 20),
               regularBonusTitle: d.settings.regularBonusTitle || prev.regularBonusTitle,
               regularBonusSubtitle: d.settings.regularBonusSubtitle || prev.regularBonusSubtitle,
-              referralBonusPercent: Number(d.settings.referralBonusPercent ?? d.settings.referralBonusPercentage ?? 50),
-              referralBonusTitle: d.settings.referralBonusTitle || prev.referralBonusTitle,
-              referralBonusSubtitle: d.settings.referralBonusSubtitle || prev.referralBonusSubtitle,
               freeplayAmountSC: Number(d.settings.freeplayAmountSC ?? 5.0),
             }));
           }
         })
         .catch(() => {});
-
-      // 2. Active Running Campaigns from Database
-      const promoRes = await fetch('/api/promos');
-      const promoData = await promoRes.json();
-      if (promoData.success && Array.isArray(promoData.promotions)) {
-        setRunningPromos(promoData.promotions.filter(p => p.isActive !== false));
-      }
     } catch (err) {
-      console.error('Failed to load promotions:', err);
-    } finally {
-      setLoadingPromos(false);
+      console.error('Failed to load settings:', err);
     }
   };
 
@@ -115,51 +94,6 @@ export default function PromotionsPage() {
     refreshUser();
     loadPromosAndSettings();
   }, []);
-
-  // Redeem Promo Voucher Code
-  const handleRedeemCoupon = async (e) => {
-    if (e) e.preventDefault();
-    if (!couponInput.trim()) {
-      setPromoError('Please enter a promo coupon code.');
-      return;
-    }
-    if (!user) {
-      setAuthModal({ open: true, tab: 'login' });
-      return;
-    }
-
-    setRedeemingCoupon(true);
-    setPromoMessage(null);
-    setPromoError(null);
-
-    try {
-      const res = await fetch('/api/promos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponInput.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPromoMessage(`🎉 Success! Redeemed "${couponInput.trim().toUpperCase()}": +$${Number(data.rewardUSD || 0).toFixed(2)} USD added to your wallet balance!`);
-        setCouponInput('');
-        refreshUser();
-      } else {
-        setPromoError(data.error || 'Invalid or expired promo code.');
-      }
-    } catch {
-      setPromoError('Network error while redeeming promo coupon.');
-    } finally {
-      setRedeemingCoupon(false);
-    }
-  };
-
-  const handleCopyCode = (code) => {
-    if (typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(code);
-      setCopiedCode(code);
-      setTimeout(() => setCopiedCode(null), 2500);
-    }
-  };
 
   // Claim Daily Palace Bonus
   const handleClaimDailyBonus = async () => {
@@ -192,69 +126,6 @@ export default function PromotionsPage() {
       setDailyClaiming(false);
     }
   };
-
-  const tiers = [
-    {
-      name: 'Bronze Royal',
-      badge: 'TIER 1',
-      perks: [
-        `Free $${Number(sysSettings.freeplayAmountSC || 5).toFixed(0)} Welcome Freeplay`,
-        'Daily Mystery Crate',
-        '24/7 Concierge Support',
-        'Standard Cashout Queue',
-      ],
-      scMin: '$0+',
-      border: 'border-slate-700',
-    },
-    {
-      name: 'Silver Knight',
-      badge: 'TIER 2',
-      perks: [
-        '5% Weekly Loss Rebate',
-        'Higher Daily Mystery Drops',
-        'Priority Game ID Release',
-        'Direct Cash App Desk',
-      ],
-      scMin: '$250+',
-      border: 'border-amber-600/40',
-    },
-    {
-      name: 'Gold Crown',
-      badge: 'TIER 3',
-      perks: [
-        '10% Weekly Loss Rebate',
-        'Personal VIP Host Access',
-        'Expedited 3-Min Cashouts',
-        'Monthly Level-up Gift',
-      ],
-      scMin: '$1,000+',
-      border: 'border-[#ffd700]/50',
-    },
-    {
-      name: 'Diamond Elite',
-      badge: 'TIER 4',
-      perks: [
-        '15% Instant Rakeback',
-        'No Cashout Limits',
-        'Private Discord & Telegram Desk',
-        'Custom Platform Bonus Codes',
-      ],
-      scMin: '$5,000+',
-      border: 'border-purple-500/50',
-    },
-    {
-      name: 'Palace Legend',
-      badge: 'TIER 5',
-      perks: [
-        '25% Exclusive VIP Rakeback',
-        'Dedicated 24/7 Account Executive',
-        'Instant Unlimited Redemptions',
-        'VIP Birthday & Holiday Trips',
-      ],
-      scMin: '$25,000+',
-      border: 'border-rose-500/60',
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#07080b] text-white flex flex-col justify-between selection:bg-[#ffd700] selection:text-black font-sans">
@@ -311,127 +182,6 @@ export default function PromotionsPage() {
             <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
               <AlertCircle size={18} className="text-rose-400 shrink-0" />
               <span>{promoError}</span>
-            </div>
-          )}
-
-          {/* Quick Redeem Voucher Card */}
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#10141e] via-[#151a28] to-[#10141e] border border-[#d4af37]/35 shadow-2xl relative overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
-                  <Gift size={24} />
-                </div>
-                <div>
-                  <h3 className="font-serif font-black text-lg text-white">Have a Coupon or Promo Code?</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Enter your exclusive bonus code to receive instant wallet credits.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleRedeemCoupon} className="flex items-center gap-2 w-full sm:w-auto">
-                <input
-                  type="text"
-                  placeholder="ENTER PROMO CODE..."
-                  value={couponInput}
-                  onChange={(e) => setCouponInput(e.target.value)}
-                  className="bg-[#07080b] border border-[#d4af37]/35 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-white placeholder-gray-500 uppercase outline-none focus:border-[#ffd700] w-full sm:w-64"
-                />
-                <button
-                  type="submit"
-                  disabled={redeemingCoupon}
-                  className="btn-gold py-2.5 px-5 text-xs font-black uppercase tracking-wider shrink-0 cursor-pointer shadow-md hover:scale-102 transition disabled:opacity-50"
-                >
-                  {redeemingCoupon ? 'Redeeming...' : 'Redeem Code'}
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Active Running Promotions From Database */}
-          {runningPromos.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400">
-                    <Flame size={16} />
-                  </div>
-                  <h2 className="font-serif font-black text-xl text-white tracking-wide">
-                    Active Bonus Campaigns &amp; Coupon Drops
-                  </h2>
-                </div>
-                <span className="text-[11px] font-bold text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">
-                  {runningPromos.length} Active Now
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {runningPromos.map((p) => {
-                  const pId = p.id || p._id || p.code;
-                  const reward = Number(p.rewardUSD || p.rewardSC || 0);
-                  return (
-                    <div
-                      key={pId}
-                      className="p-6 rounded-3xl bg-gradient-to-br from-[#10141e] to-[#07080b] border border-[#d4af37]/30 shadow-xl flex flex-col justify-between gap-4 hover:border-[#ffd700] transition duration-300 relative overflow-hidden"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30">
-                            {p.tag || 'EXCLUSIVE DROP'}
-                          </span>
-                          <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                            +${reward.toFixed(2)} USD
-                          </span>
-                        </div>
-
-                        <h3 className="font-serif font-black text-lg text-white">
-                          {p.title}
-                        </h3>
-
-                        <p className="text-xs text-gray-300 leading-relaxed line-clamp-2">
-                          {p.description || 'Exclusive palace credit drop directly credited to your royal account.'}
-                        </p>
-
-                        {/* Coupon Code Pill */}
-                        <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 flex items-center justify-between">
-                          <div>
-                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Promo Code</span>
-                            <span className="text-sm font-mono font-black text-[#ffd700]">{p.code}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyCode(p.code)}
-                            className="px-3 py-1 rounded-lg bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30 hover:bg-[#ffd700]/25 text-[11px] font-black transition cursor-pointer"
-                          >
-                            {copiedCode === p.code ? '✓ COPIED' : 'COPY'}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                        <span className="text-[11px] text-gray-400 font-semibold">
-                          {p.minDeposit > 0 ? `$${p.minDeposit} Min Deposit` : 'Zero Deposit Required'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!user) {
-                              setAuthModal({ open: true, tab: 'login' });
-                            } else {
-                              setCouponInput(p.code);
-                              window.scrollTo({ top: 200, behavior: 'smooth' });
-                            }
-                          }}
-                          className="text-xs font-bold text-[#ffd700] hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Claim Now</span>
-                          <ArrowRight size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
 
@@ -518,36 +268,6 @@ export default function PromotionsPage() {
                   <span>SPIN LUCKY WHEEL</span>
                 </Link>
               </div>
-            </div>
-          </div>
-
-          {/* VIP Tiers */}
-          <div className="space-y-5">
-            <h2 className="font-serif font-black text-xl md:text-2xl text-white text-center tracking-wide">
-              LOYALTY TIERS &amp; REBATES
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {tiers.map((t, idx) => (
-                <div
-                  key={idx}
-                  className={`p-5 rounded-2xl bg-slate-900/80 border ${t.border} space-y-3 flex flex-col justify-between shadow-lg hover:border-[#ffd700]/70 transition`}
-                >
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-mono font-bold text-slate-400">{t.badge}</span>
-                    <h4 className="font-serif font-bold text-sm text-white">{t.name}</h4>
-                    <span className="text-xs font-mono font-bold text-emerald-400 block">{t.scMin}</span>
-                    <div className="space-y-2 pt-2 border-t border-slate-800 text-[11px] text-slate-300">
-                      {t.perks.map((p, pIdx) => (
-                        <div key={pIdx} className="flex items-start gap-1.5">
-                          <CheckCircle2 size={12} className="text-[#ffd700] mt-0.5 shrink-0" />
-                          <span className="leading-tight">{p}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </main>

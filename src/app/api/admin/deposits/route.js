@@ -1,5 +1,6 @@
 import { getDb, initDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, hasPermission } from '@/lib/auth';
+import { notifyPlayer } from '@/lib/notify';
 
 export async function GET() {
   try {
@@ -91,14 +92,15 @@ export async function POST(req) {
         createdAt: new Date(),
       });
 
-      // Notification
-      await db.collection('notifications').insertOne({
+      // Real-Time In-App & Push Notification
+      notifyPlayer({
         userId: deposit.userId,
+        userEmail: deposit.userEmail || deposit.senderEmail,
+        username: deposit.userName || deposit.username,
         title: '🎉 Deposit Approved & Credited!',
         message: `Your deposit of $${deposit.amount.toFixed(2)} with +$${(deposit.bonusAmount || 0).toFixed(2)} bonus ($${totalToCredit.toFixed(2)} total) has been approved and added to your wallet!`,
-        type: 'payment',
-        read: false,
-        createdAt: new Date(),
+        type: 'deposit_approved',
+        data: { depositId: deposit._id.toString(), amount: String(totalToCredit), url: '/deposit' },
       });
 
       // Auto-queue Game Account Creation if player does not have a game account for this game yet
@@ -251,13 +253,15 @@ export async function POST(req) {
         }
       );
 
-      await db.collection('notifications').insertOne({
+      // Real-Time In-App & Push Notification
+      notifyPlayer({
         userId: deposit.userId,
+        userEmail: deposit.userEmail || deposit.senderEmail,
+        username: deposit.userName || deposit.username,
         title: '⚠️ Deposit Request Declined',
         message: `Your deposit request for $${deposit.amount.toFixed(2)} was declined. Reason: ${reason}`,
-        type: 'alert',
-        read: false,
-        createdAt: new Date(),
+        type: 'deposit_rejected',
+        data: { depositId: deposit._id.toString(), reason, url: '/deposit' },
       });
 
       return Response.json({ success: true, message: 'Deposit rejected' });

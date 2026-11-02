@@ -32,8 +32,6 @@ import HeroShowcase from '@/components/home/HeroShowcase';
 import WinnersTicker from '@/components/home/WinnersTicker';
 import QuickActionCards from '@/components/home/QuickActionCards';
 import GameSectionRow from '@/components/home/GameSectionRow';
-import VaultStation from '@/components/home/VaultStation';
-import CrownClubSection from '@/components/home/CrownClubSection';
 import RoyalGameGrid from '@/components/games/RoyalGameGrid';
 import CashierHub from '@/components/cashier/CashierHub';
 import GameCredentialsModal from '@/components/games/GameCredentialsModal';
@@ -283,9 +281,6 @@ export default function HomePage() {
                     onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
                   />
                 </div>
-
-                {/* D. VIP Crown Club Lounge Section */}
-                <CrownClubSection onOpenChat={() => setChatOpen(true)} />
               </>
             ) : (
               <CashierHub

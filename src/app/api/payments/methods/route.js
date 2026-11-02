@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
 import { getDb, toIdQuery } from '@/lib/mongodb';
-import { getSessionUser, ROLES } from '@/lib/auth';
+import { getSessionUser, ROLES, hasPermission } from '@/lib/auth';
 import { ensureDbInitialized } from '@/lib/initDb';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+function canManageGateways(session) {
+  if (!session) return false;
+  return (
+    session.role === ROLES.SUPER_ADMIN ||
+    session.role === ROLES.FINANCIAL_MANAGER ||
+    session.role === ROLES.OPERATION_ADMIN ||
+    session.role === 'admin' ||
+    hasPermission(session.role, 'gateways') ||
+    hasPermission(session.role, 'finance')
+  );
+}
 
 // GET payment methods
 export async function GET(req) {
@@ -50,11 +62,11 @@ export async function GET(req) {
   }
 }
 
-// POST: Add Payment Method (Super Admin & Financial Manager)
+// POST: Add Payment Method
 export async function POST(req) {
   try {
     const session = await getSessionUser();
-    if (!session || (session.role !== ROLES.SUPER_ADMIN && session.role !== ROLES.FINANCIAL_MANAGER)) {
+    if (!canManageGateways(session)) {
       return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 403 });
     }
 
@@ -112,7 +124,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const session = await getSessionUser();
-    if (!session || (session.role !== ROLES.SUPER_ADMIN && session.role !== ROLES.FINANCIAL_MANAGER)) {
+    if (!canManageGateways(session)) {
       return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 403 });
     }
 
@@ -167,7 +179,7 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     const session = await getSessionUser();
-    if (!session || (session.role !== ROLES.SUPER_ADMIN && session.role !== ROLES.FINANCIAL_MANAGER)) {
+    if (!canManageGateways(session)) {
       return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 403 });
     }
 

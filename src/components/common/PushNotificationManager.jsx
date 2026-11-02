@@ -10,6 +10,57 @@ export default function PushNotificationManager() {
   const pathname = usePathname();
   const [activeToast, setActiveToast] = useState(null);
   const [toastProgress, setToastProgress] = useState(100);
+  const [showAllowPrompt, setShowAllowPrompt] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        const timer = setTimeout(() => setShowAllowPrompt(true), 2000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
+  const handleAllowNotifications = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        unlockAudioContext();
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          playTune('jackpot', 0.8);
+          setShowAllowPrompt(false);
+
+          let storedEmail = localStorage.getItem('zorra_user_email') || '';
+          try {
+            const raw = localStorage.getItem('zr_user_session');
+            if (raw) {
+              const u = JSON.parse(raw);
+              if (u?.email) storedEmail = u.email;
+            }
+          } catch {}
+
+          await fetch('/api/notifications', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: storedEmail,
+              token: 'chrome_web_' + (storedEmail || 'client_' + Date.now().toString(36)),
+              device: 'web_chrome',
+            }),
+          }).catch(() => {});
+
+          triggerChromeDesktopNotification({
+            title: '👑 Royal Push Notifications Enabled!',
+            message: 'You will now receive instant push alerts for deposit approvals, Game IDs, and VIP bonuses.',
+          });
+        } else {
+          setShowAllowPrompt(false);
+        }
+      } catch (e) {
+        setShowAllowPrompt(false);
+      }
+    }
+  };
 
   const lastSeenIdRef = useRef(null);
   const isInitialRef = useRef(true);
@@ -264,44 +315,85 @@ export default function PushNotificationManager() {
     };
   }, [pathname]);
 
-  if (!activeToast || (pathname && pathname.startsWith('/admin'))) return null;
+  const isChatToast = activeToast?.type === 'chat' || activeToast?.action === 'chat';
 
   const handleOpenAction = () => {
-    const toast = activeToast;
+    if (!activeToast) return;
+    if (activeToast.type === 'chat' || activeToast.action === 'chat') {
+      window.dispatchEvent(new CustomEvent('zorra-open-chat'));
+    } else if (activeToast.url) {
+      router.push(activeToast.url);
+    }
     setActiveToast(null);
-    if (!toast) return;
-
-    if (toast.type === 'chat' || toast.action === 'chat') {
-      window.dispatchEvent(new CustomEvent('openRoyalChat'));
-      return;
-    }
-
-    if (toast.url && toast.url !== '/') {
-      router.push(toast.url);
-    } else {
-      window.dispatchEvent(new CustomEvent('zorra-open-notifications'));
-    }
   };
 
   const getActionLabel = () => {
-    if (activeToast?.actionText) return activeToast.actionText;
-    if (activeToast?.type === 'chat' || activeToast?.action === 'chat') return 'Open Chat';
-    if (activeToast?.type === 'account_request') return 'View Account';
-    if (activeToast?.type === 'deposit') return 'View Deposit';
-    if (activeToast?.type === 'bonus' || activeToast?.type === 'daily_claim') return 'Claim Bonus';
+    if (!activeToast) return 'View';
+    if (activeToast.type === 'chat' || activeToast.action === 'chat') return 'Open Chat';
+    if (activeToast.url?.includes('deposit') || activeToast.url?.includes('cashier')) return 'View Deposit';
+    if (activeToast.url?.includes('game')) return 'View Games';
     return 'View Details';
   };
 
-  const isChatToast = activeToast?.type === 'chat' || activeToast?.action === 'chat';
+  if ((!activeToast && !showAllowPrompt) || (pathname && pathname.startsWith('/admin'))) {
+    return null;
+  }
 
   return (
-    <div
-      role="alert"
-      className="fixed top-4 right-4 z-[9999] max-w-sm w-full mx-auto p-4 rounded-2xl bg-[#090b10]/95 backdrop-blur-2xl border border-[#d4af37]/60 shadow-[0_12px_40px_rgba(212,175,55,0.35)] animate-in slide-in-from-top duration-300 overflow-hidden"
-      style={{
-        boxShadow: '0 0 25px rgba(212, 175, 55, 0.25), inset 0 0 15px rgba(212, 175, 55, 0.1)',
-      }}
-    >
+    <>
+      {/* Floating Prompt Bar for Customer to Allow Notifications */}
+      {showAllowPrompt && (
+        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-40 p-4 rounded-2xl bg-gradient-to-r from-[#121624] via-[#1a1f30] to-[#121624] border-2 border-[#ffd700] shadow-[0_10px_40px_rgba(0,0,0,0.95)] animate-slide-up">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-[#ffd700]/20 text-[#ffd700] shrink-0 border border-[#ffd700]/40">
+                <Bell className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-white font-serif tracking-wide">
+                  ENABLE PUSH NOTIFICATIONS
+                </h4>
+                <p className="text-[11px] text-gray-300 mt-0.5 leading-snug">
+                  Get instant push alerts for deposit approvals, Game ID credentials &amp; VIP drops!
+                </p>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAllowNotifications}
+                    className="btn-gold py-1.5 px-3.5 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer hover:scale-105 transition"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>Allow Notifications</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllowPrompt(false)}
+                    className="text-[11px] text-gray-400 hover:text-white px-2 py-1 font-semibold"
+                  >
+                    Later
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAllowPrompt(false)}
+              className="text-gray-400 hover:text-white p-1"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Active Toast Notification */}
+      {activeToast && (
+        <div
+          role="alert"
+          className="fixed top-4 right-4 z-[9999] max-w-sm w-full mx-auto p-4 rounded-2xl bg-[#090b10]/95 backdrop-blur-2xl border border-[#d4af37]/60 shadow-[0_12px_40px_rgba(212,175,55,0.35)] animate-in slide-in-from-top duration-300 overflow-hidden"
+          style={{
+            boxShadow: '0 0 25px rgba(212, 175, 55, 0.25), inset 0 0 15px rgba(212, 175, 55, 0.1)',
+          }}
+        >
       <div className="flex items-start gap-3">
         {/* Glowing Royal Icon */}
         <div className="relative shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37]/25 to-amber-600/20 border border-[#d4af37]/70 flex items-center justify-center text-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.5)]">
@@ -368,5 +460,7 @@ export default function PushNotificationManager() {
         />
       </div>
     </div>
+  )}
+</>
   );
 }

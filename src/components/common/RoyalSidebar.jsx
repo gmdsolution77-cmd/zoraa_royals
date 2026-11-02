@@ -82,12 +82,11 @@ export default function RoyalSidebar({
       action: onOpenSpinWheel || (() => router.push('/spin-wheel'))
     },
     {
-      label: 'Refer & Earn',
-      path: '/referral',
-      icon: Users,
-      badge: 'REWARDS',
-      glow: true,
-      action: onOpenReferral
+      label: '24/7 Live Support',
+      path: '/chat',
+      icon: Headphones,
+      badge: 'ONLINE',
+      action: onOpenChat || (() => router.push('/chat')),
     },
     { label: 'Promotions & VIP', path: '/promotions', icon: Crown },
     { label: 'Download App', path: '/download-app', icon: Download, badge: 'APK / iOS' },

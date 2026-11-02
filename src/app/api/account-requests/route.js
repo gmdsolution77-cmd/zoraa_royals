@@ -334,27 +334,33 @@ export async function PUT(req) {
         }).catch(() => {});
 
         notifyPlayer({
+          userId: targetRequest.userId,
           userEmail: cleanEmail,
+          username: targetRequest.userName,
           title: `Freeplay Approved: ${cleanTitle}! 🎁`,
           message: `Your $${fpAmount.toFixed(2)} Freeplay task for ${cleanTitle} was approved! Game ID: ${finalUsername}`,
           type: 'account_ready',
-          data: { gameTitle: cleanTitle },
+          data: { gameTitle: cleanTitle, url: '/accounts' },
         });
       } else if (finalTransferAmount > 0) {
         notifyPlayer({
+          userId: targetRequest.userId,
           userEmail: cleanEmail,
+          username: targetRequest.userName,
           title: `Game Loaded: ${cleanTitle}! ⚡`,
           message: `$${finalTransferAmount.toFixed(2)} SC loaded into your ${cleanTitle} account! Good luck!`,
           type: 'coin_load_approved',
-          data: { gameTitle: cleanTitle, amount: String(finalTransferAmount) },
+          data: { gameTitle: cleanTitle, amount: String(finalTransferAmount), url: '/accounts' },
         });
       } else {
         notifyPlayer({
+          userId: targetRequest.userId,
           userEmail: cleanEmail,
+          username: targetRequest.userName,
           title: `Game ID Ready: ${cleanTitle}! 🎮`,
           message: `Your ${cleanTitle} credentials have been issued! Username: ${finalUsername}`,
           type: 'account_ready',
-          data: { gameTitle: cleanTitle },
+          data: { gameTitle: cleanTitle, url: '/accounts' },
         });
       }
 

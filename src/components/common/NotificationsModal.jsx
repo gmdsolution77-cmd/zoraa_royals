@@ -87,6 +87,56 @@ export default function NotificationsModal({
           </div>
         </div>
 
+        {/* Allow Notifications Button */}
+        {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && (
+          <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-[#ffd700]/15 via-[#d4af37]/20 to-[#ffd700]/15 border border-[#ffd700]/40 shadow-lg text-center space-y-2">
+            <div className="flex items-center justify-center gap-2 text-xs font-black text-[#ffd700]">
+              <Bell className="w-4 h-4 animate-bounce" />
+              <span>ENABLE INSTANT ROYAL ALERTS</span>
+            </div>
+            <p className="text-[11px] text-gray-300 leading-tight">
+              Push the button below to allow push notifications for deposit approvals, Game IDs, and VIP bonuses!
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                if (typeof window !== 'undefined' && 'Notification' in window) {
+                  try {
+                    const { unlockAudioContext, playTune } = await import('@/lib/soundAlerts');
+                    unlockAudioContext();
+                    const perm = await Notification.requestPermission();
+                    if (perm === 'granted') {
+                      playTune('chaching', 0.8);
+                      const email = user?.email || localStorage.getItem('zorra_user_email') || '';
+                      await fetch('/api/notifications', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          email,
+                          token: 'chrome_web_' + (user?.id || user?._id || 'patron_' + Date.now().toString(36)),
+                          device: 'web_chrome',
+                        }),
+                      }).catch(() => {});
+
+                      new window.Notification('👑 Notifications Allowed!', {
+                        body: 'You will now receive instant push alerts for deposits, credentials & rewards.',
+                        icon: '/apple-touch-icon.png',
+                      });
+                      fetchNotifs();
+                    }
+                  } catch (e) {
+                    console.warn(e);
+                  }
+                }
+              }}
+              className="w-full btn-gold py-2.5 px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:scale-102 transition cursor-pointer"
+            >
+              <Bell className="w-4 h-4" />
+              <span>Allow Notifications Now</span>
+            </button>
+          </div>
+        )}
+
         {/* List */}
         <div className="space-y-2.5">
           {notifications.length === 0 ? (

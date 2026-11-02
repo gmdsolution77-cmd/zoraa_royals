@@ -11,15 +11,38 @@ export function notifyPlayer({ userId, userEmail, username, title, message, type
       const db = await getDb();
       if (!db || !db.collection) return;
 
-      const cleanEmail = (userEmail || '').toLowerCase().trim();
-      const cleanUid = userId ? userId.toString() : null;
+      let cleanEmail = (userEmail || '').toLowerCase().trim();
+      let cleanUid = userId ? userId.toString() : null;
+      let cleanUsername = username || null;
+
+      // Automatically resolve missing email or userId from users collection
+      if ((!cleanEmail || !cleanUid) && (cleanUid || cleanEmail)) {
+        try {
+          const { ObjectId } = require('mongodb');
+          const userOr = [];
+          if (cleanUid) {
+            userOr.push({ _id: cleanUid });
+            if (/^[0-9a-fA-F]{24}$/.test(cleanUid)) {
+              try { userOr.push({ _id: new ObjectId(cleanUid) }); } catch {}
+            }
+          }
+          if (cleanEmail) userOr.push({ email: cleanEmail });
+
+          const foundUser = await db.collection('users').findOne({ $or: userOr });
+          if (foundUser) {
+            if (!cleanEmail && foundUser.email) cleanEmail = foundUser.email.toLowerCase().trim();
+            if (!cleanUid && foundUser._id) cleanUid = foundUser._id.toString();
+            if (!cleanUsername && foundUser.username) cleanUsername = foundUser.username;
+          }
+        } catch {}
+      }
 
       // 1. In-app notification record for targeted player
       await db.collection('notifications').insertOne({
         userId: cleanUid,
         userEmail: cleanEmail,
         target: 'player',
-        username: username || cleanEmail.split('@')[0] || 'Player',
+        username: cleanUsername || cleanEmail.split('@')[0] || 'Player',
         title,
         message,
         type,
@@ -32,6 +55,7 @@ export function notifyPlayer({ userId, userEmail, username, title, message, type
       const tokenQueries = [];
       if (cleanEmail) tokenQueries.push({ email: cleanEmail });
       if (cleanUid) tokenQueries.push({ userId: cleanUid });
+      if (cleanUsername) tokenQueries.push({ username: cleanUsername });
 
       if (tokenQueries.length > 0) {
         const subs = await db.collection('subscriptions').find({ $or: tokenQueries }).toArray();
@@ -43,7 +67,7 @@ export function notifyPlayer({ userId, userEmail, username, title, message, type
             token: tok,
             title,
             body: message,
-            data: { ...data, type, target: 'player', userId: cleanUid || '' },
+            data: { ...data, type, target: 'player', userId: cleanUid || '', userEmail: cleanEmail || '' },
           }).catch((e) => {
             console.warn('[Notify Royal User Push]:', e.message);
           });

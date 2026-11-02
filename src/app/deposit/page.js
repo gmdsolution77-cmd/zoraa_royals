@@ -444,24 +444,11 @@ export default function DepositPage() {
                   <span>Instant VIP Deposit Gateway</span>
                 </div>
                 <h1 className="text-2xl sm:text-4xl font-serif font-black text-white tracking-tight">
-                  LOAD YOUR <span className="text-gold-gradient">PLAYING BALANCE</span>
+                  LOAD YOUR <span className="text-gold-gradient">GAME CREDITS</span>
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-300 mt-1 max-w-xl leading-relaxed">
                   Fund your account instantly with 0% fees. Direct crediting for Ultra Panda, Fire Kirin, Orion Stars, Game Vault, and Juwa.
                 </p>
-              </div>
-
-              {/* Balance Widget Card */}
-              <div className="p-4 rounded-2xl bg-black/80 border border-[#d4af37]/40 flex flex-col items-end min-w-[170px] shadow-lg">
-                <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase font-mono">
-                  WALLET BALANCE
-                </span>
-                <span className="font-mono font-black text-2xl sm:text-3xl text-gold-gradient mt-0.5">
-                  ${Number(user?.balance ?? 0).toFixed(2)} USD
-                </span>
-                <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-1 font-mono">
-                  <CheckCircle2 size={11} /> 1:1 USD Redeemable
-                </span>
               </div>
             </div>
           </div>

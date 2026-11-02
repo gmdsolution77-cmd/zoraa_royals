@@ -29,6 +29,20 @@ export default function LiveChatModal({
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
+  const [guestId, setGuestId] = useState('');
+
+  // Initialize guest ID for visitor support
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let gid = localStorage.getItem('zorra_guest_id');
+      if (!gid) {
+        gid = 'guest_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('zorra_guest_id', gid);
+      }
+      setGuestId(gid);
+    }
+  }, []);
+
   const endRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -74,9 +88,12 @@ export default function LiveChatModal({
   };
 
   const fetchChat = async () => {
-    if (!user) return;
     try {
-      const res = await fetch('/api/chat?markRead=true', { cache: 'no-store' });
+      const gid = guestId || (typeof window !== 'undefined' ? localStorage.getItem('zorra_guest_id') : '');
+      const url = user
+        ? '/api/chat?markRead=true'
+        : `/api/chat?guestId=${encodeURIComponent(gid)}&markRead=true`;
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.messages)) {
         safeSetSortedMessages(data.messages);
@@ -85,12 +102,12 @@ export default function LiveChatModal({
   };
 
   useEffect(() => {
-    if (isOpen && user) {
+    if (isOpen) {
       fetchChat();
       const interval = setInterval(fetchChat, 3000);
       return () => clearInterval(interval);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, guestId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -190,11 +207,7 @@ export default function LiveChatModal({
     e.preventDefault();
     if (!text.trim() && !attachedImage) return;
 
-    if (!user) {
-      if (onOpenAuth) onOpenAuth('login');
-      return;
-    }
-
+    const gid = guestId || (typeof window !== 'undefined' ? localStorage.getItem('zorra_guest_id') : '') || ('guest_' + Date.now().toString(36));
     const outgoing = text.trim();
     const imagePayload = attachedImage;
     setText('');
@@ -205,7 +218,7 @@ export default function LiveChatModal({
     const optimisticMsg = {
       _id: 'temp_' + Date.now(),
       sender: 'player',
-      senderRole: 'player',
+      senderRole: user ? 'player' : 'guest',
       text: outgoing,
       imageUrl: imagePayload,
       createdAt: new Date().toISOString(),
@@ -222,6 +235,9 @@ export default function LiveChatModal({
           text: outgoing,
           message: outgoing,
           imageUrl: imagePayload,
+          guestId: user ? undefined : gid,
+          userId: user ? (user.userId || user.id || user._id) : gid,
+          username: user?.username || 'Guest Patron',
         }),
       });
       const data = await res.json();

@@ -72,16 +72,42 @@ export async function GET(req) {
   try {
     await initDb();
     const session = await getSessionUser();
-    if (!session) {
-      return Response.json({ success: false, messages: [], error: 'Unauthorized' });
-    }
-
     const { searchParams } = new URL(req.url);
+    const guestId = (searchParams.get('guestId') || searchParams.get('guest') || '').trim();
+    const queryUserId = (searchParams.get('userId') || '').trim();
     const conversationId = (searchParams.get('conversationId') || '').trim();
     const inbox = searchParams.get('inbox') === 'true';
 
     const db = await getDb();
     const chatCol = db.collection('chat_messages');
+
+    if (!session) {
+      const lookupId = guestId || queryUserId || conversationId;
+      if (!lookupId) {
+        return Response.json({ success: true, messages: [] });
+      }
+
+      const guestOrList = [
+        { conversationId: lookupId },
+        { userId: lookupId },
+        { userEmail: lookupId },
+        { guestId: lookupId },
+      ];
+
+      const guestMessages = await chatCol
+        .find({ $or: guestOrList })
+        .sort({ createdAt: 1 })
+        .toArray();
+
+      guestMessages.sort((a, b) => {
+        const tA = (a.createdAt || a.timestamp) ? new Date(a.createdAt || a.timestamp).getTime() : 0;
+        const tB = (b.createdAt || b.timestamp) ? new Date(b.createdAt || b.timestamp).getTime() : 0;
+        return tA - tB;
+      });
+
+      return Response.json({ success: true, messages: guestMessages });
+    }
+
     const isStaff = isStaffRole(session.role);
 
     // 1. Staff Inbox
@@ -195,12 +221,12 @@ export async function POST(req) {
   try {
     await initDb();
     const session = await getSessionUser();
-    if (!session) {
-      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await req.json();
-    const { text, message, imageUrl, isStaffReply, targetUserId, targetUsername, conversationId } = body;
+    const { text, message, imageUrl, isStaffReply, targetUserId, targetUsername, conversationId, guestId } = body;
+
+    if (!session && !guestId && !body.userId) {
+      return Response.json({ success: false, error: 'Unauthorized or missing guest ID' }, { status: 401 });
+    }
 
     const rawText = text !== undefined ? text : (message !== undefined ? message : '');
     const cleanText = typeof rawText === 'string' ? rawText.trim() : '';
@@ -213,26 +239,47 @@ export async function POST(req) {
       );
     }
 
-    const isStaff = isStaffRole(session.role);
+    const isStaff = session ? isStaffRole(session.role) : false;
     const isExplicitStaff = Boolean(isStaffReply || (isStaff && (targetUserId || conversationId)));
 
     const resolvedConvId = isExplicitStaff
       ? String(conversationId || targetUserId).trim()
-      : String(session.id || session.email).trim();
+      : session
+      ? String(session.id || session.email).trim()
+      : String(guestId || body.userId || ('guest_' + Date.now().toString(36))).trim();
 
     const db = await getDb();
     const chatCol = db.collection('chat_messages');
 
+    const effectiveSender = isExplicitStaff ? 'support' : 'player';
+    const effectiveSenderRole = isExplicitStaff ? 'staff' : session ? 'player' : 'guest';
+    const effectiveUserId = isExplicitStaff
+      ? (targetUserId || resolvedConvId)
+      : session
+      ? session.id
+      : (guestId || body.userId || resolvedConvId);
+    const effectiveEmail = isExplicitStaff
+      ? (targetUsername || 'player')
+      : session
+      ? session.email
+      : (body.email || `${resolvedConvId}@guest.zoraaroyal.com`);
+    const effectiveUsername = isExplicitStaff
+      ? 'VIP Concierge'
+      : session
+      ? session.username
+      : (body.username || 'Guest Patron');
+
     const messageDoc = {
       conversationId: resolvedConvId,
-      userId: isExplicitStaff ? (targetUserId || resolvedConvId) : session.id,
-      userEmail: isExplicitStaff ? (targetUsername || 'player') : session.email,
-      username: isExplicitStaff ? 'VIP Concierge' : session.username,
-      customerUserId: isExplicitStaff ? (targetUserId || resolvedConvId) : session.id,
-      customerUsername: isExplicitStaff ? targetUsername : session.username,
-      sender: isExplicitStaff ? 'support' : 'player',
-      senderRole: isExplicitStaff ? 'staff' : 'player',
-      agentName: isExplicitStaff ? session.username : null,
+      userId: effectiveUserId,
+      userEmail: effectiveEmail,
+      username: effectiveUsername,
+      customerUserId: isExplicitStaff ? (targetUserId || resolvedConvId) : effectiveUserId,
+      customerUsername: isExplicitStaff ? targetUsername : effectiveUsername,
+      sender: effectiveSender,
+      senderRole: effectiveSenderRole,
+      agentName: isExplicitStaff ? (session?.username || 'Staff') : null,
+      guestId: !session ? (guestId || resolvedConvId) : null,
       text: cleanText,
       imageUrl: cleanImage,
       read: false,
@@ -270,12 +317,12 @@ export async function POST(req) {
         });
       } catch {}
     } else {
-      // Player sent message -> Dispatch alert strictly to Staff Concierge desk ONLY
+      // Player/Guest sent message -> Dispatch alert strictly to Staff Concierge desk ONLY
       try {
         const { notifyStaff } = await import('@/lib/notify');
         notifyStaff({
           title: '💬 New Live Chat Inquiry',
-          message: `${session.username || 'VIP Patron'}: ${cleanText ? cleanText.slice(0, 100) : 'Sent an image attachment'}`,
+          message: `${effectiveUsername}: ${cleanText ? cleanText.slice(0, 100) : 'Sent an image attachment'}`,
           type: 'chat_message',
           data: { conversationId: resolvedConvId, url: '/admin' },
         });
@@ -285,7 +332,11 @@ export async function POST(req) {
     // Auto-bot assistant reply for first user message
     if (!isExplicitStaff) {
       const messageCount = await chatCol.countDocuments({
-        $or: [{ userId: session.id }, { userEmail: session.email }, { conversationId: resolvedConvId }],
+        $or: [
+          { userId: effectiveUserId },
+          { userEmail: effectiveEmail },
+          { conversationId: resolvedConvId },
+        ],
       });
 
       if (messageCount === 1) {
@@ -293,11 +344,11 @@ export async function POST(req) {
           try {
             await chatCol.insertOne({
               conversationId: resolvedConvId,
-              userId: session.id,
-              userEmail: session.email,
+              userId: effectiveUserId,
+              userEmail: effectiveEmail,
               username: 'VIP Concierge',
-              customerUserId: session.id,
-              customerUsername: session.username,
+              customerUserId: effectiveUserId,
+              customerUsername: effectiveUsername,
               sender: 'support',
               senderRole: 'staff',
               agentName: 'Royal AI Desk',

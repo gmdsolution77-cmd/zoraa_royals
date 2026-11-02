@@ -145,16 +145,18 @@ export default function HeroShowcase({
     },
     {
       id: 3,
-      badge: `🤝 ${refPct}% FRIEND REFERRAL BONUS`,
-      title: `${refPct}% REFERRAL BONUS`,
-      subtitle: 'INVITE FRIENDS • INSTANT BONUS CREDITED DIRECTLY TO WALLET',
-      desc: `Share your personal invite link. When friends make their first deposit, you instantly receive ${refPct}% bonus credited directly to your playable balance!`,
-      ctaText: 'Invite Friends Now',
-      ctaAction: user ? onOpenReferral : () => onOpenAuth('register'),
-      secondaryText: 'Deposit Funds',
-      secondaryHref: '/deposit',
-      imageBadge: `${refPct}% COMMISSION`,
-      glowColor: '#3b82f6',
+      badge: '⚡ INSTANT VIP DEPOSITS',
+      title: 'FAST CREDITS & ZERO FEES',
+      subtitle: 'CASH APP • ZELLE • BITCOIN • 24/7 CONCIERGE ASSISTANCE',
+      desc: 'Load funds into your account instantly with zero fees. Rapid approvals, verified transactions, and direct crediting into your game IDs.',
+      ctaText: 'Deposit Funds Now',
+      ctaHref: '/deposit',
+      secondaryText: 'Live Chat Support',
+      secondaryAction: () => {
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openRoyalChat'));
+      },
+      imageBadge: '0% FEES • INSTANT',
+      glowColor: '#eab308',
     },
   ];
 
