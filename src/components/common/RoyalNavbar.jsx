@@ -21,6 +21,7 @@ import {
   History
 } from 'lucide-react';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
+import { diffSet } from '@/lib/fastDiff';
 
 export default function RoyalNavbar({
   user,
@@ -69,21 +70,21 @@ export default function RoyalNavbar({
     fetch('/api/settings')
       .then(r => r.json())
       .then(d => {
-        if (d?.success && d?.settings) setBonusSettings(d.settings);
+        if (d?.success && d?.settings) diffSet(setBonusSettings, d.settings);
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (user) {
-      setCachedUser(user);
+      diffSet(setCachedUser, user);
       saveCachedUser(user);
     }
   }, [user]);
 
   useEffect(() => {
     const handleSync = (e) => {
-      setCachedUser(e.detail || null);
+      diffSet(setCachedUser, e.detail || null);
     };
     window.addEventListener('royal-user-sync', handleSync);
     return () => window.removeEventListener('royal-user-sync', handleSync);

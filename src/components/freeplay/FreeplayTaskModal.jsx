@@ -19,17 +19,7 @@ import {
   ExternalLink,
   Crown,
 } from 'lucide-react';
-
-const POPULAR_GAMES = [
-  'Ultra Panda',
-  'Orion Stars',
-  'Fire Kirin',
-  'Game Vault',
-  'Juwa',
-  'Panda Master',
-  'Milky Way',
-  'Vblink',
-];
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function FreeplayTaskModal({
   isOpen,
@@ -38,7 +28,8 @@ export default function FreeplayTaskModal({
   freeplayAmount = 5,
   onSuccess,
 }) {
-  const [selectedGame, setSelectedGame] = useState('Ultra Panda');
+  const [availableGames, setAvailableGames] = useState([]);
+  const [selectedGame, setSelectedGame] = useState('');
   const [screenshot, setScreenshot] = useState('');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -60,6 +51,26 @@ export default function FreeplayTaskModal({
     }, 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
+  // Fetch dynamic active games from database
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/games')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && Array.isArray(d.games)) {
+            const active = d.games
+              .filter((g) => g.status === 'active' || g.isActive !== false)
+              .map((g) => ({ ...g, title: sanitizeGameTitle(g.title) }));
+            diffSet(setAvailableGames, active);
+            if (active.length > 0) {
+              setSelectedGame((prev) => prev || active[0].title);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   // Auto-send verification email on first open
   useEffect(() => {
@@ -286,7 +297,8 @@ export default function FreeplayTaskModal({
               <span>Select Casino Game Platform:</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {POPULAR_GAMES.map((game) => {
+              {availableGames.map((g) => {
+                const game = g.title || g.name;
                 const isSelected = selectedGame === game;
                 return (
                   <button

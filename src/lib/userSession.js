@@ -1,5 +1,7 @@
 'use client';
 
+import { areEqual } from './fastDiff';
+
 // Persistent Client-Side User Session Cache for Zero-Flicker Navigation
 export function getCachedUser() {
   if (typeof window === 'undefined') return null;
@@ -17,12 +19,17 @@ export function getCachedUser() {
 export function saveCachedUser(userData) {
   if (typeof window === 'undefined') return;
   try {
+    const existing = getCachedUser();
     if (userData && (userData._id || userData.userId || userData.email || userData.username)) {
-      localStorage.setItem('zr_user_session', JSON.stringify(userData));
-      window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: userData }));
+      if (!areEqual(existing, userData)) {
+        localStorage.setItem('zr_user_session', JSON.stringify(userData));
+        window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: userData }));
+      }
     } else {
-      localStorage.removeItem('zr_user_session');
-      window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: null }));
+      if (existing !== null) {
+        localStorage.removeItem('zr_user_session');
+        window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: null }));
+      }
     }
   } catch {}
 }

@@ -1,22 +1,45 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+
+const BASE_WINS = [
+  { player: 'Marcus_VIP', amount: '$450.00 USD', time: '2m ago' },
+  { player: 'KingRoyal77', amount: '$1,280.00 USD', time: '4m ago' },
+  { player: 'Elena_TX', amount: '$620.00 USD', time: '7m ago' },
+  { player: 'Shadow_99', amount: '$810.00 USD', time: '9m ago' },
+  { player: 'VipAce_88', amount: '$500.00 USD', time: '11m ago' },
+  { player: 'GoldenDragonX', amount: '$940.00 USD', time: '14m ago' },
+  { player: 'DiamondPlayer', amount: '$1,150.00 USD', time: '18m ago' },
+  { player: 'Apex_Winner', amount: '$730.00 USD', time: '21m ago' },
+];
 
 export default function WinnersTicker() {
-  const wins = [
-    { player: 'Marcus_VIP', game: 'Orion Stars VIP', amount: '$450.00 USD', time: '2m ago' },
-    { player: 'KingRoyal77', game: 'Game Vault 999', amount: '$1,280.00 USD', time: '4m ago' },
-    { player: 'Elena_TX', game: 'Ultra Panda Golden', amount: '$620.00 USD', time: '7m ago' },
-    { player: 'Shadow_99', game: 'Fire Kirin Ultimate', amount: '$810.00 USD', time: '9m ago' },
-    { player: 'VipAce_88', game: 'Golden Dragon VIP', amount: '$500.00 USD', time: '11m ago' },
-    { player: 'GoldenDragonX', game: 'Juwa 777 Palace', amount: '$940.00 USD', time: '14m ago' },
-    { player: 'DiamondPlayer', game: 'Milky Way Galaxy', amount: '$1,150.00 USD', time: '18m ago' },
-    { player: 'Apex_Winner', game: 'Panda Master VIP', amount: '$730.00 USD', time: '21m ago' },
-  ];
+  const [tickerWins, setTickerWins] = useState(() =>
+    BASE_WINS.map((w, idx) => ({ ...w, game: 'VIP Palace Game' }))
+  );
+
+  useEffect(() => {
+    fetch('/api/games')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.games) && d.games.length > 0) {
+          const titles = d.games.map((g) => sanitizeGameTitle(g.title || g.name)).filter(Boolean);
+          if (titles.length > 0) {
+            const mapped = BASE_WINS.map((w, idx) => ({
+              ...w,
+              game: titles[idx % titles.length],
+            }));
+            diffSet(setTickerWins, mapped);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Duplicate list to achieve seamless infinite looping marquee
-  const marqueeItems = [...wins, ...wins];
+  const marqueeItems = [...tickerWins, ...tickerWins];
 
   return (
     <div className="w-full bg-[#0b0e18] border-b border-[#d4af37]/30 py-2.5 px-3 sm:px-6 relative overflow-hidden shadow-md z-10 shrink-0">

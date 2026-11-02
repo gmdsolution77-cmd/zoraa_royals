@@ -27,6 +27,7 @@ import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalMobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function CashoutPage() {
   const router = useRouter();
@@ -40,7 +41,8 @@ export default function CashoutPage() {
   const [customAmount, setCustomAmount] = useState('');
   const [method, setMethod] = useState('Cash App');
   const [recipientTag, setRecipientTag] = useState('');
-  const [selectedGame, setSelectedGame] = useState('Orion Stars');
+  const [availableGames, setAvailableGames] = useState([]);
+  const [selectedGame, setSelectedGame] = useState('');
   const [userGameAccounts, setUserGameAccounts] = useState([]);
 
   // Proof uploads (Required by rules)
@@ -66,7 +68,7 @@ export default function CashoutPage() {
       const res = await fetch('/api/auth/me', { cache: 'no-store' });
       const data = await res.json();
       if (data.authenticated && data.user) {
-        setUser(data.user);
+        diffSet(setUser, data.user);
         saveCachedUser(data.user);
       } else if (!isSilent) {
         clearCachedUser();
@@ -86,7 +88,7 @@ export default function CashoutPage() {
       const res = await fetch('/api/payments/withdraw', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.withdrawals) {
-        setWithdrawHistory(data.withdrawals);
+        diffSet(setWithdrawHistory, data.withdrawals);
       }
     } catch (err) {
       console.error(err);
@@ -101,10 +103,29 @@ export default function CashoutPage() {
       const res = await fetch('/api/game-accounts', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.gameAccounts)) {
-        setUserGameAccounts(data.gameAccounts);
+        diffSet(setUserGameAccounts, data.gameAccounts);
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // 4. Fetch dynamic active games from database
+  const fetchGames = async () => {
+    try {
+      const res = await fetch('/api/games', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.games)) {
+        const active = data.games
+          .filter(g => g.status === 'active' || g.isActive !== false)
+          .map(g => ({ ...g, title: sanitizeGameTitle(g.title) }));
+        diffSet(setAvailableGames, active);
+        if (active.length > 0) {
+          setSelectedGame(prev => prev || active[0].title);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching games:', err);
     }
   };
 
@@ -112,6 +133,7 @@ export default function CashoutPage() {
     fetchUser();
     fetchHistory();
     fetchGameAccounts();
+    fetchGames();
 
     // 4-second live polling loop for instant approval/rejection updates
     const pollInterval = setInterval(() => {
@@ -500,14 +522,16 @@ export default function CashoutPage() {
                           {acc.gameTitle || acc.title} (ID: {acc.username})
                         </option>
                       ))
+                    ) : availableGames.length > 0 ? (
+                      availableGames.map((g, i) => (
+                        <option key={i} value={g.title} className="bg-slate-900 text-white">
+                          {g.title}
+                        </option>
+                      ))
                     ) : (
-                      <>
-                        <option value="Orion Stars" className="bg-slate-900 text-white">Orion Stars</option>
-                        <option value="Ultra Panda" className="bg-slate-900 text-white">Ultra Panda</option>
-                        <option value="Fire Kirin" className="bg-slate-900 text-white">Fire Kirin</option>
-                        <option value="Game Vault" className="bg-slate-900 text-white">Game Vault</option>
-                        <option value="Juwa" className="bg-slate-900 text-white">Juwa 777</option>
-                      </>
+                      <option value="" disabled className="bg-slate-900 text-gray-400">
+                        Loading active platforms...
+                      </option>
                     )}
                   </select>
                 </div>

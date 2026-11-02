@@ -13,6 +13,7 @@ import AuthModal from '@/components/common/AuthModal';
 import CashierModal from '@/components/cashier/CashierModal';
 import PlayerGameAccountsHub from '@/components/player/PlayerGameAccountsHub';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function AccountsPage() {
   const router = useRouter();
@@ -30,19 +31,24 @@ export default function AccountsPage() {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
       if ((data.authenticated || data.success) && data.user) {
-        setUser(data.user);
+        diffSet(setUser, data.user);
         saveCachedUser(data.user);
       } else {
-        setUser(null);
+        diffSet(setUser, null);
         clearCachedUser();
       }
     } catch {
-      setUser(null);
+      diffSet(setUser, null);
     }
   };
 
   useEffect(() => {
     refreshUser();
+    const handleSync = (e) => {
+      if (e?.detail) diffSet(setUser, e.detail);
+    };
+    window.addEventListener('royal-user-sync', handleSync);
+    return () => window.removeEventListener('royal-user-sync', handleSync);
   }, []);
 
   // 2. Fetch games library
@@ -51,7 +57,11 @@ export default function AccountsPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.games) {
-          setGames(data.games);
+          const clean = data.games.map((g) => ({
+            ...g,
+            title: sanitizeGameTitle(g.title || g.name || ''),
+          }));
+          diffSet(setGames, clean);
         }
       })
       .catch(() => {});

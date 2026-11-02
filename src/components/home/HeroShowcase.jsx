@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import HeroBannerCard from './HeroBannerCard';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function HeroShowcase({
   user,
@@ -34,6 +35,7 @@ export default function HeroShowcase({
   const [claimingFreeplay, setClaimingFreeplay] = useState(false);
   const [freeplayFeedback, setFreeplayFeedback] = useState(null);
   const [gamesCount, setGamesCount] = useState(11);
+  const [gamesList, setGamesList] = useState([]);
   const [settings, setSettings] = useState({
     welcomeBonusPercentage: 300,
     regularBonusPercentage: 50,
@@ -58,7 +60,7 @@ export default function HeroShowcase({
       .then(r => r.json())
       .then(d => {
         if (d.success && d.settings) {
-          setSettings(d.settings);
+          diffSet(setSettings, d.settings);
         }
       })
       .catch(() => {});
@@ -68,7 +70,9 @@ export default function HeroShowcase({
       .then(d => {
         const list = Array.isArray(d) ? d : (d.games || []);
         if (list.length > 0) {
-          setGamesCount(list.length);
+          const sanitized = list.map(g => ({ ...g, title: sanitizeGameTitle(g.title || g.name) }));
+          diffSet(setGamesList, sanitized);
+          diffSet(setGamesCount, sanitized.length);
         }
       })
       .catch(() => {});
@@ -287,6 +291,7 @@ export default function HeroShowcase({
             hasDeposited={hasDeposited}
             freeplayAmountSC={freeplaySC}
             gamesCount={gamesCount}
+            games={gamesList}
           />
         </div>
       </div>

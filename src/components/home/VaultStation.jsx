@@ -15,6 +15,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+
 export default function VaultStation({
   user,
   onOpenAuth,
@@ -23,34 +25,42 @@ export default function VaultStation({
 }) {
   const [activeAccounts, setActiveAccounts] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [platforms, setPlatforms] = useState([]);
   const [copiedKey, setCopiedKey] = useState(null);
   const [revealed, setRevealed] = useState({});
 
-  const platforms = [
-    { id: 'orion-stars', title: 'Orion Stars VIP', tag: 'Fish & Slots', thumb: '/images/games/orion-stars.jpg', url: 'https://orionstars.vip' },
-    { id: 'fire-kirin', title: 'Fire Kirin Ultimate', tag: 'Fish Hunter', thumb: '/images/games/fire-kirin.jpg', url: 'https://firekirin.xyz' },
-    { id: 'milky-way', title: 'Milky Way Galaxy', tag: 'Fish & Keno', thumb: '/images/games/milky-way.jpg', url: 'https://milkywayapp.com' },
-    { id: 'game-vault', title: 'Game Vault 999', tag: 'Classic Slots', thumb: '/images/games/game-vault.jpg', url: 'https://download.gamevault999.com' },
-    { id: 'juwa-777', title: 'Juwa 777 Palace', tag: 'Reel Slots', thumb: '/images/games/juwa.jpg', url: 'https://juwa777.com' },
-    { id: 'ultra-panda', title: 'Ultra Panda Golden', tag: 'Arcade Sweeps', thumb: '/images/games/ultra-panda.jpg', url: 'https://ultrapanda.mobi' },
-  ];
-
   const fetchVault = async () => {
-    if (!user) return;
     try {
-      const [accRes, reqRes] = await Promise.all([
-        fetch('/api/game-accounts'),
-        fetch('/api/account-requests'),
-      ]);
-      const acc = await accRes.json();
-      const req = await reqRes.json();
-      if (acc.success) setActiveAccounts(acc.accounts || []);
-      if (req.success) setPendingRequests(req.requests || []);
+      const promises = [fetch('/api/games')];
+      if (user) {
+        promises.push(fetch('/api/game-accounts'));
+        promises.push(fetch('/api/account-requests'));
+      }
+      const results = await Promise.all(promises);
+      const gamesData = await results[0].json();
+      if (gamesData.success && Array.isArray(gamesData.games)) {
+        const list = gamesData.games
+          .filter(g => g.status === 'active' || g.isActive !== false)
+          .map(g => ({
+            id: g.gameId || g.id || g._id,
+            title: sanitizeGameTitle(g.title || g.name),
+            tag: g.category || 'Sweepstakes & Slots',
+            thumb: g.thumbnail || g.image || '/images/games/orion-stars.jpg',
+            url: g.url || g.playUrl || '#',
+          }));
+        diffSet(setPlatforms, list);
+      }
+      if (user && results[1] && results[2]) {
+        const acc = await results[1].json();
+        const req = await results[2].json();
+        if (acc.success) diffSet(setActiveAccounts, acc.accounts || []);
+        if (req.success) diffSet(setPendingRequests, req.requests || []);
+      }
     } catch {}
   };
 
   useEffect(() => {
-    if (user) fetchVault();
+    fetchVault();
   }, [user]);
 
   const handleCopy = (val, key) => {

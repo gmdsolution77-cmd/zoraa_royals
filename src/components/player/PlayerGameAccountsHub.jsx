@@ -24,6 +24,7 @@ import {
   Gamepad2
 } from 'lucide-react';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function PlayerGameAccountsHub({
   user,
@@ -43,10 +44,10 @@ export default function PlayerGameAccountsHub({
   const [requestSuccessMsg, setRequestSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const fetchAccountsAndRequests = async () => {
+  const fetchAccountsAndRequests = async (isManual = false) => {
     if (!user?.email) return;
 
-    setLoading(true);
+    if (isManual) setLoading(true);
     try {
       const [credRes, reqRes] = await Promise.all([
         fetch(`/api/game-accounts?email=${encodeURIComponent(user.email)}`),
@@ -62,18 +63,25 @@ export default function PlayerGameAccountsHub({
 
       // Add verified ready credentials
       const creds = credData.gameAccounts || credData.accounts || [];
-      readyList.push(...creds);
+      creds.forEach((c) => {
+        readyList.push({
+          ...c,
+          gameTitle: sanitizeGameTitle(c.gameTitle || c.title || c.name || ''),
+        });
+      });
 
       // Check account requests
       const reqs = reqData.accountRequests || reqData.requests || [];
       reqs.forEach((req) => {
+        const cleanTitle = sanitizeGameTitle(req.gameTitle || req.title || '');
         if (req.status === 'READY') {
           const alreadyExists = readyList.some(
-            (a) => (a.gameTitle || a.gameId)?.toLowerCase() === (req.gameTitle || req.gameId)?.toLowerCase()
+            (a) => (a.gameTitle || a.gameId)?.toLowerCase() === (cleanTitle || req.gameId)?.toLowerCase()
           );
           if (!alreadyExists) {
             readyList.push({
-              gameTitle: req.gameTitle,
+              ...req,
+              gameTitle: cleanTitle,
               gameId: req.gameId,
               username: req.gameAccountUsername || req.username,
               password: req.gameAccountPassword || req.password,
@@ -81,26 +89,26 @@ export default function PlayerGameAccountsHub({
             });
           }
         } else if (req.status === 'PENDING') {
-          pendingList.push(req);
+          pendingList.push({ ...req, gameTitle: cleanTitle });
         } else if (req.status === 'REJECTED' || req.status === 'CANCELLED') {
-          rejectedList.push(req);
+          rejectedList.push({ ...req, gameTitle: cleanTitle });
         }
       });
 
-      setActiveAccounts(readyList);
-      setPendingRequests(pendingList);
-      setRejectedRequests(rejectedList);
+      diffSet(setActiveAccounts, readyList);
+      diffSet(setPendingRequests, pendingList);
+      diffSet(setRejectedRequests, rejectedList);
     } catch (err) {
       console.error('Error fetching game accounts:', err);
     } finally {
-      setLoading(false);
+      if (isManual) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (user?.email) {
-      fetchAccountsAndRequests();
-      const interval = setInterval(fetchAccountsAndRequests, 4000);
+      fetchAccountsAndRequests(false);
+      const interval = setInterval(() => fetchAccountsAndRequests(false), 4000);
       return () => clearInterval(interval);
     } else {
       setActiveAccounts([]);
@@ -199,7 +207,7 @@ export default function PlayerGameAccountsHub({
         {user && (
           <button
             type="button"
-            onClick={fetchAccountsAndRequests}
+            onClick={() => fetchAccountsAndRequests(true)}
             disabled={loading}
             className="px-4 py-2 rounded-full bg-[#10141e] border border-[rgba(212,175,55,0.35)] text-[#ffd700] text-xs font-black flex items-center gap-2 hover:bg-[#1a1f2e] transition shadow-[0_0_15px_rgba(212,175,55,0.15)] cursor-pointer"
           >

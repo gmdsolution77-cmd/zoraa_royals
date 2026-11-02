@@ -21,6 +21,7 @@ import {
   Coins
 } from 'lucide-react';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function GameCredentialsModal({
   isOpen,
@@ -44,14 +45,14 @@ export default function GameCredentialsModal({
   // Sync with props initially
   useEffect(() => {
     if (initialAccount) {
-      setAccountStatus('READY');
-      setCredentials({
+      diffSet(setAccountStatus, 'READY');
+      diffSet(setCredentials, {
         username: initialAccount.username,
         password: initialAccount.password,
         pin: initialAccount.pin,
       });
     } else if (initialPendingRequest) {
-      setAccountStatus('PENDING');
+      diffSet(setAccountStatus, 'PENDING');
     }
   }, [initialAccount, initialPendingRequest]);
 
@@ -69,22 +70,24 @@ export default function GameCredentialsModal({
       const credData = await credRes.json();
       const reqData = await reqRes.json();
 
+      const targetTitle = sanitizeGameTitle(game.title || game.name || '').toLowerCase();
+
       // Check ready credentials
       const accountsList = credData.gameAccounts || credData.accounts || [];
       const matchCred = accountsList.find(
         (a) =>
-          String(a.gameTitle || '').toLowerCase().trim() === String(game.title || '').toLowerCase().trim() ||
+          sanitizeGameTitle(a.gameTitle || '').toLowerCase() === targetTitle ||
           (game.gameId && a.gameId === game.gameId)
       );
 
       if (matchCred) {
-        setAccountStatus('READY');
-        setCredentials({
+        diffSet(setAccountStatus, 'READY');
+        diffSet(setCredentials, {
           username: matchCred.username,
           password: matchCred.password,
           pin: matchCred.pin,
         });
-        setRejectionReason(null);
+        diffSet(setRejectionReason, null);
         return;
       }
 
@@ -92,25 +95,26 @@ export default function GameCredentialsModal({
       const reqsList = reqData.accountRequests || reqData.requests || [];
       const matchReq = reqsList.find(
         (r) =>
-          String(r.gameTitle || '').toLowerCase().trim() === String(game.title || '').toLowerCase().trim() ||
+          sanitizeGameTitle(r.gameTitle || '').toLowerCase() === targetTitle ||
           (game.gameId && r.gameId === game.gameId)
       );
 
       if (matchReq) {
         const s = (matchReq.status || '').toUpperCase();
         if (s === 'READY') {
-          setAccountStatus('READY');
-          setCredentials({
+          diffSet(setAccountStatus, 'READY');
+          diffSet(setCredentials, {
             username: matchReq.gameAccountUsername || matchReq.username,
             password: matchReq.gameAccountPassword || matchReq.password,
           });
-          setRejectionReason(null);
+          diffSet(setRejectionReason, null);
         } else if (s === 'PENDING') {
-          setAccountStatus('PENDING');
-          setRejectionReason(null);
+          diffSet(setAccountStatus, 'PENDING');
+          diffSet(setRejectionReason, null);
         } else if (s === 'REJECTED' || s === 'CANCELLED') {
-          setAccountStatus('REJECTED');
-          setRejectionReason(
+          diffSet(setAccountStatus, 'REJECTED');
+          diffSet(
+            setRejectionReason,
             matchReq.rejectionReason ||
             matchReq.rejectReason ||
             matchReq.adminNote ||

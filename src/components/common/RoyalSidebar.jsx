@@ -83,10 +83,16 @@ export default function RoyalSidebar({
     },
     {
       label: '24/7 Live Support',
-      path: '/chat',
+      path: '#',
       icon: Headphones,
       badge: 'ONLINE',
-      action: onOpenChat || (() => router.push('/chat')),
+      action: () => {
+        if (onOpenChat) onOpenChat();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('openRoyalChat'));
+          window.dispatchEvent(new CustomEvent('zorra-open-chat'));
+        }
+      },
     },
     { label: 'Promotions & VIP', path: '/promotions', icon: Crown },
     { label: 'Download App', path: '/download-app', icon: Download, badge: 'APK / iOS' },

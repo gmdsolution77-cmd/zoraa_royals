@@ -78,6 +78,7 @@ import {
   updateFaviconBadge,
   requestDesktopNotificationPermission,
 } from '@/lib/soundAlerts';
+import { diffSet, areEqual, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function AdminPortal({ initialTab }) {
   const [user, setUser] = useState(null);
@@ -303,7 +304,7 @@ export default function AdminPortal({ initialTab }) {
     const sorted = [...msgs].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
-    setChatMessages(sorted);
+    diffSet(setChatMessages, sorted);
   };
 
   const [adminChatKeyboardOffset, setAdminChatKeyboardOffset] = useState(0);
@@ -769,7 +770,7 @@ export default function AdminPortal({ initialTab }) {
   const fetchAccountRequests = () => {
     fetch(`/api/account-requests?status=${accountReqFilter}`)
       .then(r => r.json())
-      .then(d => { if (d.success) setAccountRequests(d.accountRequests || []); })
+      .then(d => { if (d.success) diffSet(setAccountRequests, d.accountRequests || []); })
       .catch(() => { });
   };
 
@@ -1010,13 +1011,13 @@ export default function AdminPortal({ initialTab }) {
       ]);
 
       if (depData.success) {
-        setDeposits(depData.deposits || []);
+        diffSet(setDeposits, depData.deposits || []);
       }
       if (withData.success) {
-        setRedemptions(withData.redemptions || []);
+        diffSet(setRedemptions, withData.redemptions || []);
       }
       if (reqData.success) {
-        setAccountRequests(reqData.accountRequests || []);
+        diffSet(setAccountRequests, reqData.accountRequests || []);
       }
       if (chatData.success) {
         const mappedConvs = (chatData.conversations || []).map(c => {
@@ -1025,7 +1026,7 @@ export default function AdminPortal({ initialTab }) {
           }
           return c;
         });
-        setChatConversations(mappedConvs);
+        diffSet(setChatConversations, mappedConvs);
       }
 
       const pendingDeps = (depData.deposits || []).filter(d => d.status === 'pending');
@@ -1195,13 +1196,13 @@ export default function AdminPortal({ initialTab }) {
 
     const loadData = () => {
       if (activeTab === 'overview') {
-        fetch('/api/admin/stats').then(r => r.json()).then(d => { if (d.success) setStats(d.stats); });
+        fetch('/api/admin/stats').then(r => r.json()).then(d => { if (d.success) diffSet(setStats, d.stats); });
       } else if (activeTab === 'games') {
-        fetch('/api/games?all=true').then(r => r.json()).then(d => { if (d.success) setGames(d.games); });
+        fetch('/api/games?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setGames, d.games); });
       } else if (activeTab === 'finance') {
-        fetch('/api/payments/methods?all=true').then(r => r.json()).then(d => { if (d.success) setPaymentMethods(d.methods || []); });
-        fetch('/api/payments/deposit?status=all').then(r => r.json()).then(d => { if (d.success) setDeposits(d.deposits || []); });
-        fetch('/api/payments/withdraw?status=all').then(r => r.json()).then(d => { if (d.success) setRedemptions(d.redemptions || []); });
+        fetch('/api/payments/methods?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setPaymentMethods, d.methods || []); });
+        fetch('/api/payments/deposit?status=all').then(r => r.json()).then(d => { if (d.success) diffSet(setDeposits, d.deposits || []); });
+        fetch('/api/payments/withdraw?status=all').then(r => r.json()).then(d => { if (d.success) diffSet(setRedemptions, d.redemptions || []); });
       } else if (activeTab === 'chat') {
         fetch('/api/chat?inbox=true').then(r => r.json()).then(d => {
           if (d.success) {
@@ -1211,35 +1212,35 @@ export default function AdminPortal({ initialTab }) {
               }
               return item;
             });
-            setChatConversations(mapped);
+            diffSet(setChatConversations, mapped);
           }
         });
       } else if (activeTab === 'kyc') {
-        fetch('/api/kyc?status=all').then(r => r.json()).then(d => { if (d.success) setKycRequests(d.requests || []); });
+        fetch('/api/kyc?status=all').then(r => r.json()).then(d => { if (d.success) diffSet(setKycRequests, d.requests || []); });
       } else if (activeTab === 'promos') {
-        fetch('/api/promos?all=true').then(r => r.json()).then(d => { if (d.success) setPromos(d.promotions || []); });
-        fetch('/api/notifications?admin=true').then(r => r.json()).then(d => { if (d.success) setBroadcastLogs(d.broadcasts || []); });
+        fetch('/api/promos?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setPromos, d.promotions || []); });
+        fetch('/api/notifications?admin=true').then(r => r.json()).then(d => { if (d.success) diffSet(setBroadcastLogs, d.broadcasts || []); });
       } else if (activeTab === 'affiliates' || activeTab === 'affiliate_commissions') {
         fetch('/api/affiliates?mode=admin', { cache: 'no-store' }).then(r => r.json()).then(d => {
           if (d.success) {
-            setAffiliates(d.affiliates || []);
-            setAffiliateSummary(d.summary || null);
+            diffSet(setAffiliates, d.affiliates || []);
+            diffSet(setAffiliateSummary, d.summary || null);
           }
         });
       } else if (activeTab === 'staff') {
-        fetch('/api/admin/staff').then(r => r.json()).then(d => { if (d.success) setStaffList(d.staff || []); });
+        fetch('/api/admin/staff').then(r => r.json()).then(d => { if (d.success) diffSet(setStaffList, d.staff || []); });
       } else if (activeTab === 'account_requests') {
         fetchAccountRequests();
       } else if (activeTab === 'coins_allotment') {
         fetchAllotmentData();
       } else if (activeTab === 'users') {
-        fetch(`/api/users?search=${encodeURIComponent(userSearchQuery)}`).then(r => r.json()).then(d => { if (d.success) setUsersList(d.users || []); });
+        fetch(`/api/users?search=${encodeURIComponent(userSearchQuery)}`).then(r => r.json()).then(d => { if (d.success) diffSet(setUsersList, d.users || []); });
       } else if (activeTab === 'gateways') {
-        fetch('/api/payments/methods?all=true').then(r => r.json()).then(d => { if (d.success) setPaymentMethods(d.methods || []); });
+        fetch('/api/payments/methods?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setPaymentMethods, d.methods || []); });
       } else if (activeTab === 'tx_search') {
-        fetch(`/api/ledger?username=${encodeURIComponent(ledgerFilterUser)}&type=${ledgerFilterType}`).then(r => r.json()).then(d => { if (d.success) setLedgerRecords(d.records || []); });
+        fetch(`/api/ledger?username=${encodeURIComponent(ledgerFilterUser)}&type=${ledgerFilterType}`).then(r => r.json()).then(d => { if (d.success) diffSet(setLedgerRecords, d.records || []); });
       } else if (activeTab === 'settings') {
-        fetch('/api/admin/settings').then(r => r.json()).then(d => { if (d.success) setSysSettings(d.settings); });
+        fetch('/api/admin/settings').then(r => r.json()).then(d => { if (d.success) diffSet(setSysSettings, d.settings); });
       }
     };
 
@@ -1277,10 +1278,22 @@ export default function AdminPortal({ initialTab }) {
     return () => clearInterval(interval);
   }, [activeChatConv]);
 
-  // Auto-scroll staff chat to bottom on new messages
+  const prevAdminMsgCountRef = useRef(0);
+  const prevAdminLastIdRef = useRef('');
+
+  // Auto-scroll staff chat to bottom ONLY on genuine new messages or thread change
   useEffect(() => {
     if (activeTab === 'chat' && activeChatConv) {
-      scrollToBottom(true);
+      const lastMsg = chatMessages[chatMessages.length - 1];
+      const lastId = lastMsg?._id || lastMsg?.createdAt || '';
+      if (
+        chatMessages.length !== prevAdminMsgCountRef.current ||
+        lastId !== prevAdminLastIdRef.current
+      ) {
+        prevAdminMsgCountRef.current = chatMessages.length;
+        prevAdminLastIdRef.current = lastId;
+        scrollToBottom(true);
+      }
     }
   }, [chatMessages, activeTab, activeChatConv]);
 

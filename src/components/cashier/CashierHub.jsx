@@ -35,6 +35,7 @@ import {
 import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import AuthModal from '@/components/common/AuthModal';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function CashierHub({
   activeTab: propActiveTab = 'deposit',
@@ -77,7 +78,7 @@ export default function CashierHub({
 
   // Form states - Deposit
   const [depositAmount, setDepositAmount] = useState('50');
-  const [depositGameTitle, setDepositGameTitle] = useState('Orion Stars');
+  const [depositGameTitle, setDepositGameTitle] = useState('');
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [txHash, setTxHash] = useState('');
   const [senderNote, setSenderNote] = useState('');
@@ -91,7 +92,7 @@ export default function CashierHub({
   // Form states - Withdraw
   const [withdrawAmount, setWithdrawAmount] = useState('50');
   const [withdrawMethod, setWithdrawMethod] = useState('Cash App');
-  const [withdrawGameTitle, setWithdrawGameTitle] = useState('Orion Stars');
+  const [withdrawGameTitle, setWithdrawGameTitle] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
   const [gameScreenshot, setGameScreenshot] = useState('');
   const [gameScreenshotName, setGameScreenshotName] = useState('');
@@ -201,16 +202,16 @@ export default function CashierHub({
       const meRes = await fetch('/api/auth/me');
       const meData = await meRes.json();
       if (meData.success && meData.user) {
-        setUser(meData.user);
+        diffSet(setUser, meData.user);
       } else {
-        setUser(null);
+        diffSet(setUser, null);
       }
 
       // 2. Settings
       const setRes = await fetch('/api/settings');
       const setData = await setRes.json();
       if (setData.success && setData.settings) {
-        setSettings({
+        diffSet(setSettings, {
           welcomeBonusPercentage: Number(setData.settings.welcomeBonusPercent ?? setData.settings.welcomeBonusPercentage ?? 300),
           regularBonusPercentage: Number(setData.settings.regularBonusPercent ?? setData.settings.regularBonusPercentage ?? 50),
           signupBonusAmount: Number(setData.settings.signupBonusAmount ?? 3.0),
@@ -223,7 +224,7 @@ export default function CashierHub({
       const methRes = await fetch('/api/payments/methods');
       const methData = await methRes.json();
       if (methData.success && methData.methods) {
-        setMethods(methData.methods);
+        diffSet(setMethods, methData.methods);
         if (methData.methods.length > 0 && !selectedMethod) {
           setSelectedMethod(methData.methods[0]);
         }
@@ -233,10 +234,15 @@ export default function CashierHub({
       const gamesRes = await fetch('/api/games');
       const gamesData = await gamesRes.json();
       if (gamesData.success && gamesData.games) {
-        setGames(gamesData.games);
-        if (gamesData.games.length > 0) {
-          if (!selectedGameId) setSelectedGameId(gamesData.games[0].gameId);
-          if (!withdrawGameTitle) setWithdrawGameTitle(gamesData.games[0].title);
+        const cleanGames = gamesData.games.map((g) => ({
+          ...g,
+          title: sanitizeGameTitle(g.title || g.name || ''),
+        }));
+        diffSet(setGames, cleanGames);
+        if (cleanGames.length > 0) {
+          if (!selectedGameId) setSelectedGameId(cleanGames[0].gameId);
+          setDepositGameTitle((prev) => prev || cleanGames[0].title);
+          setWithdrawGameTitle((prev) => prev || cleanGames[0].title);
         }
       }
 
@@ -244,8 +250,11 @@ export default function CashierHub({
       const accsRes = await fetch('/api/game-accounts');
       const accsData = await accsRes.json();
       if (accsData.success) {
-        const list = accsData.gameAccounts || accsData.accounts || [];
-        setGameAccounts(list);
+        const list = (accsData.gameAccounts || accsData.accounts || []).map((a) => ({
+          ...a,
+          gameTitle: sanitizeGameTitle(a.gameTitle || a.title || ''),
+        }));
+        diffSet(setGameAccounts, list);
         if (list.length > 0) {
           setWithdrawGameTitle(list[0].gameTitle);
         }
@@ -256,7 +265,7 @@ export default function CashierHub({
         const histRes = await fetch('/api/payments/history');
         const histData = await histRes.json();
         if (histData.success) {
-          setHistory(histData);
+          diffSet(setHistory, histData);
         }
       }
     } catch (err) {
@@ -551,7 +560,7 @@ export default function CashierHub({
             <p className="text-sm text-gray-400 mt-1 max-w-xl">
               {activeTab === 'deposit' && `Instant deposits via Cash App, Zelle & Crypto with +${currentBonusPct}% ${bonusTypeLabel}.`}
               {activeTab === 'withdraw' && 'Request fast, compliant cashouts directly to your preferred Cashtag, account, or wallet.'}
-              {activeTab === 'load' && 'Transfer dollars from your main wallet into Orion Stars, Fire Kirin, Juwa and other sweepstakes platforms.'}
+              {activeTab === 'load' && 'Transfer dollars from your main wallet into verified sweepstakes platforms.'}
               {activeTab === 'history' && 'Review complete records of your deposits, cashouts, game loads, and cashier reviews.'}
             </p>
           </div>
@@ -624,9 +633,11 @@ export default function CashierHub({
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {(games.length > 0 ? games.map(g => g.title) : ['Orion Stars', 'Fire Kirin', 'Game Vault', 'Milky Way', 'Juwa', 'Panda Master']).map((gameTitle) => {
+                  {games.map((g) => {
+                    const gameTitle = sanitizeGameTitle(g.title || g.name || '');
+                    if (!gameTitle) return null;
                     const isSelected = depositGameTitle === gameTitle;
-                    const hasAcc = gameAccounts.some((a) => a.gameTitle?.toLowerCase() === gameTitle.toLowerCase());
+                    const hasAcc = gameAccounts.some((a) => (a.gameTitle || '').toLowerCase() === gameTitle.toLowerCase());
                     return (
                       <button
                         key={gameTitle}
@@ -648,6 +659,11 @@ export default function CashierHub({
                       </button>
                     );
                   })}
+                  {games.length === 0 && (
+                    <div className="col-span-full text-center text-xs text-gray-500 py-3">
+                      Loading available games...
+                    </div>
+                  )}
                 </div>
 
                 {/* Account Linked vs Auto-create banner */}
@@ -1111,15 +1127,23 @@ export default function CashierHub({
                             </button>
                           );
                         })
+                      ) : games.length > 0 ? (
+                        games.map((g) => {
+                          const title = sanitizeGameTitle(g.title || g.name || '');
+                          if (!title) return null;
+                          return (
+                            <div
+                              key={title}
+                              className="p-2.5 rounded-xl text-xs font-bold border border-white/5 bg-[#131724]/40 text-gray-500 opacity-60 text-center"
+                            >
+                              {title} (No Account)
+                            </div>
+                          );
+                        })
                       ) : (
-                        ['Orion Stars', 'Fire Kirin', 'Juwa', 'Game Vault', 'Milky Way', 'Panda Master'].map((title) => (
-                          <div
-                            key={title}
-                            className="p-2.5 rounded-xl text-xs font-bold border border-white/5 bg-[#131724]/40 text-gray-500 opacity-60 text-center"
-                          >
-                            {title} (No Account)
-                          </div>
-                        ))
+                        <div className="col-span-full text-center text-xs text-gray-500 py-3">
+                          No active game accounts yet. Please request an account first.
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1441,12 +1465,18 @@ export default function CashierHub({
                         }`}
                       >
                         <div className="relative aspect-video w-full rounded-xl overflow-hidden mb-2 bg-black">
-                          <Image
-                            src={g.thumbnail || '/images/games/orion-stars.jpg'}
-                            alt={g.title}
-                            fill
-                            className="object-cover"
-                          />
+                          {g.thumbnail ? (
+                            <Image
+                              src={g.thumbnail}
+                              alt={g.title}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-gray-600">
+                              <Gamepad2 size={24} />
+                            </div>
+                          )}
                         </div>
                         <h4 className="font-extrabold text-xs text-white truncate">{g.title}</h4>
                         <span className="text-[10px] text-gray-400 font-mono mt-0.5">{g.provider}</span>
@@ -1481,7 +1511,7 @@ export default function CashierHub({
                     type="text"
                     value={gameUsername}
                     onChange={(e) => setGameUsername(e.target.value)}
-                    placeholder="e.g. OrionUser_888 or Kirin_99"
+                    placeholder="e.g. PlayerAccount_888"
                     className="w-full px-4 py-3 rounded-xl bg-[#131724] border border-white/10 text-white text-sm font-mono focus:border-purple-400 focus:outline-none"
                   />
                   <span className="text-[10px] text-gray-400 mt-1 block">

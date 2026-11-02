@@ -32,6 +32,7 @@ import RoyalMobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
 
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function DepositPage() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function DepositPage() {
   const [proofImage, setProofImage] = useState('');
   const [proofFileName, setProofFileName] = useState('');
   const [availableGames, setAvailableGames] = useState([]);
-  const [selectedGame, setSelectedGame] = useState('Orion Stars');
+  const [selectedGame, setSelectedGame] = useState('');
   const [userGameAccounts, setUserGameAccounts] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -84,7 +85,7 @@ export default function DepositPage() {
       const [uData, sData] = await Promise.all([uRes.json(), sRes.json()]);
 
       if (uData.authenticated && uData.user) {
-        setUser(uData.user);
+        diffSet(setUser, uData.user);
         saveCachedUser(uData.user);
         if (uData.user.email) {
           setPlayerPaymentEmail((prev) => prev || uData.user.email);
@@ -95,7 +96,7 @@ export default function DepositPage() {
       }
 
       if (sData.success && sData.settings) {
-        setSettings({
+        diffSet(setSettings, {
           welcomeBonusPercent: Number(sData.settings.welcomeBonusPercent ?? sData.settings.welcomeBonusPercentage ?? 100),
           regularBonusPercent: Number(sData.settings.regularBonusPercent ?? sData.settings.regularBonusPercentage ?? 20),
           minDeposit: Number(sData.settings.minDeposit ?? 10),
@@ -115,8 +116,8 @@ export default function DepositPage() {
       const res = await fetch('/api/payments/methods');
       const data = await res.json();
       if (data.success && data.methods && data.methods.length > 0) {
-        setGateways(data.methods);
-        setSelectedGateway(data.methods[0]);
+        diffSet(setGateways, data.methods);
+        setSelectedGateway(prev => prev || data.methods[0]);
       } else {
         const defaults = [
           {
@@ -153,8 +154,8 @@ export default function DepositPage() {
             instructions: 'Send via Zelle from your banking app. Use your username in memo and upload receipt.',
           },
         ];
-        setGateways(defaults);
-        setSelectedGateway(defaults[0]);
+        diffSet(setGateways, defaults);
+        setSelectedGateway(prev => prev || defaults[0]);
       }
     } catch {
       // fallback
@@ -168,7 +169,7 @@ export default function DepositPage() {
       const res = await fetch('/api/payments/deposit', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.deposits) {
-        setDepositHistory(data.deposits);
+        diffSet(setDepositHistory, data.deposits);
       }
     } catch (err) {
       console.error(err);
@@ -183,7 +184,7 @@ export default function DepositPage() {
       const res = await fetch('/api/game-accounts', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.gameAccounts)) {
-        setUserGameAccounts(data.gameAccounts);
+        diffSet(setUserGameAccounts, data.gameAccounts);
       }
     } catch (err) {
       console.error(err);
@@ -196,8 +197,10 @@ export default function DepositPage() {
       const res = await fetch('/api/games', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.games)) {
-        const active = data.games.filter(g => g.status === 'active' || g.isActive !== false);
-        setAvailableGames(active);
+        const active = data.games
+          .filter(g => g.status === 'active' || g.isActive !== false)
+          .map(g => ({ ...g, title: sanitizeGameTitle(g.title) }));
+        diffSet(setAvailableGames, active);
         if (active.length > 0) {
           setSelectedGame(prev => prev || active[0].title);
         }
@@ -626,13 +629,9 @@ export default function DepositPage() {
                         </option>
                       ))
                     ) : (
-                      <>
-                        <option value="Orion Stars" className="bg-slate-900 text-white">Orion Stars</option>
-                        <option value="Ultra Panda" className="bg-slate-900 text-white">Ultra Panda</option>
-                        <option value="Fire Kirin" className="bg-slate-900 text-white">Fire Kirin</option>
-                        <option value="Game Vault" className="bg-slate-900 text-white">Game Vault</option>
-                        <option value="Juwa 777" className="bg-slate-900 text-white">Juwa 777</option>
-                      </>
+                      <option value="" disabled className="bg-slate-900 text-gray-400">
+                        Loading active platforms...
+                      </option>
                     )}
                   </select>
                 </div>

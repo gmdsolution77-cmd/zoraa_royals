@@ -20,6 +20,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+
 export default function GameVaultHub({
   isOpen,
   onClose,
@@ -29,72 +31,41 @@ export default function GameVaultHub({
 }) {
   const [activeAccounts, setActiveAccounts] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [requestingGameId, setRequestingGameId] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
-  // External platforms catalog
-  const platforms = [
-    {
-      gameId: 'orion-stars',
-      title: 'Orion Stars VIP',
-      thumbnail: '/images/orion-stars.webp',
-      url: 'https://orionstars.vip',
-      category: 'Fish & Slots',
-    },
-    {
-      gameId: 'fire-kirin',
-      title: 'Fire Kirin Ultimate',
-      thumbnail: '/images/fire-kirin.webp',
-      url: 'https://firekirin.xyz',
-      category: 'Fish Hunter & Arcade',
-    },
-    {
-      gameId: 'milky-way',
-      title: 'Milky Way Galaxy',
-      thumbnail: '/images/milky-way.webp',
-      url: 'https://milkywayapp.com',
-      category: 'Fish & Keno',
-    },
-    {
-      gameId: 'game-vault',
-      title: 'Game Vault 999 VIP',
-      thumbnail: '/images/game-vault.webp',
-      url: 'https://download.gamevault999.com',
-      category: 'Classic Slots',
-    },
-    {
-      gameId: 'juwa-777',
-      title: 'Juwa 777 Palace',
-      thumbnail: '/images/juwa-777.webp',
-      url: 'https://juwa777.com',
-      category: '777 Reel Slots',
-    },
-    {
-      gameId: 'ultra-panda',
-      title: 'Ultra Panda Golden',
-      thumbnail: '/images/ultra-panda.webp',
-      url: 'https://ultrapanda.mobi',
-      category: 'Arcade & Slots',
-    },
-  ];
-
   const fetchVault = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [accRes, reqRes] = await Promise.all([
+      const [accRes, reqRes, gamesRes] = await Promise.all([
         fetch('/api/game-accounts'),
         fetch('/api/account-requests'),
+        fetch('/api/games'),
       ]);
 
       const accData = await accRes.json();
       const reqData = await reqRes.json();
+      const gamesData = await gamesRes.json();
 
-      if (accData.success) setActiveAccounts(accData.accounts || []);
-      if (reqData.success) setPendingRequests(reqData.requests || []);
+      if (accData.success) diffSet(setActiveAccounts, accData.accounts || []);
+      if (reqData.success) diffSet(setPendingRequests, reqData.requests || []);
+      if (gamesData.success && Array.isArray(gamesData.games)) {
+        const list = gamesData.games
+          .filter(g => g.status === 'active' || g.isActive !== false)
+          .map(g => ({
+            gameId: g.gameId || g.id || g._id,
+            title: sanitizeGameTitle(g.title || g.name),
+            thumbnail: g.thumbnail || g.image || '/images/orion-stars.webp',
+            url: g.url || g.playUrl || '#',
+            category: g.category || 'Sweepstakes & Slots',
+          }));
+        diffSet(setPlatforms, list);
+      }
     } catch {}
     finally {
       setLoading(false);
@@ -189,7 +160,7 @@ export default function GameVaultHub({
                 </span>
               </div>
               <p className="text-xs text-gray-400">
-                1-Click Access & Account Requests for Orion Stars, Fire Kirin, Juwa & More
+                1-Click Access & Account Requests for Verified Sweepstakes Platforms
               </p>
             </div>
           </div>

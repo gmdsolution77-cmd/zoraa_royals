@@ -3,8 +3,19 @@
 import React from 'react';
 import Image from 'next/image';
 import { Crown, Gift, Key, Sparkles, Zap, ShieldCheck, Star } from 'lucide-react';
+import { sanitizeGameTitle } from '@/lib/fastDiff';
 
-export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, hasDeposited, freeplayAmountSC = 5, gamesCount = 11 }) {
+export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, hasDeposited, freeplayAmountSC = 5, gamesCount = 11, games = [] }) {
+  const displayPlatforms = (Array.isArray(games) && games.length > 0
+    ? games
+    : [
+        { title: 'Live Lobby', category: 'Sweepstakes' },
+        { title: 'VIP Tables', category: 'Live Casino' },
+        { title: 'Arcade Fish', category: 'Arcade' },
+        { title: 'Royal Slots', category: 'Jackpots' },
+      ]
+  ).slice(0, 4);
+
   if (currentSlide === 1) {
     // Slide 1: Complimentary Freeplay Card
     return (
@@ -92,52 +103,49 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
 
         {/* Center: Overlapping Platform Badges Showcase */}
         <div className="relative z-10 my-auto py-1 space-y-2">
-          {/* Row of platform chips */}
+          {/* Row of dynamic platform chips */}
           <div className="grid grid-cols-2 gap-2 text-left">
-            <div className="p-2.5 rounded-xl bg-black/50 border border-purple-400/30 flex items-center gap-2 hover:border-[#ffd700]/60 transition">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white font-black text-[10px]">
-                OS
-              </div>
-              <div className="truncate">
-                <span className="text-[11px] font-black text-white block leading-tight">Orion Stars</span>
-                <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">● Online</span>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-black/50 border border-purple-400/30 flex items-center gap-2 hover:border-[#ffd700]/60 transition">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-orange-600 to-red-500 flex items-center justify-center text-white font-black text-[10px]">
-                FK
-              </div>
-              <div className="truncate">
-                <span className="text-[11px] font-black text-white block leading-tight">Fire Kirin</span>
-                <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">● Online</span>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-black/50 border border-purple-400/30 flex items-center gap-2 hover:border-[#ffd700]/60 transition">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white font-black text-[10px]">
-                GV
-              </div>
-              <div className="truncate">
-                <span className="text-[11px] font-black text-white block leading-tight">Game Vault</span>
-                <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">● Online</span>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-black/50 border border-purple-400/30 flex items-center gap-2 hover:border-[#ffd700]/60 transition">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-600 to-yellow-500 flex items-center justify-center text-black font-black text-[10px]">
-                JW
-              </div>
-              <div className="truncate">
-                <span className="text-[11px] font-black text-white block leading-tight">Juwa 777</span>
-                <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">● Online</span>
-              </div>
-            </div>
+            {displayPlatforms.map((p, idx) => {
+              const title = sanitizeGameTitle(p.title || p.name);
+              const initials = title
+                .split(' ')
+                .map((w) => w[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase() || 'VIP';
+              const gradients = [
+                'from-purple-600 to-indigo-500',
+                'from-orange-600 to-red-500',
+                'from-blue-600 to-cyan-500',
+                'from-amber-600 to-yellow-500',
+              ];
+              const grad = gradients[idx % gradients.length];
+              return (
+                <div
+                  key={idx}
+                  className="p-2.5 rounded-xl bg-black/50 border border-purple-400/30 flex items-center gap-2 hover:border-[#ffd700]/60 transition"
+                >
+                  <div
+                    className={`w-7 h-7 rounded-lg bg-gradient-to-tr ${grad} flex items-center justify-center text-white font-black text-[10px]`}
+                  >
+                    {initials}
+                  </div>
+                  <div className="truncate">
+                    <span className="text-[11px] font-black text-white block leading-tight truncate">
+                      {title}
+                    </span>
+                    <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
+                      ● Online
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div className="text-center pt-1">
             <span className="text-[10px] text-gray-400 font-medium">
-              + Ultra Panda, Golden Dragon, Panda Master & Milky Way
+              Verified Palace Sweepstakes &amp; Live Tables
             </span>
           </div>
         </div>

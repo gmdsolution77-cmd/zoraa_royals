@@ -72,7 +72,18 @@ export default function HomePage() {
       if (tabParam && ['deposit', 'withdraw', 'load', 'history'].includes(tabParam)) {
         setCurrentView(tabParam);
       }
+      if (params.get('chat') === 'open' || window.location.hash === '#chat') {
+        setChatOpen(true);
+      }
     }
+
+    const handleOpenChat = () => setChatOpen(true);
+    window.addEventListener('openRoyalChat', handleOpenChat);
+    window.addEventListener('zorra-open-chat', handleOpenChat);
+    return () => {
+      window.removeEventListener('openRoyalChat', handleOpenChat);
+      window.removeEventListener('zorra-open-chat', handleOpenChat);
+    };
   }, []);
 
   const handleSwitchView = (view) => {

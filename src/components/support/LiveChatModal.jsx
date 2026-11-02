@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Eye,
 } from 'lucide-react';
+import { areEqual } from '@/lib/fastDiff';
 
 export default function LiveChatModal({
   isOpen,
@@ -79,11 +80,12 @@ export default function LiveChatModal({
           }
         }
       }
-      return Array.from(map.values()).sort((a, b) => {
+      const sorted = Array.from(map.values()).sort((a, b) => {
         const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return tA - tB;
       });
+      return areEqual(prev, sorted) ? prev : sorted;
     });
   };
 
@@ -109,13 +111,23 @@ export default function LiveChatModal({
     }
   }, [isOpen, user, guestId]);
 
+  const prevMsgCountRef = useRef(0);
+  const prevLastMsgIdRef = useRef('');
+
   useEffect(() => {
     if (isOpen) {
-      scrollToBottom(false);
-      const timer = setTimeout(() => scrollToBottom(true), 120);
-      return () => clearTimeout(timer);
+      const lastMsg = messages[messages.length - 1];
+      const lastId = lastMsg?._id || lastMsg?.createdAt || '';
+      const hasNewMessage = messages.length !== prevMsgCountRef.current || lastId !== prevLastMsgIdRef.current;
+      if (hasNewMessage) {
+        prevMsgCountRef.current = messages.length;
+        prevLastMsgIdRef.current = lastId;
+        scrollToBottom(false);
+        const timer = setTimeout(() => scrollToBottom(true), 120);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [messages.length, isOpen]);
+  }, [messages, isOpen]);
 
   // Handle mobile visualViewport resize when virtual keyboard opens
   useEffect(() => {

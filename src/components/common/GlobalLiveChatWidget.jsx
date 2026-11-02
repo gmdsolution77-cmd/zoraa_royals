@@ -42,16 +42,27 @@ export default function GlobalLiveChatWidget() {
     const handleUserUpdate = () => fetchUser();
 
     window.addEventListener('openRoyalChat', handleOpenChat);
+    window.addEventListener('zorra-open-chat', handleOpenChat);
     window.addEventListener('royalUserUpdated', handleUserUpdate);
     window.addEventListener('focus', fetchUser);
+
+    if (typeof window !== 'undefined') {
+      window.openRoyalChat = () => setChatOpen(true);
+      window.openChatModal = () => setChatOpen(true);
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('chat') === 'open' || window.location.hash === '#chat') {
+        setChatOpen(true);
+      }
+    }
 
     return () => {
       isMounted = false;
       window.removeEventListener('openRoyalChat', handleOpenChat);
+      window.removeEventListener('zorra-open-chat', handleOpenChat);
       window.removeEventListener('royalUserUpdated', handleUserUpdate);
       window.removeEventListener('focus', fetchUser);
     };
-  }, []);
+  }, [pathname]);
 
   const [unreadCount, setUnreadCount] = useState(0);
   const prevUnreadRef = useRef(0);
@@ -156,8 +167,8 @@ export default function GlobalLiveChatWidget() {
     return () => clearInterval(interval);
   }, [user, chatOpen]);
 
-  // Do NOT render on Admin Portal or dedicated full-screen /chat page
-  if (pathname && (pathname.startsWith('/admin') || pathname === '/chat')) {
+  // Do NOT render on Admin Portal
+  if (pathname && pathname.startsWith('/admin')) {
     return null;
   }
 
