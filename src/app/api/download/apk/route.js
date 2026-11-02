@@ -13,7 +13,7 @@ export async function GET() {
 
     let apkPath = null;
     for (const p of candidates) {
-      if (fs.existsSync(p)) {
+      if (fs.existsSync(/*turbopackIgnore: true*/ p)) {
         apkPath = p;
         break;
       }
@@ -29,8 +29,8 @@ export async function GET() {
       );
     }
 
-    const stat = fs.statSync(apkPath);
-    const fileStream = fs.createReadStream(apkPath);
+    const stat = fs.statSync(/*turbopackIgnore: true*/ apkPath);
+    const fileStream = fs.createReadStream(/*turbopackIgnore: true*/ apkPath);
 
     const readableStream = new ReadableStream({
       start(controller) {

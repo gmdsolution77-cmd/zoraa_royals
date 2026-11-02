@@ -27,9 +27,9 @@ function findServiceAccount() {
   }
 
   for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
+    if (fs.existsSync(/*turbopackIgnore: true*/ p)) {
       try {
-        const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+        const raw = JSON.parse(fs.readFileSync(/*turbopackIgnore: true*/ p, 'utf8'));
         if (raw.type === 'service_account' && raw.private_key && raw.client_email) {
           loadedAccountSource = p;
           return raw;
