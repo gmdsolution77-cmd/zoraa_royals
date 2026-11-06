@@ -7,15 +7,6 @@ import {
   Crown,
   Sparkles,
   Zap,
-  Gift,
-  ShieldCheck,
-  Trophy,
-  CheckCircle2,
-  ArrowRight,
-  Flame,
-  Coins,
-  AlertCircle,
-  Bell,
 } from 'lucide-react';
 import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
@@ -34,12 +25,6 @@ export default function PromotionsPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
-  const [dailyClaiming, setDailyClaiming] = useState(false);
-  const [promoMessage, setPromoMessage] = useState(null);
-  const [promoError, setPromoError] = useState(null);
-  const [pushTestLoading, setPushTestLoading] = useState(false);
-  const [pushTestMessage, setPushTestMessage] = useState(null);
 
   // Dynamic system settings
   const [sysSettings, setSysSettings] = useState({
@@ -98,68 +83,6 @@ export default function PromotionsPage() {
     loadPromosAndSettings();
   }, []);
 
-  // Claim Daily Palace Bonus
-  const handleClaimDailyBonus = async () => {
-    if (!user) {
-      setAuthModal({ open: true, tab: 'login' });
-      return;
-    }
-
-    setDailyClaiming(true);
-    setPromoMessage(null);
-    setPromoError(null);
-
-    try {
-      const res = await fetch('/api/promos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'daily_bonus' }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setPromoMessage(data.message || `🎉 Claimed Day ${data.streak || 1} Daily Reward: +$${data.rewardUSD || '1.00'}!`);
-        refreshUser();
-      } else {
-        setPromoError(data.error || 'Daily bonus already claimed for today.');
-      }
-    } catch {
-      setPromoError('Error claiming daily palace reward.');
-    } finally {
-      setDailyClaiming(false);
-    }
-  };
-
-  const handleTestLockScreenPush = async () => {
-    if (!user) {
-      setAuthModal({ open: true, tab: 'login' });
-      return;
-    }
-    setPushTestLoading(true);
-    setPushTestMessage(null);
-    setPromoError(null);
-    try {
-      const res = await fetch('/api/notifications/test-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: 'Zorra Royals — lock screen test',
-          message: 'Agar yeh notification lock screen par dikhe to sab theek hai.',
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPushTestMessage('Test push bhej diya. Phone lock karke dekho (10–15 sec).');
-      } else {
-        setPromoError(data.error || 'Push test fail — pehle app mein notifications allow karo.');
-      }
-    } catch {
-      setPromoError('Push test request fail.');
-    } finally {
-      setPushTestLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#07080b] text-white flex flex-col justify-between selection:bg-[#ffd700] selection:text-black font-sans">
       {/* 1. Global Royal Sidebar */}
@@ -199,51 +122,9 @@ export default function PromotionsPage() {
               ZORRA ROYALS <span className="text-[#ffd700]">VIP LOUNGE</span>
             </h1>
             <p className="text-xs md:text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Every spin on Ultra Panda, Fire Kirin, Orion Stars, Game Vault, and our in-house games advances your VIP rank. Climb from Bronze Royal to Palace Legend!
+              Welcome and reload bonuses on deposits, plus depositor spin rewards. Use the header <strong className="text-[#ffd700]">Allow alerts</strong> button to turn on push notifications for approvals and updates.
             </p>
           </div>
-
-          {/* Feedback alerts */}
-          {promoMessage && (
-            <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
-              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-              <span>{promoMessage}</span>
-            </div>
-          )}
-
-          {promoError && (
-            <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center gap-3 shadow-lg">
-              <AlertCircle size={18} className="text-rose-400 shrink-0" />
-              <span>{promoError}</span>
-            </div>
-          )}
-
-          {user && (
-            <div className="p-4 rounded-2xl bg-[#10141e] border border-[#d4af37]/35 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-[#ffd700]/15 border border-[#ffd700]/35 text-[#ffd700] shrink-0">
-                  <Bell className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black text-white font-serif tracking-wide">Lock screen push test</h3>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                    Notifications allow hon, phir phone lock karke “Send test” dabao — FCM se ek high-priority alert jayega.
-                  </p>
-                  {pushTestMessage && (
-                    <p className="text-[11px] text-emerald-400 mt-2 font-semibold">{pushTestMessage}</p>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleTestLockScreenPush}
-                disabled={pushTestLoading}
-                className="shrink-0 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black shadow-md hover:scale-[1.02] transition disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {pushTestLoading ? 'Sending…' : 'Send test push'}
-              </button>
-            </div>
-          )}
 
           {/* Dynamic Core Bonus Packages */}
           <div className="space-y-4">

@@ -30,6 +30,7 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  MessageSquare,
 } from 'lucide-react';
 
 import RoyalNavbar from '@/components/common/RoyalNavbar';
@@ -102,19 +103,16 @@ export default function CashierHub({
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
   const [withdrawSuccess, setWithdrawSuccess] = useState(null);
 
-  // Form states - Game Load
-  const [selectedGameId, setSelectedGameId] = useState('');
-  const [gameUsername, setGameUsername] = useState('');
-  const [loadAmount, setLoadAmount] = useState('25');
-  const [loadSubmitting, setLoadSubmitting] = useState(false);
-  const [loadSuccess, setLoadSuccess] = useState(null);
-
   // Lightbox modal for previewing any image/QR
   const [previewImage, setPreviewImage] = useState(null); // { url, title }
 
   // UI helpers
   const [copiedText, setCopiedText] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [methodRequestName, setMethodRequestName] = useState('');
+  const [methodRequestDetails, setMethodRequestDetails] = useState('');
+  const [methodRequestSubmitting, setMethodRequestSubmitting] = useState(false);
+  const [methodRequestMsg, setMethodRequestMsg] = useState(null);
 
   // Client-side image compressor using HTML5 canvas
   const handleCompressAndSetImage = (file, setter, nameSetter) => {
@@ -174,18 +172,18 @@ export default function CashierHub({
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
       if (tabParam && ['deposit', 'withdraw', 'load', 'history'].includes(tabParam)) {
-        setActiveTab(tabParam);
+        setActiveTab(tabParam === 'load' ? 'deposit' : tabParam);
       }
     }
   }, [propActiveTab]);
 
   const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    if (onTabChange) onTabChange(tab);
+    const next = tab === 'load' ? 'deposit' : tab;
+    setActiveTab(next);
+    if (onTabChange) onTabChange(next);
     setErrorMsg('');
     setDepositSuccess(null);
     setWithdrawSuccess(null);
-    setLoadSuccess(null);
   };
 
   const copyToClipboard = (text, label) => {
@@ -240,7 +238,6 @@ export default function CashierHub({
         }));
         diffSet(setGames, cleanGames);
         if (cleanGames.length > 0) {
-          if (!selectedGameId) setSelectedGameId(cleanGames[0].gameId);
           setDepositGameTitle((prev) => prev || cleanGames[0].title);
           setWithdrawGameTitle((prev) => prev || cleanGames[0].title);
         }
@@ -279,28 +276,12 @@ export default function CashierHub({
     loadData();
   }, []);
 
-  // Auto-fill Game Load username if player has an active account for selected game
-  useEffect(() => {
-    if (selectedGameId && games.length > 0 && gameAccounts.length > 0) {
-      const selectedGame = games.find(g => g.gameId === selectedGameId);
-      const title = selectedGame?.title;
-      if (title) {
-        const matched = gameAccounts.find(a => a.gameTitle?.toLowerCase() === title.toLowerCase());
-        if (matched?.username) {
-          setGameUsername(matched.username);
-        }
-      }
-    }
-  }, [selectedGameId, games, gameAccounts]);
-
   // Calculate balances & dynamic bonus
   const totalBalance = user?.balance !== undefined ? parseFloat(user.balance) : 0;
   const frozenBalance = user?.frozenBalance !== undefined ? parseFloat(user.frozenBalance) : 0;
   const availableBalance = user?.availableBalance !== undefined
     ? parseFloat(user.availableBalance)
     : Math.max(0, +(totalBalance - frozenBalance).toFixed(2));
-  const userBalance = availableBalance;
-
   const isFirstDeposit = !user?.firstDepositMade && (!user?.totalDeposited || user.totalDeposited === 0);
   const currentBonusPct = isFirstDeposit
     ? settings.welcomeBonusPercentage
@@ -463,57 +444,41 @@ export default function CashierHub({
     }
   };
 
-  // Submit Game Load Request (Deducts from wallet balance only on approval)
-  const handleGameLoadSubmit = async (e) => {
+  const handlePaymentMethodRequest = async (e) => {
     e.preventDefault();
     if (!user) {
       if (onOpenAuth) onOpenAuth('login');
       return;
     }
-    const numLoad = parseFloat(loadAmount) || 0;
-    if (numLoad <= 0) {
-      setErrorMsg('Please enter a valid load amount');
+    const name = methodRequestName.trim();
+    if (name.length < 2) {
+      setErrorMsg('Please enter which payment method you want (e.g. Cash App, Zelle, USDT).');
       return;
     }
-    if (numLoad > availableBalance) {
-      setErrorMsg(`Insufficient wallet balance. You have $${availableBalance.toFixed(2)} available. You cannot request more than your wallet balance.`);
-      return;
-    }
-    if (!gameUsername.trim()) {
-      setErrorMsg('Please provide your game username or account ID');
-      return;
-    }
-
-    const selectedGame = games.find(g => g.gameId === selectedGameId);
-    const gameName = selectedGame?.title || selectedGameId;
-
-    setLoadSubmitting(true);
+    setMethodRequestSubmitting(true);
     setErrorMsg('');
+    setMethodRequestMsg(null);
     try {
-      const res = await fetch('/api/game-loads', {
+      const res = await fetch('/api/payment-method-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gameId: selectedGameId,
-          gameUsername: gameUsername.trim(),
-          amount: numLoad,
+          methodName: name,
+          details: methodRequestDetails.trim(),
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setLoadSuccess({
-          amount: numLoad,
-          gameName,
-          username: gameUsername.trim(),
-        });
-        loadData();
+        setMethodRequestMsg(data.message || 'Request sent. Support will follow up.');
+        setMethodRequestName('');
+        setMethodRequestDetails('');
       } else {
-        setErrorMsg(data.error || 'Failed to submit load request');
+        setErrorMsg(data.error || 'Could not send request');
       }
     } catch {
-      setErrorMsg('Network error submitting load request');
+      setErrorMsg('Network error sending request');
     } finally {
-      setLoadSubmitting(false);
+      setMethodRequestSubmitting(false);
     }
   };
 
@@ -543,7 +508,6 @@ export default function CashierHub({
               <span className="px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#ffd700] text-[11px] font-black uppercase tracking-wider">
                 {activeTab === 'deposit' && '👑 VIP DEPOSIT DESK'}
                 {activeTab === 'withdraw' && '💸 CASHOUT & REDEMPTIONS'}
-                {activeTab === 'load' && '🎮 GAME CREDITS TRANSFER'}
                 {activeTab === 'history' && '📜 TRANSACTION AUDIT LEDGER'}
               </span>
               <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono font-bold">
@@ -554,38 +518,13 @@ export default function CashierHub({
             <h1 className="text-3xl sm:text-4xl font-black font-serif text-white tracking-wide">
               {activeTab === 'deposit' && 'Deposit & Match Bonus'}
               {activeTab === 'withdraw' && 'Cashout & Withdrawals'}
-              {activeTab === 'load' && 'Load Game Credits'}
               {activeTab === 'history' && 'Transaction History & Records'}
             </h1>
             <p className="text-sm text-gray-400 mt-1 max-w-xl">
               {activeTab === 'deposit' && `Instant deposits via Cash App, Zelle & Crypto with +${currentBonusPct}% ${bonusTypeLabel}.`}
               {activeTab === 'withdraw' && 'Request fast, compliant cashouts directly to your preferred Cashtag, account, or wallet.'}
-              {activeTab === 'load' && 'Transfer dollars from your main wallet into verified sweepstakes platforms.'}
               {activeTab === 'history' && 'Review complete records of your deposits, cashouts, game loads, and cashier reviews.'}
             </p>
-          </div>
-
-          {/* User Balance Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#090b12]/90 border border-[#d4af37]/40 shadow-xl flex items-center gap-4 shrink-0">
-            <div className="p-3 rounded-xl bg-gradient-to-tr from-[#997b24] to-[#ffd700] text-black shadow-md">
-              <Wallet className="w-6 h-6 stroke-[2.5]" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                Available to Play & Cashout
-              </span>
-              <strong className="text-2xl sm:text-3xl font-black text-gold-gradient font-mono">
-                ${availableBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </strong>
-              <div className="flex items-center gap-2 mt-0.5 text-[10px]">
-                <span className="text-gray-400">Total Balance: ${totalBalance.toFixed(2)}</span>
-                {frozenBalance > 0 && (
-                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
-                    ❄️ ${frozenBalance.toFixed(2)} In Review
-                  </span>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -727,6 +666,42 @@ export default function CashierHub({
                     );
                   })}
                 </div>
+
+                <form onSubmit={handlePaymentMethodRequest} className="mt-5 p-4 rounded-2xl bg-[#131724]/80 border border-[#d4af37]/25 space-y-3">
+                  <div className="flex items-center gap-2 text-[11px] font-black text-[#ffd700] uppercase tracking-wide">
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Need a different payment method?</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">
+                    Tell us which app or network you want to use. Our team can add it for you.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={methodRequestName}
+                      onChange={(e) => setMethodRequestName(e.target.value)}
+                      placeholder="e.g. Zelle, Venmo, Apple Pay"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0a0c12] border border-white/10 text-white text-xs focus:border-[#ffd700] focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={methodRequestDetails}
+                      onChange={(e) => setMethodRequestDetails(e.target.value)}
+                      placeholder="Optional note (cashtag, etc.)"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0a0c12] border border-white/10 text-white text-xs focus:border-[#ffd700] focus:outline-none"
+                    />
+                  </div>
+                  {methodRequestMsg && (
+                    <p className="text-[10px] text-emerald-400 font-semibold">{methodRequestMsg}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={methodRequestSubmitting}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white/10 border border-[#d4af37]/40 text-[#ffd700] text-[11px] font-black hover:bg-[#ffd700]/10 transition disabled:opacity-50"
+                  >
+                    {methodRequestSubmitting ? 'Sending…' : 'Request payment method'}
+                  </button>
+                </form>
               </div>
 
               {/* Step 3: Choose Amount & Calculate Bonus */}
@@ -1421,200 +1396,7 @@ export default function CashierHub({
         )}
 
         {/* ============================================================== */}
-        {/* TAB 3: LOAD GAME CREDITS */}
-        {/* ============================================================== */}
-        {activeTab === 'load' && (
-          <div className="w-full space-y-6">
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#0e111a] border border-[#d4af37]/35 shadow-2xl space-y-6">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-black uppercase">
-                    CREDENTIALS & GAME VAULT
-                  </span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black font-serif text-white tracking-wide">
-                  Transfer Credits to Sweepstakes Game
-                </h3>
-                <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                  Choose your sweepstakes platform, enter your game username, and specify the dollar amount to transfer from your main wallet balance.
-                </p>
-              </div>
-
-              {/* Step 1: Select Game */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs text-gray-300 font-bold block">
-                    1. Select Sweepstakes Platform
-                  </label>
-                  <span className="text-[11px] text-gray-400">
-                    {games.length} Platforms Available
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-72 overflow-y-auto p-1 scrollbar-thin">
-                  {games.map((g) => {
-                    const isSelected = selectedGameId === g.gameId;
-                    return (
-                      <button
-                        key={g.gameId}
-                        type="button"
-                        onClick={() => setSelectedGameId(g.gameId)}
-                        className={`p-2.5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-b from-[#251733] to-[#0f111a] border-purple-400 shadow-[0_0_18px_rgba(168,85,247,0.35)] ring-2 ring-purple-400/50'
-                            : 'bg-[#121520] border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="relative aspect-video w-full rounded-xl overflow-hidden mb-2 bg-black">
-                          {g.thumbnail ? (
-                            <Image
-                              src={g.thumbnail}
-                              alt={g.title}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-gray-600">
-                              <Gamepad2 size={24} />
-                            </div>
-                          )}
-                        </div>
-                        <h4 className="font-extrabold text-xs text-white truncate">{g.title}</h4>
-                        <span className="text-[10px] text-gray-400 font-mono mt-0.5">{g.provider}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Step 2: Game Username & Client Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-300 font-bold block mb-1.5">
-                    Your Client Name (Account Name)
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={user?.username || 'Client'}
-                    className="w-full px-4 py-3 rounded-xl bg-black/60 border border-white/10 text-gray-400 font-mono text-sm cursor-not-allowed"
-                  />
-                  <span className="text-[10px] text-gray-500 mt-1 block">
-                    Automatically matched to your Zorra Royals profile
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs text-gray-300 font-bold block mb-1.5">
-                    Game Account Username / ID <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={gameUsername}
-                    onChange={(e) => setGameUsername(e.target.value)}
-                    placeholder="e.g. PlayerAccount_888"
-                    className="w-full px-4 py-3 rounded-xl bg-[#131724] border border-white/10 text-white text-sm font-mono focus:border-purple-400 focus:outline-none"
-                  />
-                  <span className="text-[10px] text-gray-400 mt-1 block">
-                    The username given to you for this specific game
-                  </span>
-                </div>
-              </div>
-
-              {/* Step 3: Transfer Amount */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-gray-300 font-bold">
-                    Amount to Load ($ USD)
-                  </label>
-                  <span className="text-[11px] text-gray-400 font-mono">
-                    Available Wallet Balance: <strong className="text-[#ffd700]">${userBalance.toFixed(2)}</strong>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-3">
-                  {['10', '25', '50', '100', '250'].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => setLoadAmount(amt)}
-                      className={`py-2.5 rounded-xl text-xs font-mono font-bold transition ${
-                        loadAmount === amt
-                          ? 'bg-purple-500 text-white font-black shadow-[0_0_12px_rgba(168,85,247,0.4)]'
-                          : 'bg-[#151926] text-gray-300 hover:bg-white/10 border border-white/5'
-                      }`}
-                    >
-                      ${amt}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setLoadAmount(userBalance.toString())}
-                    className="py-2.5 rounded-xl text-xs font-mono font-bold bg-[#d4af37]/20 hover:bg-[#d4af37]/30 text-[#ffd700] border border-[#d4af37]/30 transition"
-                  >
-                    MAX (${userBalance.toFixed(0)})
-                  </button>
-                </div>
-
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-mono text-lg font-bold">$</span>
-                  <input
-                    type="number"
-                    value={loadAmount}
-                    onChange={(e) => setLoadAmount(e.target.value)}
-                    min="1"
-                    max={userBalance}
-                    placeholder="Enter amount"
-                    className="w-full pl-9 pr-20 py-3.5 rounded-xl bg-[#131724] border border-white/10 text-white font-mono text-lg font-bold focus:border-purple-400 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setLoadAmount(userBalance.toString())}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 text-xs font-bold font-mono"
-                  >
-                    MAX
-                  </button>
-                </div>
-              </div>
-
-              {/* Notice */}
-              <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-xs text-purple-200 leading-relaxed">
-                <p className="font-bold text-white mb-1">How Load Requests Work:</p>
-                <p>
-                  When you submit this request, the backend creates a game credit task for the cashier team with your <strong>Client Name</strong>, <strong>Game Platform</strong>, and <strong>Game Username</strong>.
-                  Upon approval, the credits are loaded directly into your game and deducted from your balance. If declined, the rejection reason will be displayed in your Transaction History.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleGameLoadSubmit}
-                disabled={loadSubmitting || userBalance < 1}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white font-black text-sm tracking-wide shadow-[0_0_25px_rgba(168,85,247,0.4)] hover:brightness-110 transition disabled:opacity-50"
-              >
-                {loadSubmitting ? (
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
-                ) : (
-                  <span>Submit Game Load Request (${parseFloat(loadAmount || 0).toFixed(2)})</span>
-                )}
-              </button>
-
-              {loadSuccess && (
-                <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-sm space-y-1">
-                  <div className="flex items-center gap-2 font-black text-emerald-400">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Load Request Queued!</span>
-                  </div>
-                  <p className="text-xs text-gray-300">
-                    Your request to load <strong>${loadSuccess.amount.toFixed(2)}</strong> into <strong>{loadSuccess.gameName}</strong> (Username: <code>{loadSuccess.username}</code>) has been submitted. Check the Transaction History tab for real-time status!
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 4: TRANSACTION HISTORY */}
+        {/* TAB 3: TRANSACTION HISTORY */}
         {/* ============================================================== */}
         {activeTab === 'history' && (
           <div className="space-y-6">

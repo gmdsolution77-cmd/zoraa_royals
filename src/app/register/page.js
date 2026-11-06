@@ -3,12 +3,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   Mail,
   Lock,
   User,
-  Gift,
   Sparkles,
   AlertCircle,
   CheckCircle2,
@@ -21,13 +20,10 @@ import {
 
 function RegisterForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
   const [step, setStep] = useState('details'); // 'details' | 'otp'
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [referralCode, setReferralCode] = useState('');
   const [ageVerified, setAgeVerified] = useState(true);
   const [otp, setOtp] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -35,23 +31,6 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-  // Check URL referral code or stored code
-  useEffect(() => {
-    const urlRef = searchParams.get('ref') || searchParams.get('referral') || searchParams.get('referrer');
-    if (urlRef) {
-      const clean = urlRef.trim().toUpperCase();
-      setReferralCode(clean);
-      try {
-        localStorage.setItem('zorra_ref_code', clean);
-      } catch {}
-    } else {
-      try {
-        const stored = localStorage.getItem('zorra_ref_code');
-        if (stored) setReferralCode(stored.trim().toUpperCase());
-      } catch {}
-    }
-  }, [searchParams]);
 
   // Resend OTP countdown timer
   useEffect(() => {
@@ -172,7 +151,6 @@ function RegisterForm() {
           email: email.trim().toLowerCase(),
           password: password.trim(),
           otp: otp.trim(),
-          referralCode: referralCode.trim(),
         }),
       });
 
@@ -283,29 +261,6 @@ function RegisterForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-[#131622] border border-[#d4af37]/30 rounded-xl pl-10 pr-3 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">
-                VIP Referral / Friend Code <span className="text-gray-500 font-normal lowercase">(optional)</span>
-              </label>
-              {referralCode && (
-                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-mono">
-                  ✓ Code Applied
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <Gift className="absolute left-3.5 top-3.5 w-4 h-4 text-[#ffd700]" />
-              <input
-                type="text"
-                placeholder="ROYAL-VIP"
-                value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                className="w-full bg-[#131622] border border-[#d4af37]/30 rounded-xl pl-10 pr-3 py-3 text-xs text-[#ffd700] uppercase font-mono tracking-wider placeholder-gray-500 focus:outline-none focus:border-[#ffd700] transition"
               />
             </div>
           </div>

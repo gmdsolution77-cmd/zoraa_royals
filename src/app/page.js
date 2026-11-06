@@ -47,7 +47,6 @@ import RoyalBlackjackModal from '@/components/games/RoyalBlackjackModal';
 import LiveChatModal from '@/components/support/LiveChatModal';
 import NotificationsModal from '@/components/common/NotificationsModal';
 import KycModal from '@/components/common/KycModal';
-import ReferralModal from '@/components/common/ReferralModal';
 import DailySpinWheelModal from '@/components/common/DailySpinWheelModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
@@ -70,7 +69,7 @@ export default function HomePage() {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab') || params.get('view');
       if (tabParam && ['deposit', 'withdraw', 'load', 'history'].includes(tabParam)) {
-        setCurrentView(tabParam);
+        setCurrentView(tabParam === 'load' ? 'deposit' : tabParam);
       }
       if (params.get('chat') === 'open' || window.location.hash === '#chat') {
         setChatOpen(true);
@@ -112,7 +111,6 @@ export default function HomePage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [kycOpen, setKycOpen] = useState(false);
-  const [referralOpen, setReferralOpen] = useState(false);
   const [spinWheelOpen, setSpinWheelOpen] = useState(false);
   const [activeInternalGame, setActiveInternalGame] = useState(null);
 
@@ -210,7 +208,6 @@ export default function HomePage() {
         onOpenSpinWheel={() => setSpinWheelOpen(true)}
         onOpenGameVault={() => setGameVaultOpen(true)}
         onOpenChat={() => setChatOpen(true)}
-        onOpenReferral={() => setReferralOpen(true)}
       />
 
       {/* 2. Main Content Layout with dynamic left padding on desktop */}
@@ -231,7 +228,6 @@ export default function HomePage() {
           onOpenGameVault={() => setGameVaultOpen(true)}
           onOpenNotifications={() => setNotifsOpen(true)}
           onOpenKyc={() => setKycOpen(true)}
-          onOpenReferral={() => setReferralOpen(true)}
           onLogout={handleLogout}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
@@ -253,14 +249,13 @@ export default function HomePage() {
                   onOpenFreeplay={() => setFreeplayOpen(true)}
                   onOpenSpinWheel={() => setSpinWheelOpen(true)}
                   onBalanceUpdated={fetchUser}
-                  onOpenVault={() => handleSwitchView('load')}
-                  onOpenReferral={() => setReferralOpen(true)}
+                  onOpenVault={() => handleSwitchView('deposit')}
                 />
 
                 {/* B. 4 Quick VIP Service Stations */}
                 <QuickActionCards
                   onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
-                  onOpenVault={() => handleSwitchView('load')}
+                  onOpenVault={() => handleSwitchView('deposit')}
                   onOpenFreeplay={() => setFreeplayOpen(true)}
                 />
 
@@ -396,12 +391,6 @@ export default function HomePage() {
         user={user}
       />
 
-      <ReferralModal
-        isOpen={referralOpen}
-        onClose={() => setReferralOpen(false)}
-        user={user}
-      />
-
       {/* Sweepstakes Game Credentials & Request Modal */}
       {selectedGameForModal && (
         <GameCredentialsModal
@@ -422,7 +411,7 @@ export default function HomePage() {
           onRequestAccount={handleRequestAccount}
           onLoadCredits={() => {
             setSelectedGameForModal(null);
-            handleSwitchView('load');
+            handleSwitchView('deposit');
           }}
           user={user}
         />

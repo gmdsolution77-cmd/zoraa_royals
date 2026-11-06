@@ -18,12 +18,9 @@ import {
   AlertCircle,
   RefreshCw,
   ExternalLink,
-  Coins,
   Lock,
-  Wallet,
   Gamepad2
 } from 'lucide-react';
-import LoadCoinsModal from '@/components/player/LoadCoinsModal';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function PlayerGameAccountsHub({
@@ -36,7 +33,6 @@ export default function PlayerGameAccountsHub({
   const [activeAccounts, setActiveAccounts] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [rejectedRequests, setRejectedRequests] = useState([]);
-  const [loadCoinsModal, setLoadCoinsModal] = useState({ open: false, game: null });
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
   const [showPasswordMap, setShowPasswordMap] = useState({});
@@ -234,7 +230,7 @@ export default function PlayerGameAccountsHub({
       )}
 
       {/* Summary KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
         <div className="p-4 rounded-2xl bg-gradient-to-br from-[#10141e] to-[#07080b] border border-[rgba(212,175,55,0.25)] flex items-center justify-between">
           <div>
             <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Ready Vaults</p>
@@ -255,20 +251,6 @@ export default function PlayerGameAccountsHub({
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#10141e] to-[#07080b] border border-[rgba(212,175,55,0.25)] flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Available Wallet</p>
-            <h3 className="text-xl font-black text-[#ffd700] m-0 mt-0.5">
-              ${Number(user?.availableBalance !== undefined ? user.availableBalance : (user?.balanceSC || user?.balance || 0)).toFixed(2)}
-            </h3>
-          </div>
-          <button
-            onClick={onDeposit}
-            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-[11px] font-black hover:scale-105 transition"
-          >
-            Deposit
-          </button>
-        </div>
       </div>
 
       {/* ======================================================== */}
@@ -402,27 +384,15 @@ export default function PlayerGameAccountsHub({
                     </div>
                   </div>
 
-                  {/* Action Buttons: Load Credits & Launch */}
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setLoadCoinsModal({ open: true, game: { title: acc.gameTitle, gameId: acc.gameId } })}
-                      className="py-2.5 px-3 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-200 text-xs font-black flex items-center justify-center gap-1.5 hover:bg-purple-500/25 transition cursor-pointer"
-                    >
-                      <Coins size={14} className="text-purple-400" />
-                      <span>Load Credits</span>
-                    </button>
-
-                    <a
-                      href={gameUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black flex items-center justify-center gap-1.5 shadow-md hover:scale-102 transition"
-                    >
-                      <span>Launch</span>
-                      <ExternalLink size={13} />
-                    </a>
-                  </div>
+                  <a
+                    href={gameUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black flex items-center justify-center gap-1.5 shadow-md hover:scale-102 transition w-full"
+                  >
+                    <span>Launch</span>
+                    <ExternalLink size={13} />
+                  </a>
                 </div>
               );
             })}
@@ -600,16 +570,6 @@ export default function PlayerGameAccountsHub({
         </div>
       </div>
 
-      {/* Load Coins Modal */}
-      <LoadCoinsModal
-        isOpen={loadCoinsModal.open}
-        onClose={() => setLoadCoinsModal({ open: false, game: null })}
-        user={user}
-        game={loadCoinsModal.game}
-        onSuccess={() => {
-          fetchAccountsAndRequests();
-        }}
-      />
     </section>
   );
 }

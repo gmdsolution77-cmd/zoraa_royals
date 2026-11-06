@@ -462,7 +462,7 @@ export default function LiveChatModal({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={!user || uploadingImage || loading}
+            disabled={uploadingImage || loading}
             className="p-2.5 rounded-xl text-gray-400 hover:text-[#ffd700] bg-white/5 hover:bg-white/10 transition shrink-0 cursor-pointer disabled:opacity-40"
             title="Attach screenshot or proof"
           >
@@ -477,22 +477,20 @@ export default function LiveChatModal({
             ref={inputRef}
             type="text"
             placeholder={
-              user
-                ? attachedImage
-                  ? 'Add message caption (optional)...'
-                  : 'Type your message or attach screenshot...'
-                : 'Please log in to chat...'
+              attachedImage
+                ? 'Add message caption (optional)...'
+                : 'Type your message or attach screenshot...'
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onFocus={handleFocus}
-            disabled={!user || loading}
+            disabled={loading}
             className="flex-1 bg-[#151825] border border-white/10 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition shadow-inner"
           />
 
           <button
             type="submit"
-            disabled={!user || loading || (!text.trim() && !attachedImage)}
+            disabled={loading || (!text.trim() && !attachedImage)}
             className="p-3 rounded-2xl bg-gradient-to-r from-[#ffd700] to-[#d4af37] text-black hover:brightness-110 disabled:opacity-40 transition shadow-md shrink-0 flex items-center justify-center cursor-pointer"
             aria-label="Send message"
           >

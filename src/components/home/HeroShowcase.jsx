@@ -26,7 +26,6 @@ export default function HeroShowcase({
   onOpenCashier,
   onOpenFreeplay,
   onOpenVault,
-  onOpenReferral,
   onOpenSpinWheel,
   onBalanceUpdated,
 }) {
@@ -39,7 +38,6 @@ export default function HeroShowcase({
   const [settings, setSettings] = useState({
     welcomeBonusPercentage: 300,
     regularBonusPercentage: 50,
-    referralBonusPercentage: 50,
     freeplayAmountSC: 5.0,
     signupBonusAmount: 5.0,
   });
@@ -88,7 +86,6 @@ export default function HeroShowcase({
 
   const welcomePct = settings.welcomeBonusPercentage ?? 300;
   const regularPct = settings.regularBonusPercentage ?? 50;
-  const refPct = settings.referralBonusPercentage ?? 50;
   const freeplaySC = settings.freeplayAmountSC ?? settings.signupBonusAmount ?? 5.0;
   const hasDeposited = Boolean(user?.firstDepositMade);
 

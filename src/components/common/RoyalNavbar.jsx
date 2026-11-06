@@ -33,7 +33,6 @@ export default function RoyalNavbar({
   onOpenGameVault,
   onOpenNotifications,
   onOpenKyc,
-  onOpenReferral,
   onOpenSpinWheel,
   onLogout,
   onToggleSidebar,
@@ -59,6 +58,24 @@ export default function RoyalNavbar({
   const [cachedUser, setCachedUser] = useState(null);
   const [mounted, setMounted] = useState(false);
   const [bonusSettings, setBonusSettings] = useState({ freeplayAmountSC: 5.0, freeplayActive: true });
+  const [showPushPromptButton, setShowPushPromptButton] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
+      setShowPushPromptButton(true);
+    }
+  }, []);
+
+  const handleEnablePushNotifications = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        window.dispatchEvent(new CustomEvent('royal-push-enabled'));
+        setShowPushPromptButton(false);
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -158,31 +175,16 @@ export default function RoyalNavbar({
         <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
           {activeUser ? (
             <>
-              {/* Single Dollar Balance ($ USD) */}
-              <button
-                onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="flex items-center gap-1 sm:gap-2 bg-[#0d0f17] border border-[#d4af37]/35 hover:border-[#ffd700] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 shadow-md transition group text-left cursor-pointer shrink-0"
-                title={`Total Balance: $${(activeUser.balance || 0).toFixed(2)} USD • Available: $${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}`}
-              >
-                <div className="p-0.5 sm:p-1 rounded-md bg-[#d4af37]/15 text-[#ffd700] shrink-0">
-                  <Wallet className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-gray-400 block font-bold leading-none">
-                      {activeUser.frozenBalance > 0 ? 'Avail' : 'Balance'}
-                    </span>
-                    {activeUser.frozenBalance > 0 && (
-                      <span className="text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold px-1 rounded font-mono">
-                        ❄️ ${activeUser.frozenBalance.toFixed(0)}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs sm:text-sm font-mono font-black text-gold-gradient group-hover:brightness-110 leading-none block">
-                    ${((activeUser.availableBalance !== undefined ? activeUser.availableBalance : activeUser.balance) || 0).toFixed(2)}
-                  </span>
-                </div>
-              </button>
+              {showPushPromptButton && (
+                  <button
+                    type="button"
+                    onClick={handleEnablePushNotifications}
+                    className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-black uppercase tracking-wide hover:bg-emerald-500/25 transition shrink-0"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    Allow alerts
+                  </button>
+                )}
 
               {/* Quick Deposit Button (Desktop & Tablet only - Mobile has bottom nav deposit) */}
               <button

@@ -167,6 +167,19 @@ export async function POST(req) {
 
     const res = await requestsCol.insertOne(newRequest);
 
+    notifyPlayer({
+      userId: user._id.toString(),
+      userEmail,
+      username: userName,
+      title: `🎮 Game request received: ${gameTitle}`,
+      message:
+        transferAmount > 0
+          ? `Your request for ${gameTitle} ($${transferAmount.toFixed(2)}) was submitted. You will be notified when staff approves it.`
+          : `Your game account request for ${gameTitle} was submitted. You will be notified when your Game ID is ready.`,
+      type: 'account_request_submitted',
+      data: { requestId: res.insertedId.toString(), gameTitle, url: '/accounts' },
+    });
+
     return NextResponse.json({
       success: true,
       requestId: res.insertedId.toString(),

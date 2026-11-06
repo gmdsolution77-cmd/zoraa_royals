@@ -37,7 +37,6 @@ export default function RoyalSidebar({
   onOpenDailyBonus,
   onOpenFreeplay,
   onOpenSpinWheel,
-  onOpenReferral,
   currentView,
   activeCategory,
   onSelectCategory,

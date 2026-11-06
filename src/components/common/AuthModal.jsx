@@ -12,7 +12,6 @@ import {
   User,
   AlertCircle,
   ArrowRight,
-  Gift,
   KeyRound,
   CheckCircle2,
   Loader2,
@@ -33,8 +32,6 @@ export default function AuthModal({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
-  const [referralCode, setReferralCode] = useState('');
-  const [autoReferred, setAutoReferred] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -47,18 +44,6 @@ export default function AuthModal({
       setError(null);
     }
   }, [isOpen, initialTab]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref') || params.get('referral');
-      if (ref) {
-        setReferralCode(ref.trim());
-        setAutoReferred(true);
-        setTab('register');
-      }
-    }
-  }, []);
 
   // Resend countdown timer
   useEffect(() => {
@@ -162,7 +147,6 @@ export default function AuthModal({
             username: username.trim(),
             email: email.trim().toLowerCase(),
             password,
-            referralCode,
             otp: otp.trim(),
           }),
         });
@@ -362,28 +346,6 @@ export default function AuthModal({
                 </div>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider">
-                    Referral / Friend Code <span className="text-gray-500 font-normal lowercase">(optional)</span>
-                  </label>
-                  {autoReferred && (
-                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      ✓ Friend Code Linked
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Gift className="absolute left-3 top-3 w-4 h-4 text-[#d4af37]" />
-                  <input
-                    type="text"
-                    placeholder="Enter friend's code or username"
-                    value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value)}
-                    className="w-full bg-[#131622] border border-[#d4af37]/35 focus:border-[#ffd700] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 font-mono tracking-wider transition"
-                  />
-                </div>
-              </div>
             </>
           )}
 

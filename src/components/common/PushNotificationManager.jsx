@@ -21,6 +21,27 @@ export default function PushNotificationManager() {
     }
   }, []);
 
+  const registerWebPushToken = async () => {
+    let storedEmail = localStorage.getItem('zorra_user_email') || '';
+    try {
+      const raw = localStorage.getItem('zr_user_session');
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u?.email) storedEmail = u.email;
+      }
+    } catch {}
+
+    await fetch('/api/notifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: storedEmail,
+        token: 'chrome_web_' + (storedEmail || 'client_' + Date.now().toString(36)),
+        device: 'web_chrome',
+      }),
+    }).catch(() => {});
+  };
+
   const handleAllowNotifications = async () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       try {
@@ -29,25 +50,7 @@ export default function PushNotificationManager() {
         if (perm === 'granted') {
           playTune('jackpot', 0.8);
           setShowAllowPrompt(false);
-
-          let storedEmail = localStorage.getItem('zorra_user_email') || '';
-          try {
-            const raw = localStorage.getItem('zr_user_session');
-            if (raw) {
-              const u = JSON.parse(raw);
-              if (u?.email) storedEmail = u.email;
-            }
-          } catch {}
-
-          await fetch('/api/notifications', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: storedEmail,
-              token: 'chrome_web_' + (storedEmail || 'client_' + Date.now().toString(36)),
-              device: 'web_chrome',
-            }),
-          }).catch(() => {});
+          await registerWebPushToken();
 
           triggerChromeDesktopNotification({
             title: '👑 Royal Push Notifications Enabled!',
@@ -61,6 +64,18 @@ export default function PushNotificationManager() {
       }
     }
   };
+
+  useEffect(() => {
+    const syncFromNavbar = async () => {
+      if (typeof window === 'undefined' || !('Notification' in window)) return;
+      if (Notification.permission === 'granted') {
+        setShowAllowPrompt(false);
+        await registerWebPushToken();
+      }
+    };
+    window.addEventListener('royal-push-enabled', syncFromNavbar);
+    return () => window.removeEventListener('royal-push-enabled', syncFromNavbar);
+  }, []);
 
   const lastSeenIdRef = useRef(null);
   const isInitialRef = useRef(true);

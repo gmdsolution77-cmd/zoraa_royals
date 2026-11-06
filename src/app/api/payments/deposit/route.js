@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
+import { notifyPlayer } from '@/lib/notify';
 
 // GET: List Deposits (Admin / Financial Manager) or Player's own
 export async function GET(req) {
@@ -172,6 +173,16 @@ export async function POST(req) {
     };
 
     const res = await depositsCol.insertOne(newDeposit);
+
+    notifyPlayer({
+      userId: uid,
+      userEmail: cleanUserEmail,
+      username: session.username,
+      title: '📥 Deposit request received',
+      message: `We received your $${depositAmount.toFixed(2)} deposit via ${methodName}. You will get another alert when it is approved.`,
+      type: 'deposit_submitted',
+      data: { depositId: res.insertedId.toString(), amount: String(depositAmount), url: '/deposit' },
+    });
 
     return NextResponse.json({
       success: true,
