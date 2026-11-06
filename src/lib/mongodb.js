@@ -25,7 +25,6 @@ export function toObjectId(id) {
 /**
  * Safely constructs a MongoDB query for an _id field.
  * In production MongoDB with ObjectId documents, it checks both ObjectId and string.
- * In fallback JSON storage, it matches strings or ObjectIds cleanly without throwing.
  */
 export function toIdQuery(id) {
   if (!id) return { _id: null };

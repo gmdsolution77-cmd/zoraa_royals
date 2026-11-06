@@ -7,20 +7,28 @@ export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const id = (body.identifier || body.email || '').toLowerCase().trim();
+    const rawId = String(body.identifier || body.email || '').trim();
     const password = body.password;
 
-    if (!id || !password) {
+    if (!rawId || !password) {
       return Response.json({ success: false, error: 'Username/Email and password are required' }, { status: 400 });
     }
 
     const db = await getDb();
-    const user = await db.collection('users').findOne({
-      $or: [
-        { email: id },
-        { username: { $regex: new RegExp(`^${id}$`, 'i') } }
-      ]
-    });
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Must match forgot-password / register lookup: emails are case-insensitive, usernames case-insensitive
+    let user;
+    if (rawId.includes('@')) {
+      const emailLower = rawId.toLowerCase();
+      user = await db.collection('users').findOne({
+        $or: [{ email: emailLower }, { email: { $regex: new RegExp(`^${esc(emailLower)}$`, 'i') } }],
+      });
+    } else {
+      user = await db.collection('users').findOne({
+        username: { $regex: new RegExp(`^${esc(rawId)}$`, 'i') },
+      });
+    }
 
     if (!user) {
       return Response.json({ success: false, error: 'Invalid credentials' }, { status: 401 });

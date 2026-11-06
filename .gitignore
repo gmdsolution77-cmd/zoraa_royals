@@ -32,5 +32,4 @@ yarn-error.log*
 .env.local
 firebase-service-account.json
 *.json.key
-.zorra_store.json
 
