@@ -19,7 +19,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
   if (currentSlide === 1) {
     // Slide 1: Complimentary Freeplay Card
     return (
-      <div className="relative w-full max-w-md aspect-[4/3] rounded-3xl overflow-hidden border-2 border-emerald-500/40 bg-gradient-to-br from-[#0a1813] via-[#08120e] to-[#040907] shadow-[0_15px_50px_rgba(16,185,129,0.35)] p-5 flex flex-col justify-between group transition-all duration-500">
+      <div className="relative w-full max-w-md min-h-[320px] sm:min-h-[340px] rounded-3xl overflow-hidden border-2 border-emerald-500/40 bg-gradient-to-br from-[#0a1813] via-[#08120e] to-[#040907] shadow-[0_15px_50px_rgba(16,185,129,0.35)] p-5 flex flex-col justify-between group transition-all duration-500">
         {/* Glow ambient */}
         <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-[#ffd700]/15 blur-3xl pointer-events-none" />
@@ -39,9 +39,9 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
           </span>
         </div>
 
-        {/* Center: Holographic VIP Voucher Ticket */}
-        <div className="relative z-10 my-auto py-2">
-          <div className="relative rounded-2xl bg-gradient-to-r from-[#12251e] via-[#1a382c] to-[#12251e] border border-emerald-400/50 p-4 shadow-xl text-center overflow-hidden">
+        {/* Center: Holographic VIP Voucher Ticket (min-h + flex so badge never clips on small screens) */}
+        <div className="relative z-10 flex-1 min-h-0 flex flex-col justify-center py-2">
+          <div className="relative rounded-2xl bg-gradient-to-r from-[#12251e] via-[#1a382c] to-[#12251e] border border-emerald-400/50 p-3 sm:p-4 shadow-xl text-center overflow-hidden">
             {/* Shimmer light bar */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 
@@ -51,18 +51,18 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
               <Sparkles className="w-3.5 h-3.5" />
             </div>
 
-            <div className="text-4xl sm:text-5xl font-black font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-[#ffd700] to-emerald-200 drop-shadow-[0_2px_12px_rgba(212,175,55,0.5)] my-1">
+            <div className="text-3xl sm:text-4xl md:text-5xl font-black font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-[#ffd700] to-emerald-200 drop-shadow-[0_2px_12px_rgba(212,175,55,0.5)] my-1">
               ${Number(freeplayAmountSC || 5).toFixed(2)} USD
             </div>
 
-            <p className="text-[11px] text-gray-300 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-gray-300 font-medium leading-snug px-0.5">
               Zero Deposit Required • Instant Wallet Credit
             </p>
 
             {/* Stamp Badge */}
-            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-200 text-[10px] font-black uppercase tracking-wider">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Verified Sweepstakes Freeplay</span>
+            <div className="mt-3 mx-auto flex flex-wrap items-center justify-center gap-1.5 max-w-[95%] px-2.5 py-1.5 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-200 text-[9px] sm:text-[10px] font-black uppercase tracking-wider leading-tight">
+              <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 shrink-0" />
+              <span className="text-center">Verified Sweepstakes Freeplay</span>
             </div>
           </div>
         </div>

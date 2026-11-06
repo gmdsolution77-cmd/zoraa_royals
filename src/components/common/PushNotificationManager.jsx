@@ -315,6 +315,36 @@ export default function PushNotificationManager() {
     };
   }, [pathname]);
 
+  // Dev / QA: trigger real FCM to this device (lock screen / heads-up) while logged in as player
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    window.sendZorraLockScreenTestPush = async (opts = {}) => {
+      try {
+        const res = await fetch('/api/notifications/test-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            typeof opts === 'object' && opts !== null
+              ? opts
+              : { message: String(opts) }
+          ),
+        });
+        return await res.json();
+      } catch (e) {
+        return { success: false, error: e?.message || 'Request failed' };
+      }
+    };
+
+    return () => {
+      try {
+        delete window.sendZorraLockScreenTestPush;
+      } catch {
+        window.sendZorraLockScreenTestPush = undefined;
+      }
+    };
+  }, []);
+
   const isChatToast = activeToast?.type === 'chat' || activeToast?.action === 'chat';
 
   const handleOpenAction = () => {
