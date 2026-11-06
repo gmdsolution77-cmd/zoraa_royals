@@ -131,10 +131,14 @@ export default function AuthModal({
 
     try {
       if (tab === 'login') {
+        const idRaw = email.trim();
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+          body: JSON.stringify({
+            identifier: idRaw.includes('@') ? idRaw.toLowerCase() : idRaw,
+            password,
+          }),
         });
 
         const data = await res.json();
@@ -260,14 +264,15 @@ export default function AuthModal({
             <>
               <div>
                 <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
-                  Email Address
+                  Email or username
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                   <input
-                    type="email"
+                    type="text"
+                    autoComplete="username"
                     required
-                    placeholder="vip@zorraroyals.com"
+                    placeholder="you@email.com or RoyalPlayer99"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-[#131622] border border-[#d4af37]/25 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#d4af37] transition"

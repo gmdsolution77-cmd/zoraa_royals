@@ -27,7 +27,16 @@ export async function POST(req) {
     }
 
     const hashToTest = user.password || user.passwordHash;
-    const match = hashToTest ? await bcrypt.compare(password, hashToTest) : false;
+    let match = false;
+    if (hashToTest) {
+      const looksHashed = typeof hashToTest === 'string' && hashToTest.startsWith('$2');
+      if (looksHashed) {
+        match = await bcrypt.compare(password, hashToTest);
+      } else {
+        // Legacy / imported accounts: plain text or non-bcrypt hash — try direct compare, then bcrypt if it was stored wrong
+        match = hashToTest === password || (await bcrypt.compare(password, hashToTest));
+      }
+    }
     if (!match) {
       return Response.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
     }

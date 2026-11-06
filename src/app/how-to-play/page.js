@@ -18,6 +18,7 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
+import AuthModal from '@/components/common/AuthModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function HowToPlayPage() {
@@ -26,6 +27,7 @@ export default function HowToPlayPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [user, setUser] = useState(() => getCachedUser());
   const [settings, setSettings] = useState({ freeplayAmountSC: 5.0 });
+  const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -101,7 +103,7 @@ export default function HowToPlayPage() {
         {/* Top Navbar */}
         <RoyalNavbar
           user={user}
-          onOpenAuth={() => router.push('/')}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
           onOpenCashier={() => router.push('/deposit')}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
@@ -154,7 +156,8 @@ export default function HowToPlayPage() {
               Sign up today and get your ${Number(settings.freeplayAmountSC || 5).toFixed(0)} signup freeplay reward plus instant access to all verified sweepstakes game vaults.
             </p>
             <button
-              onClick={() => router.push('/')}
+              type="button"
+              onClick={() => setAuthModal({ open: true, tab: 'register' })}
               className="btn-gold py-3 px-8 text-xs font-black inline-flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)]"
             >
               <span>GET STARTED NOW</span>
@@ -167,6 +170,17 @@ export default function HowToPlayPage() {
       </div>
 
       <MobileBottomNav />
+
+      <AuthModal
+        isOpen={authModal.open}
+        initialTab={authModal.tab}
+        onClose={() => setAuthModal({ open: false, tab: 'login' })}
+        onSuccess={(u) => {
+          setUser(u);
+          saveCachedUser(u);
+          setAuthModal({ open: false, tab: 'login' });
+        }}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
+import AuthModal from '@/components/common/AuthModal';
 import { WHEEL_SLICES } from '@/lib/wheelConstants';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
@@ -33,6 +34,7 @@ export default function SpinWheelPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
 
   // Load user profile
   const loadUser = async () => {
@@ -40,20 +42,20 @@ export default function SpinWheelPage() {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const d = await res.json();
-        if (d.user) {
+        if (d.authenticated && d.user) {
           setUser(d.user);
           saveCachedUser(d.user);
         } else {
           clearCachedUser();
-          router.push('/login?redirect=/spin-wheel');
+          setUser(null);
         }
       } else {
         clearCachedUser();
-        router.push('/login?redirect=/spin-wheel');
+        setUser(null);
       }
     } catch {
       clearCachedUser();
-      router.push('/login?redirect=/spin-wheel');
+      setUser(null);
     }
   };
 
@@ -90,6 +92,11 @@ export default function SpinWheelPage() {
   const sliceAngle = 360 / slices.length;
 
   const handleSpin = async () => {
+    if (!user) {
+      setAuthModal({ open: true, tab: 'login' });
+      setErrorMessage('Please sign in to spin.');
+      return;
+    }
     if (!canSpin || spinning || loading) return;
     setLoading(true);
     setErrorMessage('');
@@ -153,7 +160,7 @@ export default function SpinWheelPage() {
     <div className="min-h-screen bg-[#07080b] text-white flex flex-col font-sans">
       <RoyalNavbar
         user={user}
-        onOpenAuth={(tab) => router.push(tab === 'register' ? '/register' : '/login')}
+        onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
         onOpenSidebar={() => setMobileSidebarOpen(true)}
       />
 
@@ -344,10 +351,23 @@ export default function SpinWheelPage() {
       <RoyalFooter />
       <MobileBottomNav
         user={user}
-        onOpenAuth={(mode) => router.push(`/${mode}`)}
+        onOpenAuth={(mode) => setAuthModal({ open: true, tab: mode === 'register' ? 'register' : 'login' })}
         onOpenWallet={(tab) => {
           if (tab === 'withdraw' || tab === 'cashout' || tab === 'redeem') router.push('/cashout');
           else router.push('/deposit');
+        }}
+      />
+
+      <AuthModal
+        isOpen={authModal.open}
+        initialTab={authModal.tab}
+        onClose={() => setAuthModal({ open: false, tab: 'login' })}
+        onSuccess={(u) => {
+          setUser(u);
+          saveCachedUser(u);
+          setAuthModal({ open: false, tab: 'login' });
+          loadUser();
+          checkStatus();
         }}
       />
     </div>

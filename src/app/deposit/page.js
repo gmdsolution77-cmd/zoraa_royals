@@ -30,6 +30,7 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalMobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
+import AuthModal from '@/components/common/AuthModal';
 
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
@@ -73,6 +74,7 @@ export default function DepositPage() {
   // History State
   const [depositHistory, setDepositHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
 
   // 1. Fetch current user & settings
   const fetchUserAndSettings = async (isSilent = false) => {
@@ -92,7 +94,7 @@ export default function DepositPage() {
         }
       } else if (!isSilent) {
         clearCachedUser();
-        router.push('/login?redirect=/deposit');
+        setUser(null);
       }
 
       if (sData.success && sData.settings) {
@@ -320,6 +322,11 @@ export default function DepositPage() {
 
   const handleSubmitDeposit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      setAuthModal({ open: true, tab: 'login' });
+      setStatusMessage({ type: 'error', text: 'Please sign in to submit a deposit request.' });
+      return;
+    }
     const minRequired = selectedGateway?.minDeposit || settings.minDeposit || 5;
     if (!finalAmount || finalAmount < minRequired) {
       setStatusMessage({ type: 'error', text: `Minimum deposit for ${selectedGateway?.name || 'this gateway'} is $${minRequired}.00` });
@@ -429,7 +436,7 @@ export default function DepositPage() {
         <RoyalNavbar
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
           user={user}
-          onOpenAuth={() => router.push('/login')}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
           onOpenCashier={(tab) => {
             if (tab === 'withdraw') router.push('/cashout');
             else router.push('/deposit');
@@ -1000,6 +1007,19 @@ export default function DepositPage() {
           </div>
         </div>
       )}
+
+      <AuthModal
+        isOpen={authModal.open}
+        initialTab={authModal.tab}
+        onClose={() => setAuthModal({ open: false, tab: 'login' })}
+        onSuccess={(u) => {
+          setUser(u);
+          saveCachedUser(u);
+          if (u?.email) setPlayerPaymentEmail((prev) => prev || u.email);
+          setAuthModal({ open: false, tab: 'login' });
+          fetchUserAndSettings(true);
+        }}
+      />
     </div>
   );
 }

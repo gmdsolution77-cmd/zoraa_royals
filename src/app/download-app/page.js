@@ -20,6 +20,7 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalFooter from '@/components/common/RoyalFooter';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
+import AuthModal from '@/components/common/AuthModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function DownloadAppPage() {
@@ -27,6 +28,7 @@ export default function DownloadAppPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [user, setUser] = useState(() => getCachedUser());
+  const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -87,7 +89,7 @@ export default function DownloadAppPage() {
         {/* Top Navbar */}
         <RoyalNavbar
           user={user}
-          onOpenAuth={() => {}}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
           onOpenCashier={() => {}}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
@@ -250,6 +252,17 @@ export default function DownloadAppPage() {
       </div>
 
       <MobileBottomNav />
+
+      <AuthModal
+        isOpen={authModal.open}
+        initialTab={authModal.tab}
+        onClose={() => setAuthModal({ open: false, tab: 'login' })}
+        onSuccess={(u) => {
+          setUser(u);
+          saveCachedUser(u);
+          setAuthModal({ open: false, tab: 'login' });
+        }}
+      />
     </div>
   );
 }

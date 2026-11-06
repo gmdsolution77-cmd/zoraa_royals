@@ -26,6 +26,7 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import RoyalMobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
+import AuthModal from '@/components/common/AuthModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
@@ -60,6 +61,7 @@ export default function CashoutPage() {
   // History State
   const [withdrawHistory, setWithdrawHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
 
   // 1. Fetch current user
   const fetchUser = async (isSilent = false) => {
@@ -72,7 +74,7 @@ export default function CashoutPage() {
         saveCachedUser(data.user);
       } else if (!isSilent) {
         clearCachedUser();
-        router.push('/login?redirect=/cashout');
+        setUser(null);
       }
     } catch (err) {
       console.error(err);
@@ -227,6 +229,11 @@ export default function CashoutPage() {
 
   const handleSubmitWithdraw = async (e) => {
     e.preventDefault();
+    if (!user) {
+      setAuthModal({ open: true, tab: 'login' });
+      setStatusMessage({ type: 'error', text: 'Please sign in to submit a cashout request.' });
+      return;
+    }
     if (!finalAmount || finalAmount < 20) {
       setStatusMessage({ type: 'error', text: 'Minimum withdrawal amount is $20.00' });
       return;
@@ -335,7 +342,7 @@ export default function CashoutPage() {
         <RoyalNavbar
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
           user={user}
-          onOpenAuth={() => router.push('/login')}
+          onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
           onOpenCashier={(tab) => {
             if (tab === 'deposit') router.push('/deposit');
             else router.push('/cashout');
@@ -805,6 +812,20 @@ export default function CashoutPage() {
           </div>
         </div>
       )}
+
+      <AuthModal
+        isOpen={authModal.open}
+        initialTab={authModal.tab}
+        onClose={() => setAuthModal({ open: false, tab: 'login' })}
+        onSuccess={(u) => {
+          setUser(u);
+          saveCachedUser(u);
+          setAuthModal({ open: false, tab: 'login' });
+          fetchUser(true);
+          fetchHistory(true);
+          fetchGameAccounts();
+        }}
+      />
     </div>
   );
 }
