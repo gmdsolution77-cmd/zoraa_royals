@@ -12,7 +12,7 @@ export async function GET(req) {
     const settingsDoc = await db.collection('system_settings').findOne({ key: 'general' });
     const configuredAmount = settingsDoc?.freeplayAmountSC !== undefined 
       ? Number(settingsDoc.freeplayAmountSC) 
-      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 5.0);
+      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 3.0);
     const freeplayActive = settingsDoc?.freeplayActive !== false;
 
     const session = await getSessionUser();
@@ -38,7 +38,7 @@ export async function GET(req) {
       user = await usersCol.findOne({ email: session.email.toLowerCase().trim() });
     }
 
-    const claimed = Boolean(user?.freeplayClaimed || user?.signupBonusClaimed);
+    const claimed = Boolean(user?.freeplayClaimed);
 
     // Check if there is an active pending freeplay task
     const pendingTask = await db.collection('freeplay_tasks').findOne({
@@ -101,7 +101,7 @@ export async function POST(req) {
 
     const configuredAmount = settingsDoc?.freeplayAmountSC !== undefined 
       ? Number(settingsDoc.freeplayAmountSC) 
-      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 5.0);
+      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 3.0);
 
     const usersCol = db.collection('users');
     let user = null;
@@ -120,7 +120,7 @@ export async function POST(req) {
       );
     }
 
-    if (user.freeplayClaimed || user.signupBonusClaimed) {
+    if (user.freeplayClaimed) {
       return NextResponse.json({
         success: false,
         alreadyClaimed: true,

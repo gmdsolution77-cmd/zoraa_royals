@@ -302,21 +302,43 @@ export async function PUT(req) {
         { upsert: true }
       );
 
-      // 4. Handle Freeplay Attached Tasks
+      // 4. Handle Freeplay Attached Tasks — credit wallet + issue game credentials
       if (targetRequest.freeplayPending) {
-        const fpAmount = Number(targetRequest.freeplayAmount || 5.0);
-        await usersCol.updateOne(
-          { email: cleanEmail },
-          {
-            $set: {
-              freeplayClaimed: true,
-              signupBonusClaimed: true,
-              freeplayClaimedAt: new Date(),
-            },
-          }
-        );
+        const fpAmount = Number(targetRequest.freeplayAmount || 3.0);
+        const fpUser = user || (await usersCol.findOne({ email: cleanEmail }));
 
-        // Update freeplay_tasks collection
+        if (fpUser) {
+          const oldSC = Number(fpUser.balanceSC ?? fpUser.balance ?? 0);
+          const newSC = Number((oldSC + fpAmount).toFixed(2));
+
+          await usersCol.updateOne(
+            { _id: fpUser._id },
+            {
+              $inc: { balanceSC: fpAmount, balance: fpAmount },
+              $set: {
+                freeplayClaimed: true,
+                signupBonusClaimed: true,
+                freeplayClaimedAt: new Date(),
+              },
+            }
+          );
+
+          await ledgerCol.insertOne({
+            userId: fpUser._id.toString(),
+            username: fpUser.username || targetRequest.userName,
+            type: 'freeplay_bonus_approved',
+            currency: 'SC',
+            amount: fpAmount,
+            balanceBefore: oldSC,
+            balanceAfter: newSC,
+            performedBy: session.username,
+            staffRole: session.role,
+            referenceId: targetRequest._id.toString(),
+            notes: `🎁 $${fpAmount.toFixed(2)} signup freeplay credited to wallet after inbox verification (${cleanTitle})`,
+            createdAt: new Date(),
+          }).catch(() => {});
+        }
+
         await db.collection('freeplay_tasks').updateOne(
           {
             $or: [
@@ -333,27 +355,14 @@ export async function PUT(req) {
           }
         ).catch(() => {});
 
-        // Log to ledger
-        await ledgerCol.insertOne({
-          userEmail: cleanEmail,
-          username: targetRequest.userName || cleanEmail.split('@')[0],
-          type: 'freeplay_bonus_approved',
-          currency: 'USD',
-          amount: fpAmount,
-          description: `🎁 $${fpAmount.toFixed(2)} Freeplay Verification Task approved for ${cleanTitle}`,
-          status: 'completed',
-          performedBy: session.username,
-          createdAt: new Date(),
-        }).catch(() => {});
-
         notifyPlayer({
           userId: targetRequest.userId,
           userEmail: cleanEmail,
           username: targetRequest.userName,
           title: `Freeplay Approved: ${cleanTitle}! 🎁`,
-          message: `Your $${fpAmount.toFixed(2)} Freeplay task for ${cleanTitle} was approved! Game ID: ${finalUsername}`,
+          message: `Your $${fpAmount.toFixed(2)} freeplay was approved! $${fpAmount.toFixed(2)} added to your wallet. Game ID: ${finalUsername}`,
           type: 'account_ready',
-          data: { gameTitle: cleanTitle, url: '/accounts' },
+          data: { gameTitle: cleanTitle, amount: String(fpAmount), url: '/accounts' },
         });
       } else if (finalTransferAmount > 0) {
         notifyPlayer({
@@ -380,7 +389,7 @@ export async function PUT(req) {
       return NextResponse.json({
         success: true,
         message: targetRequest.freeplayPending
-          ? `Freeplay task approved & credentials issued for ${cleanTitle}!`
+          ? `Freeplay approved: $${Number(targetRequest.freeplayAmount || 3).toFixed(2)} credited to player wallet & credentials issued for ${cleanTitle}.`
           : finalTransferAmount > 0
           ? `Coin load for ${cleanTitle} approved! $${finalTransferAmount.toFixed(2)} SC deducted from player balance.`
           : `Credentials for ${cleanTitle} issued successfully!`,

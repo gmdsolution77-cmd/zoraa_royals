@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   RotateCw,
 } from 'lucide-react';
+import { resolveFreeplayAmountSC, formatFreeplayUSD } from '@/lib/freeplaySettings';
 
 function RegisterForm() {
   const router = useRouter();
@@ -31,6 +32,20 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [freeplaySC, setFreeplaySC] = useState(resolveFreeplayAmountSC(null));
+
+  useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d.settings) {
+          setFreeplaySC(resolveFreeplayAmountSC(d.settings));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const freeplayPromo = formatFreeplayUSD(freeplaySC);
 
   // Resend OTP countdown timer
   useEffect(() => {
@@ -189,7 +204,7 @@ function RegisterForm() {
         </h1>
         <p className="text-xs text-gray-400">
           {step === 'details'
-            ? 'Sign up for instant $10 VIP welcome bonus & freeplay'
+            ? `Sign up for instant ${freeplayPromo} signup freeplay`
             : `Enter the 6-digit security code dispatched to ${email}`}
         </p>
       </div>

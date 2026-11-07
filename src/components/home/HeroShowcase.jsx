@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -19,6 +19,7 @@ import {
 import confetti from 'canvas-confetti';
 import HeroBannerCard from './HeroBannerCard';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+import { resolveFreeplayAmountSC, formatFreeplayUSD, playerEligibleForFreeplay } from '@/lib/freeplaySettings';
 
 export default function HeroShowcase({
   user,
@@ -30,6 +31,7 @@ export default function HeroShowcase({
   onBalanceUpdated,
 }) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const focusedFreeplaySlide = useRef(false);
   const [jackpot, setJackpot] = useState(1842954.29);
   const [claimingFreeplay, setClaimingFreeplay] = useState(false);
   const [freeplayFeedback, setFreeplayFeedback] = useState(null);
@@ -38,8 +40,8 @@ export default function HeroShowcase({
   const [settings, setSettings] = useState({
     welcomeBonusPercentage: 300,
     regularBonusPercentage: 50,
-    freeplayAmountSC: 5.0,
-    signupBonusAmount: 5.0,
+    freeplayAmountSC: resolveFreeplayAmountSC(null),
+    signupBonusAmount: resolveFreeplayAmountSC(null),
   });
 
   const handleGetFreeplay = () => {
@@ -86,7 +88,8 @@ export default function HeroShowcase({
 
   const welcomePct = settings.welcomeBonusPercentage ?? 300;
   const regularPct = settings.regularBonusPercentage ?? 50;
-  const freeplaySC = settings.freeplayAmountSC ?? settings.signupBonusAmount ?? 5.0;
+  const freeplaySC = resolveFreeplayAmountSC(settings);
+  const freeplayDisplay = formatFreeplayUSD(freeplaySC);
   const hasDeposited = Boolean(user?.firstDepositMade);
 
   const isFreeplayActive = settings?.freeplayActive !== false;
@@ -108,9 +111,9 @@ export default function HeroShowcase({
       id: 0,
       badge: '👑 1ST DEPOSIT WELCOME BONUS',
       title: `${welcomePct}% FIRST DEPOSIT BONUS`,
-      subtitle: `${welcomePct}% MATCH + $${freeplaySC} COMPLIMENTARY SIGNUP FREEPLAY`,
+      subtitle: `${welcomePct}% MATCH + ${freeplayDisplay} COMPLIMENTARY SIGNUP FREEPLAY`,
       desc: `Deposit via Cash App, Zelle or Crypto and get an instant +${welcomePct}% match bonus added directly to your dollar balance!`,
-      ctaText: user ? 'Deposit & Triple Balance' : (isFreeplayActive ? `Claim $${freeplaySC} Freeplay & Join` : 'Join Palace VIP'),
+      ctaText: user ? 'Deposit & Triple Balance' : (isFreeplayActive ? `Claim ${freeplayDisplay} Freeplay & Join` : 'Join Palace VIP'),
       ctaHref: user ? '/deposit' : null,
       ctaAction: user ? () => {} : () => onOpenAuth('register'),
       secondaryText: 'Lucky Spin Wheel',
@@ -120,15 +123,15 @@ export default function HeroShowcase({
     },
     ...(isFreeplayActive ? [{
       id: 1,
-      badge: `🎁 $${freeplaySC} SIGNUP FREEPLAY`,
-      title: `$${freeplaySC} FREEPLAY BONUS`,
+      badge: `🎁 ${freeplayDisplay} SIGNUP FREEPLAY`,
+      title: `${freeplayDisplay} FREEPLAY BONUS`,
       subtitle: 'COMPLIMENTARY CREDIT FOR NEW PLAYERS • NO DEPOSIT',
-      desc: `Test any of our ${gamesCount} sweepstakes platforms completely free! Claim your $${Number(freeplaySC).toFixed(2)} instant starter credit and start playing.`,
-      ctaText: (user?.freeplayClaimed || user?.signupBonusClaimed) ? 'Play Sweepstakes' : `Claim $${freeplaySC} Freeplay`,
+      desc: `Test any of our ${gamesCount} sweepstakes platforms completely free! Claim your ${freeplayDisplay} instant starter credit and start playing.`,
+      ctaText: playerEligibleForFreeplay(user) ? `Claim ${freeplayDisplay} Freeplay` : 'Play Sweepstakes',
       ctaAction: handleGetFreeplay,
       secondaryText: 'Deposit & Get Bonus',
       secondaryHref: '/deposit',
-      imageBadge: `$${freeplaySC} COMPLIMENTARY`,
+      imageBadge: `${freeplayDisplay} COMPLIMENTARY`,
       glowColor: '#10b981',
     }] : []),
     {
@@ -160,6 +163,17 @@ export default function HeroShowcase({
       glowColor: '#eab308',
     },
   ];
+
+  // Open on freeplay slide once when promotion is active and player can still claim
+  useEffect(() => {
+    if (focusedFreeplaySlide.current || !isFreeplayActive) return;
+    const freeplayIdx = slides.findIndex((s) => s.id === 1);
+    if (freeplayIdx < 0) return;
+    if (!user || playerEligibleForFreeplay(user)) {
+      setCurrentSlide(freeplayIdx);
+      focusedFreeplaySlide.current = true;
+    }
+  }, [isFreeplayActive, slides, user?.freeplayClaimed, user?.email]);
 
   // Auto-slide every 7s
   useEffect(() => {
@@ -232,13 +246,13 @@ export default function HeroShowcase({
 
           {/* Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            {isFreeplayActive && (!user || (!user.freeplayClaimed && !user.signupBonusClaimed)) && (
+            {isFreeplayActive && playerEligibleForFreeplay(user) && (
               <button
                 onClick={handleGetFreeplay}
                 className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_25px_rgba(212,175,55,0.5)] cursor-pointer"
               >
                 <Gift className="w-4 h-4 text-black stroke-[2.5]" />
-                <span>GET ${Number(freeplaySC).toFixed(2)} FREEPLAY</span>
+                <span>GET {freeplayDisplay} FREEPLAY</span>
               </button>
             )}
 

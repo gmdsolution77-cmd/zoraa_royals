@@ -28,7 +28,7 @@ export async function POST(req) {
 
     const configuredAmount = settingsDoc?.freeplayAmountSC !== undefined 
       ? Number(settingsDoc.freeplayAmountSC) 
-      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 5.0);
+      : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 3.0);
 
     const taskId = `FP-${Math.floor(100000 + Math.random() * 900000)}`;
 

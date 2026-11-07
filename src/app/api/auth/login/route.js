@@ -98,7 +98,10 @@ export async function POST(req) {
       vipTier: user.vipTier,
       balanceSC: user.balanceSC || 0,
       balanceGC: user.balanceGC || 0,
-      freeplayClaimed: user.freeplayClaimed || false,
+      freeplayClaimed: Boolean(user.freeplayClaimed),
+      signupBonusClaimed: Boolean(user.signupBonusClaimed),
+      balance: Number(user.balanceSC ?? user.balance ?? 0),
+      firstDepositMade: Boolean(user.firstDepositMade),
       streakDay: user.streakDay || 1,
     };
 

@@ -18,8 +18,16 @@ import {
   X,
   ExternalLink,
   DollarSign,
-  Maximize2
+  Maximize2,
+  Gift,
 } from 'lucide-react';
+
+const isFreeplayRequest = (item) =>
+  Boolean(item?.freeplayPending || item?.source === 'freeplay_task');
+
+const getFreeplayScreenshot = (item) => item?.freeplayScreenshot || item?.screenshot || '';
+
+const freeplayWalletCredit = (item) => Number(item?.freeplayAmount || 3);
 
 export default function CoinOperationsDesk({ sessionUser }) {
   const [activeSection, setActiveSection] = useState('loads'); // 'loads' | 'cashouts'
@@ -103,14 +111,21 @@ export default function CoinOperationsDesk({ sessionUser }) {
 
   // Filtered Load Requests
   const pendingLoads = useMemo(() => {
-    return loadRequests.filter(
-      (r) =>
-        r.status === 'PENDING' &&
-        (loadSearch === '' ||
-          r.userEmail?.toLowerCase().includes(loadSearch.toLowerCase()) ||
-          r.userName?.toLowerCase().includes(loadSearch.toLowerCase()) ||
-          r.gameTitle?.toLowerCase().includes(loadSearch.toLowerCase()))
-    );
+    return loadRequests
+      .filter(
+        (r) =>
+          r.status === 'PENDING' &&
+          (loadSearch === '' ||
+            r.userEmail?.toLowerCase().includes(loadSearch.toLowerCase()) ||
+            r.userName?.toLowerCase().includes(loadSearch.toLowerCase()) ||
+            r.gameTitle?.toLowerCase().includes(loadSearch.toLowerCase()) ||
+            (isFreeplayRequest(r) && 'freeplay'.includes(loadSearch.toLowerCase())))
+      )
+      .sort((a, b) => {
+        const prio = (isFreeplayRequest(a) ? 0 : 1) - (isFreeplayRequest(b) ? 0 : 1);
+        if (prio !== 0) return prio;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      });
   }, [loadRequests, loadSearch]);
 
   const historyLoads = useMemo(() => {
@@ -663,16 +678,30 @@ export default function CoinOperationsDesk({ sessionUser }) {
                             <span className="text-[10px] text-gray-400 block truncate">{item.userEmail}</span>
                           </div>
                         </div>
-                        <span
-                          className="px-2.5 py-1 rounded-lg text-xs font-black shrink-0 font-mono"
-                          style={{
-                            backgroundColor: 'rgba(212, 175, 55, 0.15)',
-                            color: '#ffd700',
-                            border: '1px solid rgba(212, 175, 55, 0.35)',
-                          }}
-                        >
-                          ${Number(item.transferAmount || 0).toFixed(2)} SC
-                        </span>
+                        {isFreeplayRequest(item) ? (
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 font-mono flex items-center gap-1"
+                            style={{
+                              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                              color: '#6ee7b7',
+                              border: '1px solid rgba(16, 185, 129, 0.45)',
+                            }}
+                          >
+                            <Gift size={12} />
+                            ${freeplayWalletCredit(item).toFixed(2)} FREEPLAY
+                          </span>
+                        ) : (
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-xs font-black shrink-0 font-mono"
+                            style={{
+                              backgroundColor: 'rgba(212, 175, 55, 0.15)',
+                              color: '#ffd700',
+                              border: '1px solid rgba(212, 175, 55, 0.35)',
+                            }}
+                          >
+                            ${Number(item.transferAmount || 0).toFixed(2)} SC
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center justify-between text-xs pt-2 border-t border-white/5">
@@ -687,6 +716,11 @@ export default function CoinOperationsDesk({ sessionUser }) {
                           >
                             <Gamepad2 size={12} className="text-[#ffd700]" /> {item.gameTitle}
                           </span>
+                          {isFreeplayRequest(item) && (
+                            <span className="text-[10px] font-bold text-emerald-300/90">
+                              Signup freeplay · Task {item.freeplayTaskId || '—'}
+                            </span>
+                          )}
                           {item.gameAccountUsername && (
                             <span className="text-[10.5px] font-mono text-[#ffd700] font-bold">
                               🎮 @{item.gameAccountUsername}
@@ -697,6 +731,37 @@ export default function CoinOperationsDesk({ sessionUser }) {
                           {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
+
+                      {isFreeplayRequest(item) && getFreeplayScreenshot(item) && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setScreenshotModal({
+                                open: true,
+                                src: getFreeplayScreenshot(item),
+                                title: `Freeplay inbox proof — ${item.userName || item.userEmail}`,
+                              })
+                            }
+                            className="flex-1 py-2 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 border border-white/15 text-gray-200"
+                          >
+                            <Eye size={12} />
+                            View inbox screenshot
+                          </button>
+                          <img
+                            src={getFreeplayScreenshot(item)}
+                            alt="Freeplay proof"
+                            className="w-12 h-12 rounded-lg object-cover border border-emerald-500/40 cursor-pointer"
+                            onClick={() =>
+                              setScreenshotModal({
+                                open: true,
+                                src: getFreeplayScreenshot(item),
+                                title: `Freeplay inbox proof — ${item.userName || item.userEmail}`,
+                              })
+                            }
+                          />
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <button
@@ -718,7 +783,7 @@ export default function CoinOperationsDesk({ sessionUser }) {
                           }}
                         >
                           <Check size={14} strokeWidth={3} />
-                          <span>Approve</span>
+                          <span>{isFreeplayRequest(item) ? 'Approve Freeplay' : 'Approve'}</span>
                         </button>
                         <button
                           type="button"
@@ -810,6 +875,11 @@ export default function CoinOperationsDesk({ sessionUser }) {
                               <Gamepad2 size={13} color="#ffd700" />
                               <span>{item.gameTitle}</span>
                             </span>
+                            {isFreeplayRequest(item) && (
+                              <div style={{ fontSize: '10px', color: '#6ee7b7', marginTop: '4px', fontWeight: 800 }}>
+                                🎁 Signup Freeplay · {item.freeplayTaskId || 'task'}
+                              </div>
+                            )}
                             {item.gameAccountUsername && (
                               <div style={{ fontSize: '11px', color: '#ffd700', marginTop: '4px', fontFamily: 'monospace', fontWeight: 700 }}>
                                 🎮 @{item.gameAccountUsername}
@@ -818,21 +888,72 @@ export default function CoinOperationsDesk({ sessionUser }) {
                           </td>
 
                           <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '4px 12px',
-                                borderRadius: '8px',
-                                backgroundColor: 'rgba(212, 175, 55, 0.15)',
-                                border: '1px solid rgba(212, 175, 55, 0.35)',
-                                color: '#ffd700',
-                                fontFamily: "var(--font-outfit, Outfit), sans-serif",
-                                fontSize: '13px',
-                                fontWeight: 900,
-                              }}
-                            >
-                              ${Number(item.transferAmount || 0).toFixed(2)} SC
-                            </span>
+                            {isFreeplayRequest(item) ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 12px',
+                                    borderRadius: '8px',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                    border: '1px solid rgba(16, 185, 129, 0.45)',
+                                    color: '#6ee7b7',
+                                    fontSize: '12px',
+                                    fontWeight: 900,
+                                  }}
+                                >
+                                  <Gift size={13} />
+                                  ${freeplayWalletCredit(item).toFixed(2)} wallet credit
+                                </span>
+                                {getFreeplayScreenshot(item) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setScreenshotModal({
+                                        open: true,
+                                        src: getFreeplayScreenshot(item),
+                                        title: `Freeplay inbox — ${item.userName}`,
+                                      })
+                                    }
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      fontSize: '11px',
+                                      color: '#93c5fd',
+                                      background: 'transparent',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontWeight: 700,
+                                      padding: 0,
+                                    }}
+                                  >
+                                    <Eye size={12} />
+                                    View screenshot
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: '10px', color: '#f87171' }}>No screenshot attached</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '4px 12px',
+                                  borderRadius: '8px',
+                                  backgroundColor: 'rgba(212, 175, 55, 0.15)',
+                                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                                  color: '#ffd700',
+                                  fontFamily: "var(--font-outfit, Outfit), sans-serif",
+                                  fontSize: '13px',
+                                  fontWeight: 900,
+                                }}
+                              >
+                                ${Number(item.transferAmount || 0).toFixed(2)} SC
+                              </span>
+                            )}
                           </td>
 
                           <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
@@ -876,7 +997,7 @@ export default function CoinOperationsDesk({ sessionUser }) {
                                 }}
                               >
                                 <Check size={14} strokeWidth={3} />
-                                <span>Approve &amp; Deduct</span>
+                                <span>{isFreeplayRequest(item) ? 'Approve Freeplay' : 'Approve & Deduct'}</span>
                               </button>
 
                               <button
@@ -1968,9 +2089,15 @@ export default function CoinOperationsDesk({ sessionUser }) {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white m-0 tracking-wide">
-                    Approve Game Load &amp; Deduct Balance
+                    {isFreeplayRequest(approveLoadModal.item)
+                      ? 'Approve Signup Freeplay Task'
+                      : 'Approve Game Load & Deduct Balance'}
                   </h3>
-                  <p className="text-[11px] text-gray-400 m-0">Confirm credentials and credit sweepstakes portal</p>
+                  <p className="text-[11px] text-gray-400 m-0">
+                    {isFreeplayRequest(approveLoadModal.item)
+                      ? 'Verify inbox screenshot, issue game ID, and credit player wallet'
+                      : 'Confirm credentials and credit sweepstakes portal'}
+                  </p>
                 </div>
               </div>
               <button
@@ -1997,16 +2124,51 @@ export default function CoinOperationsDesk({ sessionUser }) {
                 <span className="text-gray-400">Game Platform:</span>
                 <strong className="text-[#ffd700]">{approveLoadModal.item?.gameTitle}</strong>
               </div>
-              <div className="flex justify-between items-center pt-1 border-t border-white/10">
-                <span className="text-gray-300 font-bold text-xs">Requested Load Amount:</span>
-                <span className="text-gray-400 text-xs font-mono">
-                  ${Number(approveLoadModal.item?.transferAmount || 0).toFixed(2)} SC
-                </span>
-              </div>
+              {isFreeplayRequest(approveLoadModal.item) ? (
+                <div className="flex justify-between items-center pt-1 border-t border-white/10">
+                  <span className="text-gray-300 font-bold text-xs">Freeplay wallet credit:</span>
+                  <span className="text-emerald-300 text-xs font-mono font-black">
+                    ${freeplayWalletCredit(approveLoadModal.item).toFixed(2)} SC
+                  </span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center pt-1 border-t border-white/10">
+                  <span className="text-gray-300 font-bold text-xs">Requested Load Amount:</span>
+                  <span className="text-gray-400 text-xs font-mono">
+                    ${Number(approveLoadModal.item?.transferAmount || 0).toFixed(2)} SC
+                  </span>
+                </div>
+              )}
             </div>
 
+            {isFreeplayRequest(approveLoadModal.item) && getFreeplayScreenshot(approveLoadModal.item) && (
+              <div className="rounded-xl overflow-hidden border border-emerald-500/35 bg-black/40">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+                  <span className="text-[11px] font-bold text-emerald-200">Inbox verification screenshot</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setScreenshotModal({
+                        open: true,
+                        src: getFreeplayScreenshot(approveLoadModal.item),
+                        title: 'Freeplay inbox proof',
+                      })
+                    }
+                    className="text-[10px] font-bold text-sky-300 flex items-center gap-1"
+                  >
+                    <Maximize2 size={12} /> Fullscreen
+                  </button>
+                </div>
+                <img
+                  src={getFreeplayScreenshot(approveLoadModal.item)}
+                  alt="Freeplay proof"
+                  className="w-full max-h-48 object-contain bg-black"
+                />
+              </div>
+            )}
+
             <form onSubmit={handleApproveLoadSubmit} className="space-y-4">
-              {/* Editable Coin Transfer Amount */}
+              {!isFreeplayRequest(approveLoadModal.item) && (
               <div>
                 <label className="block text-[11px] font-bold text-gray-300 mb-1 uppercase tracking-wider flex items-center justify-between">
                   <span>Approved Coins / Transfer (SC)</span>
@@ -2034,6 +2196,7 @@ export default function CoinOperationsDesk({ sessionUser }) {
                   </p>
                 )}
               </div>
+              )}
               <div>
                 <label className="block text-[11px] font-bold text-gray-300 mb-1 uppercase tracking-wider">
                   Game Account Username / ID
@@ -2087,7 +2250,11 @@ export default function CoinOperationsDesk({ sessionUser }) {
                   }}
                 >
                   <Check size={14} strokeWidth={3} />
-                  <span>Confirm &amp; Deduct</span>
+                  <span>
+                    {isFreeplayRequest(approveLoadModal.item)
+                      ? 'Approve & Credit Wallet'
+                      : 'Confirm & Deduct'}
+                  </span>
                 </button>
               </div>
             </form>

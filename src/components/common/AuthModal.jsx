@@ -19,6 +19,7 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { saveCachedUser } from '@/lib/userSession';
+import { resolveFreeplayAmountSC, formatFreeplayUSD } from '@/lib/freeplaySettings';
 
 export default function AuthModal({
   isOpen,
@@ -35,6 +36,7 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [freeplaySC, setFreeplaySC] = useState(resolveFreeplayAmountSC(null));
 
   useEffect(() => {
     if (isOpen) {
@@ -42,8 +44,18 @@ export default function AuthModal({
       setRegStep('details');
       setOtp('');
       setError(null);
+      fetch('/api/settings', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.success && d.settings) {
+            setFreeplaySC(resolveFreeplayAmountSC(d.settings));
+          }
+        })
+        .catch(() => {});
     }
   }, [isOpen, initialTab]);
+
+  const freeplayPromo = formatFreeplayUSD(freeplaySC);
 
   // Resend countdown timer
   useEffect(() => {
@@ -197,7 +209,7 @@ export default function AuthModal({
               ? 'Sign in to access your royal vault & balances'
               : regStep === 'otp'
               ? `Enter the 6-digit code sent to ${email}`
-              : 'Create VIP account & claim $10.00 SC Welcome Bonus'}
+              : `Create VIP account & claim ${freeplayPromo} signup freeplay`}
           </p>
         </div>
 
@@ -429,7 +441,7 @@ export default function AuthModal({
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>Verify & Claim $10 Bonus</span>
+                <span>Verify & Claim {freeplayPromo} Freeplay</span>
               </>
             )}
           </button>

@@ -38,8 +38,8 @@ export async function GET() {
         referralBonusTitle: settings?.referralBonusTitle || 'FRIEND REFERRAL BONUS',
         referralBonusSubtitle: settings?.referralBonusSubtitle || 'Earn instant bonus directly in your wallet when your friends join and make their first deposit!',
         referralBonusActive: settings?.referralBonusActive !== false,
-        freeplayAmountSC: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0),
-        signupBonusAmount: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0),
+        freeplayAmountSC: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 3.0),
+        signupBonusAmount: Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 3.0),
         freeplayActive: settings?.freeplayActive !== false,
         dailyRewards: Array.isArray(settings?.dailyRewards) && settings.dailyRewards.length === 7
           ? settings.dailyRewards.map(Number)

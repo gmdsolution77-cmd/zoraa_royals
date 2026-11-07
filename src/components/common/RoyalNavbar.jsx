@@ -25,6 +25,7 @@ import {
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 import { diffSet } from '@/lib/fastDiff';
 import NotificationsModal from '@/components/common/NotificationsModal';
+import { resolveFreeplayAmountSC, formatFreeplayUSD, playerEligibleForFreeplay } from '@/lib/freeplaySettings';
 
 export default function RoyalNavbar({
   user,
@@ -46,7 +47,7 @@ export default function RoyalNavbar({
   const profileBtnRef = useRef(null);
   const profileMenuRef = useRef(null);
   const [tickerAmount, setTickerAmount] = useState(1842950.45);
-  const [bonusSettings, setBonusSettings] = useState({ freeplayAmountSC: 3.0, freeplayActive: true });
+  const [bonusSettings, setBonusSettings] = useState(null);
   const [liveBalance, setLiveBalance] = useState(null);
   const [balancePulse, setBalancePulse] = useState(false);
   const lastBalanceRef = useRef(null);
@@ -121,10 +122,12 @@ export default function RoyalNavbar({
   }, []);
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch('/api/settings', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
-        if (d?.success && d?.settings) diffSet(setBonusSettings, d.settings);
+        if (d?.success && d?.settings) {
+          setBonusSettings(d.settings);
+        }
       })
       .catch(() => {});
   }, []);
@@ -166,6 +169,16 @@ export default function RoyalNavbar({
         }
         lastBalanceRef.current = bal;
         setLiveBalance(bal);
+        setCachedUser((prev) => {
+          const merged = {
+            ...(prev || {}),
+            ...data.user,
+            freeplayClaimed: Boolean(data.user.freeplayClaimed),
+            signupBonusClaimed: Boolean(data.user.signupBonusClaimed),
+          };
+          saveCachedUser(merged);
+          return merged;
+        });
       } catch {}
     };
 
@@ -193,13 +206,12 @@ export default function RoyalNavbar({
     router.push('/?freeplay=1');
   };
 
-  const showFreeplayButton =
-    bonusSettings?.freeplayActive !== false &&
-    activeUser &&
-    !activeUser.signupBonusClaimed &&
-    !activeUser.freeplayClaimed;
+  const freeplaySC = resolveFreeplayAmountSC(bonusSettings);
+  const freeplayButtonLabel = formatFreeplayUSD(freeplaySC);
 
-  const freeplayLabel = Number(bonusSettings?.freeplayAmountSC ?? bonusSettings?.signupBonusAmount ?? 3);
+  const freeplayFeatureOn = bonusSettings?.freeplayActive !== false;
+  const showFreeplayButton =
+    activeUser && freeplayFeatureOn && playerEligibleForFreeplay(activeUser);
 
   const handleLogoutClick = () => {
     setDropdownOpen(false);
@@ -228,7 +240,7 @@ export default function RoyalNavbar({
       style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
       className="sticky top-0 z-[120] w-full border-b border-[rgba(212,175,55,0.2)] bg-[#07080b]/90 backdrop-blur-md overflow-visible"
     >
-      <div className="w-full px-2.5 sm:px-6 lg:px-8 min-h-16 sm:min-h-20 py-1 flex items-center justify-between gap-1 sm:gap-2 overflow-visible">
+      <div className="w-full px-2 sm:px-6 lg:px-8 min-h-[3.25rem] sm:min-h-20 py-1 flex items-center justify-between gap-1 sm:gap-2 overflow-visible">
         {/* Left: Mobile Toggle & Logo (Hidden on desktop since Sidebar already displays logo) */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
@@ -265,7 +277,7 @@ export default function RoyalNavbar({
         </div>
 
         {/* Right: Actions, Currency, Balance & User Menu */}
-        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 min-w-0 overflow-visible">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0 max-w-[min(100%,calc(100vw-6.5rem))] sm:max-w-none overflow-x-auto overflow-y-visible flex-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {activeUser ? (
             <>
               {/* Balance first so it stays visible when header scrolls horizontally */}
@@ -288,6 +300,21 @@ export default function RoyalNavbar({
                 </span>
               </button>
 
+              {showFreeplayButton && (
+                <button
+                  type="button"
+                  onClick={handleFreeplayClick}
+                  className="order-2 inline-flex px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-500/20 border border-amber-400/90 text-amber-200 hover:brightness-125 transition items-center gap-1 text-[10px] sm:text-xs font-black shadow-md cursor-pointer shrink-0"
+                  title={`Claim ${freeplayButtonLabel} signup freeplay`}
+                >
+                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 animate-bounce shrink-0" />
+                  <span className="whitespace-nowrap tabular-nums">
+                    <span className="sm:hidden">{freeplayButtonLabel}</span>
+                    <span className="hidden sm:inline">{freeplayButtonLabel} Freeplay</span>
+                  </span>
+                </button>
+              )}
+
               {showPushPromptButton && (
                   <button
                     type="button"
@@ -307,18 +334,6 @@ export default function RoyalNavbar({
                 <Wallet className="w-4 h-4" />
                 <span className="hidden sm:inline">Deposit</span>
               </button>
-
-              {showFreeplayButton && (
-                <button
-                  type="button"
-                  onClick={handleFreeplayClick}
-                  className="inline-flex px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400/80 text-amber-300 hover:brightness-125 transition items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-black shadow-md cursor-pointer shrink-0"
-                  title={`Claim $${freeplayLabel.toFixed(0)} signup freeplay`}
-                >
-                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-bounce shrink-0" />
-                  <span className="whitespace-nowrap">${freeplayLabel.toFixed(0)} Freeplay</span>
-                </button>
-              )}
 
               {/* Notifications Button */}
               <button

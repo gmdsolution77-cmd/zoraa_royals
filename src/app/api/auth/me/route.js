@@ -87,6 +87,7 @@ export async function GET(req) {
       firstDepositMade: Boolean(user.firstDepositMade || (user.totalDeposited && user.totalDeposited > 0)),
       welcomeBonusClaimed: Boolean(user.welcomeBonusClaimed || (user.totalDeposited && user.totalDeposited > 0)),
       signupBonusClaimed: !!user.signupBonusClaimed,
+      freeplayClaimed: Boolean(user.freeplayClaimed),
       isVerified: user.isVerified || false,
       kycStatus: user.kycStatus || 'none',
       totalDeposited: Number(user.totalDeposited || 0),

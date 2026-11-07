@@ -26,7 +26,7 @@ export default function HowToPlayPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [user, setUser] = useState(() => getCachedUser());
-  const [settings, setSettings] = useState({ freeplayAmountSC: 5.0 });
+  const [settings, setSettings] = useState({ freeplayAmountSC: 3.0 });
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function HowToPlayPage() {
     {
       num: '01',
       title: 'Create Your Free VIP Account',
-      desc: `Sign up in under 30 seconds with just a username, email, and phone number. Instantly unlock access to all sweepstakes platforms and claim your $${Number(settings.freeplayAmountSC || 5).toFixed(0)} Freeplay welcome reward.`,
+      desc: `Sign up in under 30 seconds with just a username, email, and phone number. Instantly unlock access to all sweepstakes platforms and claim your $${Number(settings.freeplayAmountSC || 3).toFixed(0)} Freeplay welcome reward.`,
       icon: UserPlus,
     },
     {
@@ -153,7 +153,7 @@ export default function HowToPlayPage() {
             </div>
             <h2 className="font-serif font-black text-2xl md:text-3xl text-white">READY TO JOIN THE VIP PALACE?</h2>
             <p className="text-xs md:text-sm text-gray-300 max-w-md mx-auto">
-              Sign up today and get your ${Number(settings.freeplayAmountSC || 5).toFixed(0)} signup freeplay reward plus instant access to all verified sweepstakes game vaults.
+              Sign up today and get your ${Number(settings.freeplayAmountSC || 3).toFixed(0)} signup freeplay reward plus instant access to all verified sweepstakes game vaults.
             </p>
             <button
               type="button"

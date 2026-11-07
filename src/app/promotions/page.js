@@ -68,7 +68,7 @@ export default function PromotionsPage() {
               regularBonusPercent: Number(d.settings.regularBonusPercent ?? d.settings.regularBonusPercentage ?? 20),
               regularBonusTitle: d.settings.regularBonusTitle || prev.regularBonusTitle,
               regularBonusSubtitle: d.settings.regularBonusSubtitle || prev.regularBonusSubtitle,
-              freeplayAmountSC: Number(d.settings.freeplayAmountSC ?? 5.0),
+              freeplayAmountSC: Number(d.settings.freeplayAmountSC ?? 3.0),
             }));
           }
         })

@@ -5,7 +5,10 @@ import Image from 'next/image';
 import { Crown, Gift, Key, Sparkles, Zap, ShieldCheck, Star } from 'lucide-react';
 import { sanitizeGameTitle } from '@/lib/fastDiff';
 
-export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, hasDeposited, freeplayAmountSC = 5, gamesCount = 11, games = [] }) {
+import { formatFreeplayUSD, resolveFreeplayAmountSC } from '@/lib/freeplaySettings';
+
+export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, hasDeposited, freeplayAmountSC, gamesCount = 11, games = [] }) {
+  const freeplayLabel = formatFreeplayUSD(resolveFreeplayAmountSC({ freeplayAmountSC }));
   const displayPlatforms = (Array.isArray(games) && games.length > 0
     ? games
     : [
@@ -52,7 +55,7 @@ export default function HeroBannerCard({ currentSlide, welcomePct, regularPct, h
             </div>
 
             <div className="text-3xl sm:text-4xl md:text-5xl font-black font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-[#ffd700] to-emerald-200 drop-shadow-[0_2px_12px_rgba(212,175,55,0.5)] my-1">
-              ${Number(freeplayAmountSC || 5).toFixed(2)} USD
+              {freeplayLabel} USD
             </div>
 
             <p className="text-[10px] sm:text-[11px] text-gray-300 font-medium leading-snug px-0.5">

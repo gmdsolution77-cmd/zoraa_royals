@@ -7,7 +7,7 @@ export default function RoyalFreeplayModal({
   isOpen,
   onClose,
   user,
-  freeplayAmount = 5,
+  freeplayAmount,
   onOpenAuth,
   onBalanceUpdated,
   onSuccess,

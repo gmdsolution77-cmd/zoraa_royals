@@ -85,9 +85,8 @@ export async function POST(req) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Dynamic signup freeplay amount (default $5.00 to match Player Paradise)
     const settings = await db.collection('system_settings').findOne({ key: 'general' });
-    const signupBonus = Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 5.0);
+    const signupBonus = Number(settings?.freeplayAmountSC ?? settings?.signupBonusAmount ?? 3.0);
 
     const newUser = {
       username: cleanUsername,
@@ -171,12 +170,13 @@ export async function POST(req) {
         username: cleanUsername,
         role: 'player',
         vipTier: 'Bronze',
-        balance: parseFloat(signupBonus),
-        balanceSC: parseFloat(signupBonus),
+        balance: 0,
+        balanceSC: 0,
         referralCode: generatedReferralCode,
         referredBy: referrer ? referrer.username : null,
         firstDepositMade: false,
-        signupBonusClaimed: true,
+        signupBonusClaimed: false,
+        freeplayClaimed: false,
       },
       token,
     });

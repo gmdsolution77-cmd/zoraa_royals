@@ -20,14 +20,16 @@ import {
   Crown,
 } from 'lucide-react';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+import { resolveFreeplayAmountSC, formatFreeplayUSD } from '@/lib/freeplaySettings';
 
 export default function FreeplayTaskModal({
   isOpen,
   onClose,
   user,
-  freeplayAmount = 5,
+  freeplayAmount,
   onSuccess,
 }) {
+  const [configuredAmount, setConfiguredAmount] = useState(null);
   const [availableGames, setAvailableGames] = useState([]);
   const [selectedGame, setSelectedGame] = useState('');
   const [screenshot, setScreenshot] = useState('');
@@ -43,6 +45,26 @@ export default function FreeplayTaskModal({
   const initialEmailSentRef = useRef(false);
 
   const targetEmail = user?.email || '';
+  const freeplaySC =
+    configuredAmount ??
+    (freeplayAmount !== undefined && freeplayAmount !== null
+      ? Number(freeplayAmount)
+      : null) ??
+    resolveFreeplayAmountSC(null);
+  const freeplayLabel = formatFreeplayUSD(freeplaySC);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setConfiguredAmount(null);
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d.settings) {
+          setConfiguredAmount(resolveFreeplayAmountSC(d.settings));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -294,14 +316,14 @@ export default function FreeplayTaskModal({
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] text-[10px] font-mono font-black uppercase tracking-wider mb-1">
               <Sparkles size={11} />
-              <span>${Number(freeplayAmount).toFixed(0)} Freeplay Task</span>
+              <span>{freeplayLabel} Freeplay Task</span>
               {taskId && <span className="text-white">#{taskId}</span>}
             </div>
             <h2 className="text-lg sm:text-xl font-serif font-black text-white m-0 tracking-wide">
               FREEPLAY VERIFICATION TASK
             </h2>
             <p className="text-xs text-slate-300 m-0 leading-relaxed">
-              Complete this 30-second verification task to claim your ${Number(freeplayAmount).toFixed(0)} freeplay credits!
+              Complete this 30-second verification task to claim your {freeplayLabel} freeplay credits!
             </p>
           </div>
         </div>
@@ -525,7 +547,7 @@ export default function FreeplayTaskModal({
             ) : (
               <>
                 <Gift size={16} />
-                <span>SUBMIT TASK &amp; CLAIM ${Number(freeplayAmount).toFixed(0)} FREEPLAY &rarr;</span>
+                <span>SUBMIT TASK &amp; CLAIM {freeplayLabel.toUpperCase()} FREEPLAY &rarr;</span>
               </>
             )}
           </button>
