@@ -24,6 +24,7 @@ import {
   formatFreeplayUSD,
   playerEligibleForFreeplay,
   playerCanUseFreeplayPromo,
+  playerShouldSeeFreeplayEntry,
 } from '@/lib/freeplaySettings';
 
 export default function HeroShowcase({
@@ -44,6 +45,7 @@ export default function HeroShowcase({
   const [gamesList, setGamesList] = useState([]);
   const [clientReady, setClientReady] = useState(false);
   const [freeplayPending, setFreeplayPending] = useState(false);
+  const [freeplayClaimedApi, setFreeplayClaimedApi] = useState(false);
   const [settings, setSettings] = useState({
     welcomeBonusPercentage: 300,
     regularBonusPercentage: 50,
@@ -82,12 +84,15 @@ export default function HeroShowcase({
   useEffect(() => {
     if (!user?.email) {
       setFreeplayPending(false);
+      setFreeplayClaimedApi(false);
       return;
     }
     fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
-        if (d?.success) setFreeplayPending(Boolean(d.pending));
+        if (!d?.success) return;
+        setFreeplayPending(Boolean(d.pending));
+        setFreeplayClaimedApi(Boolean(d.claimed));
       })
       .catch(() => {});
   }, [user?.email, user?.freeplayClaimed]);
@@ -98,12 +103,20 @@ export default function HeroShowcase({
       fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
         .then((r) => r.json())
         .then((d) => {
-          if (d?.success) setFreeplayPending(Boolean(d.pending));
+          if (!d?.success) return;
+          setFreeplayPending(Boolean(d.pending));
+          setFreeplayClaimedApi(Boolean(d.claimed));
         })
         .catch(() => {});
     };
     window.addEventListener('royal-freeplay-submitted', refreshPending);
-    return () => window.removeEventListener('royal-freeplay-submitted', refreshPending);
+    window.addEventListener('royal-freeplay-status-refresh', refreshPending);
+    window.addEventListener('focus', refreshPending);
+    return () => {
+      window.removeEventListener('royal-freeplay-submitted', refreshPending);
+      window.removeEventListener('royal-freeplay-status-refresh', refreshPending);
+      window.removeEventListener('focus', refreshPending);
+    };
   }, [user?.email]);
 
   // Fetch dynamic settings and active games count
@@ -143,7 +156,11 @@ export default function HeroShowcase({
   const freeplaySC = resolveFreeplayAmountSC(settings);
   const freeplayDisplay = formatFreeplayUSD(freeplaySC);
   const hasDeposited = clientReady && Boolean(user?.firstDepositMade);
-  const canPromoFreeplay = playerCanUseFreeplayPromo(user, { pending: freeplayPending });
+  const canPromoFreeplay = playerCanUseFreeplayPromo(user, {
+    pending: freeplayPending,
+    claimed: freeplayClaimedApi,
+  });
+  const showFreeplayEntry = playerShouldSeeFreeplayEntry(user, { claimedFromApi: freeplayClaimedApi });
 
   const isFreeplayActive = settings?.freeplayActive !== false;
 
@@ -222,11 +239,11 @@ export default function HeroShowcase({
     if (focusedFreeplaySlide.current || !isFreeplayActive) return;
     const freeplayIdx = slides.findIndex((s) => s.id === 1);
     if (freeplayIdx < 0) return;
-    if (!user || canPromoFreeplay) {
+    if (!user || showFreeplayEntry) {
       setCurrentSlide(freeplayIdx);
       focusedFreeplaySlide.current = true;
     }
-  }, [isFreeplayActive, slides, user?.freeplayClaimed, user?.email, freeplayPending, canPromoFreeplay]);
+  }, [isFreeplayActive, slides, user?.email, freeplayPending, showFreeplayEntry]);
 
   // Auto-slide every 7s
   useEffect(() => {
@@ -299,13 +316,19 @@ export default function HeroShowcase({
 
           {/* Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            {isFreeplayActive && canPromoFreeplay && (
+            {isFreeplayActive && showFreeplayEntry && (
               <button
                 onClick={handleGetFreeplay}
                 className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_25px_rgba(212,175,55,0.5)] cursor-pointer"
               >
                 <Gift className="w-4 h-4 text-black stroke-[2.5]" />
-                <span>GET {freeplayDisplay} FREEPLAY</span>
+                <span>
+                  {canPromoFreeplay
+                    ? `GET ${freeplayDisplay} FREEPLAY`
+                    : freeplayPending
+                    ? 'FREEPLAY UNDER REVIEW'
+                    : `GET ${freeplayDisplay} FREEPLAY`}
+                </span>
               </button>
             )}
 

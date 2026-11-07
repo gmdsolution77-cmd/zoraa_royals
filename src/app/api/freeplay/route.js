@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
-import { getDb, initDb } from '@/lib/db';
+import { getDb, initDb } from '@/lib/mongodb';
 import { getSessionUser } from '@/lib/auth';
 import { notifyStaff } from '@/lib/notify';
 import { resolveFreeplaySubmissionGate } from '@/lib/freeplayEligibility';
@@ -39,9 +39,9 @@ export async function GET(req) {
       user = await usersCol.findOne({ email: session.email.toLowerCase().trim() });
     }
 
-    const claimed = Boolean(user?.freeplayClaimed);
     const gate = user ? await resolveFreeplaySubmissionGate(db, user) : { allowed: true };
     const pendingReview = gate.reason === 'pending_review';
+    const claimed = gate.reason === 'already_claimed' || (Boolean(user?.freeplayClaimed) && !pendingReview);
 
     const pendingTask = pendingReview
       ? await db.collection('freeplay_tasks').findOne({

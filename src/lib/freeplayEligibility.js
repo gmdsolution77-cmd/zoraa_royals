@@ -11,14 +11,6 @@ export async function resolveFreeplaySubmissionGate(db, user) {
     };
   }
 
-  if (user.freeplayClaimed) {
-    return {
-      allowed: false,
-      reason: 'already_claimed',
-      message: 'You have already used your one-time signup freeplay. Make a deposit to unlock reload bonuses.',
-    };
-  }
-
   const email = String(user.email || '')
     .toLowerCase()
     .trim();
@@ -35,7 +27,22 @@ export async function resolveFreeplaySubmissionGate(db, user) {
     $or: [{ freeplayPending: true }, { source: 'freeplay_task' }],
   });
 
-  if (pendingTask || pendingRequest) {
+  const pendingReview = Boolean(pendingTask || pendingRequest);
+
+  // Repair stale flags (claimed in DB but review still open — e.g. old bugs)
+  if (user.freeplayClaimed && pendingReview) {
+    await db
+      .collection('users')
+      .updateOne(
+        { _id: user._id },
+        { $set: { freeplayClaimed: false, signupBonusClaimed: false }, $unset: { freeplayClaimedAt: '' } }
+      )
+      .catch(() => {});
+    user.freeplayClaimed = false;
+    user.signupBonusClaimed = false;
+  }
+
+  if (pendingReview) {
     return {
       allowed: false,
       reason: 'pending_review',
@@ -45,5 +52,18 @@ export async function resolveFreeplaySubmissionGate(db, user) {
     };
   }
 
+  if (user.freeplayClaimed) {
+    return {
+      allowed: false,
+      reason: 'already_claimed',
+      message: 'You have already used your one-time signup freeplay. Make a deposit to unlock reload bonuses.',
+    };
+  }
+
   return { allowed: true, reason: null, message: null };
+}
+
+/** Claimed only after staff approval — not while a desk ticket is still open. */
+export function isFreeplayFullyClaimed(user, { pending = false } = {}) {
+  return Boolean(user?.freeplayClaimed) && !pending;
 }

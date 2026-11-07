@@ -28,7 +28,7 @@ import NotificationsModal from '@/components/common/NotificationsModal';
 import {
   resolveFreeplayAmountSC,
   formatFreeplayUSD,
-  playerCanUseFreeplayPromo,
+  playerShouldSeeFreeplayEntry,
 } from '@/lib/freeplaySettings';
 
 export default function RoyalNavbar({
@@ -102,6 +102,7 @@ export default function RoyalNavbar({
   const [showPushPromptButton, setShowPushPromptButton] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [freeplayPendingReview, setFreeplayPendingReview] = useState(false);
+  const [freeplayClaimedApi, setFreeplayClaimedApi] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
@@ -161,21 +162,50 @@ export default function RoyalNavbar({
   useEffect(() => {
     if (!activeUser?.email) {
       setFreeplayPendingReview(false);
+      setFreeplayClaimedApi(false);
       return;
     }
     fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
-        if (d?.success) setFreeplayPendingReview(Boolean(d.pending));
+        if (!d?.success) return;
+        setFreeplayPendingReview(Boolean(d.pending));
+        setFreeplayClaimedApi(Boolean(d.claimed));
+        if (d.claimed === false) {
+          setCachedUser((prev) => {
+            const merged = { ...(prev || {}), freeplayClaimed: false, signupBonusClaimed: false };
+            saveCachedUser(merged);
+            return merged;
+          });
+        }
       })
       .catch(() => {});
   }, [activeUser?.email, activeUser?.freeplayClaimed]);
 
+  const refreshFreeplayStatus = useCallback(() => {
+    if (!activeUser?.email) return;
+    fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.success) return;
+        setFreeplayPendingReview(Boolean(d.pending));
+        setFreeplayClaimedApi(Boolean(d.claimed));
+      })
+      .catch(() => {});
+  }, [activeUser?.email]);
+
   useEffect(() => {
     const onSubmitted = () => setFreeplayPendingReview(true);
+    const onRefresh = () => refreshFreeplayStatus();
     window.addEventListener('royal-freeplay-submitted', onSubmitted);
-    return () => window.removeEventListener('royal-freeplay-submitted', onSubmitted);
-  }, []);
+    window.addEventListener('royal-freeplay-status-refresh', onRefresh);
+    window.addEventListener('focus', onRefresh);
+    return () => {
+      window.removeEventListener('royal-freeplay-submitted', onSubmitted);
+      window.removeEventListener('royal-freeplay-status-refresh', onRefresh);
+      window.removeEventListener('focus', onRefresh);
+    };
+  }, [refreshFreeplayStatus]);
 
   useEffect(() => {
     if (!activeUser) return;
@@ -237,7 +267,7 @@ export default function RoyalNavbar({
   const showFreeplayButton =
     activeUser &&
     freeplayFeatureOn &&
-    playerCanUseFreeplayPromo(activeUser, { pending: freeplayPendingReview });
+    playerShouldSeeFreeplayEntry(activeUser, { claimedFromApi: freeplayClaimedApi });
 
   const handleLogoutClick = () => {
     setDropdownOpen(false);
@@ -331,12 +361,22 @@ export default function RoyalNavbar({
                   type="button"
                   onClick={handleFreeplayClick}
                   className="order-2 inline-flex px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-500/20 border border-amber-400/90 text-amber-200 hover:brightness-125 transition items-center gap-1 text-[10px] sm:text-xs font-black shadow-md cursor-pointer shrink-0"
-                  title={`Claim ${freeplayButtonLabel} signup freeplay`}
+                  title={
+                    freeplayPendingReview
+                      ? 'Freeplay request under staff review'
+                      : `Claim ${freeplayButtonLabel} signup freeplay`
+                  }
                 >
-                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 animate-bounce shrink-0" />
+                  <Gift className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0 ${freeplayPendingReview ? '' : 'animate-bounce'}`} />
                   <span className="whitespace-nowrap tabular-nums">
-                    <span className="sm:hidden">{freeplayButtonLabel}</span>
-                    <span className="hidden sm:inline">{freeplayButtonLabel} Freeplay</span>
+                    {freeplayPendingReview ? (
+                      <span className="text-[9px] sm:text-xs">Freeplay Pending</span>
+                    ) : (
+                      <>
+                        <span className="sm:hidden">{freeplayButtonLabel}</span>
+                        <span className="hidden sm:inline">{freeplayButtonLabel} Freeplay</span>
+                      </>
+                    )}
                   </span>
                 </button>
               )}

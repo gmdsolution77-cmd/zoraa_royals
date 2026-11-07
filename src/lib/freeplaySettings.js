@@ -15,11 +15,19 @@ export function playerEligibleForFreeplay(user) {
   return !Boolean(user.freeplayClaimed);
 }
 
-/** UI / CTA: eligible and no open desk review blocking a new submission. */
+/** UI / CTA: can start or complete a new freeplay submission (not while under review). */
 export function playerCanUseFreeplayPromo(user, opts = {}) {
-  if (!playerEligibleForFreeplay(user)) return false;
+  if (opts.claimed) return false;
+  if (user && Boolean(user.freeplayClaimed) && !opts.pending) return false;
   if (opts.pending) return false;
-  return true;
+  if (!user) return true;
+  return playerEligibleForFreeplay(user);
+}
+
+/** Header / hero entry: show until staff-approved one-time claim is done. */
+export function playerShouldSeeFreeplayEntry(user, opts = {}) {
+  if (opts.claimedFromApi !== undefined) return !opts.claimedFromApi;
+  return playerEligibleForFreeplay(user);
 }
 
 /** e.g. $3 or $3.50 for UI copy */

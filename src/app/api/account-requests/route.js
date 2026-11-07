@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { notifyPlayer } from '@/lib/notify';
+import { syncFreeplayAdminQueue } from '@/lib/syncFreeplayAdminQueue';
 
 // GET Account Requests
 export async function GET(req) {
@@ -17,6 +18,11 @@ export async function GET(req) {
     }
 
     const db = await getDb();
+
+    if (isStaff) {
+      await syncFreeplayAdminQueue(db).catch(() => {});
+    }
+
     const query = {};
 
     if (email) {
@@ -275,6 +281,7 @@ export async function PUT(req) {
             gameAccountPassword: password,
             approvedBy: session.username,
             approvedAt: new Date(),
+            ...(targetRequest.freeplayPending ? { freeplayPending: false } : {}),
           },
         }
       );
@@ -339,7 +346,7 @@ export async function PUT(req) {
           }).catch(() => {});
         }
 
-        await db.collection('freeplay_tasks').updateOne(
+        await db.collection('freeplay_tasks').updateMany(
           {
             $or: [
               { taskId: targetRequest.freeplayTaskId },
@@ -423,15 +430,18 @@ export async function PUT(req) {
         }
       }
 
-      // If this was a freeplay task, update freeplay_tasks collection
-      if (targetRequest.freeplayPending) {
-        await db.collection('freeplay_tasks').updateOne(
-          {
-            $or: [
-              { taskId: targetRequest.freeplayTaskId },
-              { email: cleanEmail, status: 'pending' },
-            ],
-          },
+      const isFreeplayReject =
+        Boolean(targetRequest.freeplayPending) ||
+        targetRequest.source === 'freeplay_task';
+
+      if (isFreeplayReject) {
+        const taskOr = [{ email: cleanEmail, status: 'pending' }];
+        if (targetRequest.freeplayTaskId) {
+          taskOr.unshift({ taskId: targetRequest.freeplayTaskId, status: 'pending' });
+          taskOr.push({ taskId: targetRequest.freeplayTaskId });
+        }
+        await db.collection('freeplay_tasks').updateMany(
+          { $or: taskOr },
           {
             $set: {
               status: 'rejected',
@@ -453,6 +463,7 @@ export async function PUT(req) {
             adminNote: reason,
             cancelledBy: session.username,
             cancelledAt: new Date(),
+            ...(isFreeplayReject ? { freeplayPending: false } : {}),
           },
         }
       );
