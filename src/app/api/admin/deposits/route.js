@@ -138,13 +138,14 @@ export async function POST(req) {
                 createdAt: new Date(),
               });
 
-              await db.collection('notifications').insertOne({
-                userId: deposit.userId,
+              notifyPlayer({
+                userId: deposit.userId?.toString?.() || deposit.userId,
+                userEmail: cleanPlayerEmail,
+                username: deposit.userName || deposit.username,
                 title: `🎮 ${targetGame} Account Creation In Progress!`,
                 message: `Your deposit was approved! Because you don't have a ${targetGame} game account yet, our staff desk has automatically queued your account creation. You will receive your login credentials shortly!`,
                 type: 'account_request',
-                read: false,
-                createdAt: new Date(),
+                data: { url: '/accounts' },
               });
             }
           }
@@ -214,13 +215,14 @@ export async function POST(req) {
                   createdAt: new Date(),
                 });
 
-                await db.collection('notifications').insertOne({
-                  userId: referrer._id,
+                notifyPlayer({
+                  userId: referrer._id.toString(),
+                  userEmail: referrer.email,
+                  username: referrer.username,
                   title: '🎁 Referral Bonus Received!',
                   message: `Congratulations! Your referred friend @${targetUser.username} made their first deposit of $${Number(finalAmount).toFixed(2)}. You received a ${refBonusPercent}% referral bonus of +$${bonusAmount.toFixed(2)} USD added directly to your wallet!`,
                   type: 'referral_bonus',
-                  read: false,
-                  createdAt: new Date(),
+                  data: { url: '/cashier' },
                 });
 
                 await db.collection('users').updateOne(

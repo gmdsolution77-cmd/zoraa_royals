@@ -27,6 +27,7 @@ export function notifyPlayer({ userId, userEmail, username, title, message, type
             }
           }
           if (cleanEmail) userOr.push({ email: cleanEmail });
+          if (cleanUsername && cleanUsername !== 'Player') userOr.push({ username: cleanUsername });
 
           const foundUser = await db.collection('users').findOne({ $or: userOr });
           if (foundUser) {
@@ -59,7 +60,13 @@ export function notifyPlayer({ userId, userEmail, username, title, message, type
 
       if (tokenQueries.length > 0) {
         const subs = await db.collection('subscriptions').find({ $or: tokenQueries }).toArray();
-        const userTokens = [...new Set(subs.map(s => s.fcmToken || s.token).filter(Boolean))];
+        const userTokens = [
+          ...new Set(
+            subs
+              .map((s) => s.fcmToken || s.token)
+              .filter((t) => typeof t === 'string' && t.trim().length > 15)
+          ),
+        ];
 
         // 3. Send Push Notification to player's devices ONLY
         for (const tok of userTokens) {

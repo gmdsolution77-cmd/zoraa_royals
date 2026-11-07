@@ -1,5 +1,6 @@
 import { getDb, initDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, hasPermission } from '@/lib/auth';
+import { notifyPlayer } from '@/lib/notify';
 
 export async function GET() {
   try {
@@ -86,14 +87,14 @@ export async function POST(req) {
         createdAt: new Date(),
       });
 
-      // 4. Notification to user
-      await db.collection('notifications').insertOne({
-        userId: user._id,
+      notifyPlayer({
+        userId: user._id.toString(),
+        userEmail: user.email,
+        username: user.username,
         title: '✅ Game Credits Loaded Successfully!',
         message: `$${loadReq.amount.toFixed(2)} has been loaded into your ${loadReq.gameName} account (${loadReq.gameUsername}) and deducted from your balance. Good luck!`,
         type: 'game_load',
-        read: false,
-        createdAt: new Date(),
+        data: { url: '/games' },
       });
 
       return Response.json({
@@ -116,14 +117,14 @@ export async function POST(req) {
         }
       );
 
-      // Notification to user with exact reason
-      await db.collection('notifications').insertOne({
-        userId: user._id,
+      notifyPlayer({
+        userId: user._id.toString(),
+        userEmail: user.email,
+        username: user.username,
         title: '❌ Game Load Request Declined',
         message: `Your request to load $${loadReq.amount.toFixed(2)} into ${loadReq.gameName} (${loadReq.gameUsername}) was rejected: "${reason}". No funds were deducted.`,
         type: 'alert',
-        read: false,
-        createdAt: new Date(),
+        data: { url: '/games' },
       });
 
       return Response.json({

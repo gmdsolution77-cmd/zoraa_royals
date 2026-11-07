@@ -41,36 +41,52 @@ export async function GET(req) {
       });
     }
 
-    // Player view: notifications broadcast to all or specific user
-    const userConditions = [
-      { target: 'all' },
-      { channel: 'all', target: { $ne: 'staff' } },
-    ];
+    // Player view: broadcasts + personal alerts (parity with player_pradise targeting)
+    const emailParam = searchParams.get('email');
+    const targetConditions = [{ target: 'all' }, { target: 'player' }];
+    const userKeys = [];
 
-    if (session) {
-      const uid = session.id || session.userId;
-      if (uid) {
-        userConditions.push({ userId: uid });
-        userConditions.push({ userId: uid.toString() });
-        try {
-          userConditions.push({ userId: toIdQuery(uid)._id });
-        } catch {}
-      }
-      if (session.email) {
-        userConditions.push({ userEmail: session.email.toLowerCase().trim() });
-      }
-      if (session.username) {
-        userConditions.push({ username: session.username });
-      }
+    if (session?.userId || session?.id) {
+      const uidStr = (session.userId || session.id).toString().trim();
+      targetConditions.push({ userId: uidStr });
+      userKeys.push(uidStr);
+      try {
+        targetConditions.push({ userId: toIdQuery(uidStr)._id });
+      } catch {}
+    }
+    if (session?.username) {
+      const uLower = session.username.toLowerCase().trim();
+      targetConditions.push({ username: uLower });
+      targetConditions.push({ username: session.username.trim() });
+      userKeys.push(uLower);
+    }
+    if (session?.email) {
+      const cleanEmail = session.email.toLowerCase().trim();
+      targetConditions.push({ email: cleanEmail });
+      targetConditions.push({ userEmail: cleanEmail });
+      userKeys.push(cleanEmail);
+    }
+    if (emailParam && emailParam.trim()) {
+      const cleanEmail = emailParam.toLowerCase().trim();
+      targetConditions.push({ email: cleanEmail });
+      targetConditions.push({ userEmail: cleanEmail });
+      userKeys.push(cleanEmail);
+      try {
+        const uDoc = await db.collection('users').findOne({ email: cleanEmail });
+        if (uDoc) {
+          const uDocId = uDoc._id.toString();
+          targetConditions.push({ userId: uDocId });
+          targetConditions.push({ userId: uDoc._id });
+          targetConditions.push({ username: uDoc.username });
+          userKeys.push(uDocId);
+        }
+      } catch {}
     }
 
-    // STRICT: Never return staff alerts to players, strictly personal + public
     const items = await notifsCol
       .find({
-        $and: [
-          { $or: userConditions },
-          { target: { $ne: 'staff' } },
-        ],
+        target: { $ne: 'staff' },
+        $or: targetConditions,
       })
       .sort({ createdAt: -1 })
       .limit(30)
@@ -78,15 +94,21 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
-      notifications: items.map(n => ({
-        id: n._id.toString(),
-        title: n.title,
-        message: n.message,
-        type: n.type || 'promo',
-        url: n.url || '/',
-        read: !!n.read,
-        createdAt: n.createdAt,
-      })),
+      notifications: items.map(n => {
+        let isRead = Boolean(n.read);
+        if (!isRead && Array.isArray(n.readBy) && userKeys.length > 0) {
+          isRead = userKeys.some((k) => n.readBy.includes(k));
+        }
+        return {
+          id: n._id.toString(),
+          title: n.title,
+          message: n.message,
+          type: n.type || 'promo',
+          url: n.url || (n.type === 'chat_message' ? '/chat' : '/'),
+          read: isRead,
+          createdAt: n.createdAt,
+        };
+      }),
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -126,20 +148,28 @@ export async function POST(req) {
 
     const res = await notifsCol.insertOne(newRecord);
 
-    // Send push notification via FCM to all players
-    try {
-      await sendPushNotification({
-        topic: 'zorra_all_players',
-        title: title.trim(),
-        body: message.trim(),
-        data: { url },
-        broadcast: true,
-      });
-    } catch (fcmErr) {
-      console.warn('FCM delivery note:', fcmErr.message);
-    }
+    const responsePayload = {
+      success: true,
+      message: `Broadcast successfully dispatched via [${channel.toUpperCase()}] to [${segment.toUpperCase()}]!`,
+      broadcast: { ...newRecord, id: res.insertedId.toString() },
+    };
 
-    // Optional email dispatch to players in background
+    // FCM + email in background (fast HTTP response, like player_pradise)
+    setImmediate(async () => {
+      if (channel === 'all' || channel === 'push' || channel === 'alert' || channel === 'vip') {
+        try {
+          await sendPushNotification({
+            broadcast: true,
+            topic: 'zorra_all_players',
+            title: title.trim(),
+            body: message.trim(),
+            data: { url: url || '/' },
+          });
+        } catch (fcmErr) {
+          console.warn('FCM delivery note:', fcmErr.message);
+        }
+      }
+
     if (channel === 'all' || channel === 'email') {
       (async () => {
         try {
@@ -174,12 +204,9 @@ export async function POST(req) {
         }
       })();
     }
-
-    return NextResponse.json({
-      success: true,
-      message: `Broadcast successfully dispatched via [${channel.toUpperCase()}] to [${segment.toUpperCase()}]!`,
-      broadcast: { ...newRecord, id: res.insertedId.toString() },
     });
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -202,6 +229,8 @@ export async function PUT(req) {
     const subsCol = db.collection('subscriptions');
     const usersCol = db.collection('users');
 
+    const resolvedUserId = body.userId || session?.id || session?.userId || null;
+    const resolvedUsername = body.username || session?.username || null;
     const effectiveEmail = email || (fcmToken ? `device_${fcmToken.slice(-10)}@push.zoraaroyal.com` : 'anonymous@push.zoraaroyal.com');
     const filter = fcmToken ? { $or: [{ fcmToken }, { token: fcmToken }] } : { email: effectiveEmail };
 
@@ -213,8 +242,8 @@ export async function PUT(req) {
           fcmToken,
           token: fcmToken,
           device,
-          userId: session?.id || session?.userId || null,
-          username: session?.username || effectiveEmail.split('@')[0],
+          userId: resolvedUserId ? String(resolvedUserId) : null,
+          username: resolvedUsername || effectiveEmail.split('@')[0],
           isSubscribed: true,
           updatedAt: new Date(),
         },

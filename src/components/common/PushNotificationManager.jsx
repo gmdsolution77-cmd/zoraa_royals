@@ -200,6 +200,10 @@ export default function PushNotificationManager() {
                   const meData = meRes ? await meRes.json().catch(() => ({})) : {};
                   if (meData?.user?.email) storedEmail = meData.user.email;
 
+                  try {
+                    localStorage.setItem('zorra_fcm_device_token', token.value);
+                  } catch {}
+
                   await fetch('/api/notifications', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -242,8 +246,24 @@ export default function PushNotificationManager() {
   // Re-bind FCM token to logged-in user (APK often registers before login → userId was null)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const resyncToken = async () => {
+    const resyncToken = async (e) => {
       try {
+        const liveUser = e?.detail;
+        const storedToken = localStorage.getItem('zorra_fcm_device_token') || '';
+        if (storedToken && liveUser && (liveUser.userId || liveUser.email)) {
+          await fetch('/api/notifications', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              token: storedToken,
+              fcmToken: storedToken,
+              email: liveUser.email,
+              userId: liveUser.userId || liveUser.id,
+              username: liveUser.username,
+            }),
+          }).catch(() => {});
+        }
         const { Capacitor } = await import('@capacitor/core');
         if (!Capacitor?.isNativePlatform()) return;
         const { PushNotifications } = await import('@capacitor/push-notifications');
@@ -298,7 +318,11 @@ export default function PushNotificationManager() {
       if (pathname && pathname.startsWith('/admin')) return; // Never show player alerts on admin console
 
       try {
-        const res = await fetch('/api/notifications', { cache: 'no-store' });
+        const storedEmail = localStorage.getItem('zorra_user_email') || '';
+        const params = new URLSearchParams();
+        if (storedEmail) params.set('email', storedEmail);
+        const notifUrl = params.toString() ? `/api/notifications?${params.toString()}` : '/api/notifications';
+        const res = await fetch(notifUrl, { cache: 'no-store', credentials: 'include' });
         const data = await res.json();
         if (isCancelled || !data.success || !Array.isArray(data.notifications)) return;
 
@@ -314,8 +338,8 @@ export default function PushNotificationManager() {
           return;
         }
 
-        // If a new notification arrived with a different ID
-        if (newest.id && newest.id !== lastSeenIdRef.current) {
+        // If a new unread notification arrived with a different ID
+        if (newest.id && newest.id !== lastSeenIdRef.current && !newest.read) {
           lastSeenIdRef.current = newest.id;
           dispatchAlert(newest);
         }

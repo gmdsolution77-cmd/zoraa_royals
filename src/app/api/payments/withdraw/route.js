@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery, toObjectId } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
+import { notifyPlayer } from '@/lib/notify';
 
 // GET: List Redemptions
 export async function GET(req) {
@@ -295,14 +296,14 @@ export async function PUT(req) {
         }
       );
 
-      // Notify player
-      await db.collection('notifications').insertOne({
-        userId: toObjectId(redemption.userId),
+      notifyPlayer({
+        userId: redemption.userId?.toString?.() || String(redemption.userId),
+        userEmail: user?.email || redemption.userEmail,
+        username: redemption.username || user?.username,
         title: '❌ Cashout Verification Declined',
         message: `Your cashout request for $${Number(redemption.amount).toFixed(2)} from ${redemption.gameTitle || 'game'} could not be verified. Note: ${reason}`,
         type: 'withdraw_rejected',
-        read: false,
-        createdAt: new Date(),
+        data: { url: '/cashier' },
       });
 
       const currentBal = user ? (user.balanceSC ?? user.balance ?? 0) : 0;
@@ -374,14 +375,14 @@ export async function PUT(req) {
         createdAt: new Date(),
       });
 
-      // Notification to user
-      await db.collection('notifications').insertOne({
-        userId: toObjectId(redemption.userId),
+      notifyPlayer({
+        userId: redemption.userId?.toString?.() || String(redemption.userId),
+        userEmail: user?.email || redemption.userEmail,
+        username: redemption.username || user?.username,
         title: '✅ Cashout Dispatched Successfully!',
         message: `Your cashout of $${Number(redemption.amount).toFixed(2)} from ${redemption.gameTitle || 'game'} has been dispatched via ${redemption.payoutMethod} to your tag: ${redemption.destinationAddress}.`,
         type: 'withdraw_approved',
-        read: false,
-        createdAt: new Date(),
+        data: { url: '/cashier' },
       });
 
       // Email notification
@@ -414,14 +415,14 @@ export async function PUT(req) {
         }
       );
 
-      // Notification to user
-      await db.collection('notifications').insertOne({
-        userId: toObjectId(redemption.userId),
+      notifyPlayer({
+        userId: redemption.userId?.toString?.() || String(redemption.userId),
+        userEmail: user?.email || redemption.userEmail,
+        username: redemption.username || user?.username,
         title: '❌ Cashout Request Declined',
         message: `Your cashout request for $${Number(redemption.amount).toFixed(2)} via ${redemption.payoutMethod} was rejected by finance desk. Note: ${reason}`,
         type: 'withdraw_rejected',
-        read: false,
-        createdAt: new Date(),
+        data: { url: '/cashier' },
       });
 
       // Log in ledger

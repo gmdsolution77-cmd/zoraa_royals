@@ -298,14 +298,15 @@ export async function PUT(req) {
         createdAt: new Date(),
       });
 
-      // 4. Send Notification to User
-      await db.collection('notifications').insertOne({
-        userId: user._id,
+      // 4. In-app + FCM push to this player only
+      notifyPlayer({
+        userId: user._id.toString(),
+        userEmail: user.email || deposit.senderEmail,
+        username: user.username,
         title: '✅ Deposit Verified & Credited!',
         message: `Your deposit of $${Number(deposit.amount).toFixed(2)} via ${deposit.methodName} has been approved! +$${creditedSC.toFixed(2)} USD has been credited directly to your royal wallet balance.`,
         type: 'deposit',
-        read: false,
-        createdAt: new Date(),
+        data: { depositId: deposit._id.toString(), url: '/cashier' },
       });
 
       // 4b. Auto-queue Game Account Creation if player does not have a game account for this game yet
@@ -341,13 +342,14 @@ export async function PUT(req) {
             createdAt: new Date(),
           });
 
-          await db.collection('notifications').insertOne({
-            userId: user._id,
+          notifyPlayer({
+            userId: user._id.toString(),
+            userEmail: cleanPlayerEmail,
+            username: user.username,
             title: `🎮 ${targetGame} Account Creation In Progress!`,
             message: `Your deposit was approved! Because you don't have a ${targetGame} game account yet, our staff desk has automatically queued your account creation. You will receive your game login credentials shortly!`,
             type: 'account_request',
-            read: false,
-            createdAt: new Date(),
+            data: { url: '/accounts' },
           });
         }
       }
@@ -413,14 +415,14 @@ export async function PUT(req) {
                 createdAt: new Date(),
               });
 
-              // 3. Send celebratory in-app notification to referrer
-              await db.collection('notifications').insertOne({
-                userId: referrer._id,
+              notifyPlayer({
+                userId: referrer._id.toString(),
+                userEmail: referrer.email,
+                username: referrer.username,
                 title: '🎁 Referral Bonus Received!',
                 message: `Congratulations! Your referred friend @${user.username} made their first deposit of $${Number(deposit.amount).toFixed(2)}. You received a ${refBonusPercent}% referral bonus of +$${bonusAmount.toFixed(2)} USD added directly to your wallet!`,
                 type: 'referral_bonus',
-                read: false,
-                createdAt: new Date(),
+                data: { url: '/cashier' },
               });
 
               // Mark referral bonus as awarded for this user
@@ -458,14 +460,14 @@ export async function PUT(req) {
         }
       );
 
-      // Notification to user with reason
-      await db.collection('notifications').insertOne({
-        userId: user._id,
+      notifyPlayer({
+        userId: user._id.toString(),
+        userEmail: user.email || deposit.senderEmail,
+        username: user.username,
         title: '❌ Deposit Request Declined',
         message: `Your deposit of $${Number(deposit.amount).toFixed(2)} via ${deposit.methodName} could not be approved. Reason: ${reason}. Please contact 24/7 VIP Concierge if you need assistance.`,
         type: 'deposit_rejected',
-        read: false,
-        createdAt: new Date(),
+        data: { depositId: deposit._id.toString(), url: '/cashier' },
       });
 
       return NextResponse.json({ success: true, message: 'Deposit rejected.' });
