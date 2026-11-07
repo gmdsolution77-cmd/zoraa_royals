@@ -50,7 +50,7 @@ import DailySpinWheelModal from '@/components/common/DailySpinWheelModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function HomePage() {
-  const [user, setUser] = useState(() => getCachedUser());
+  const [user, setUser] = useState(null);
   const [currency, setCurrency] = useState('SC');
   const [activeCategory, setActiveCategory] = useState('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -180,6 +180,8 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    const cached = getCachedUser();
+    if (cached) setUser(cached);
     fetchUser();
     fetchGames();
   }, []);

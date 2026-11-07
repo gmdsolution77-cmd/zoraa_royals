@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { notifyStaff } from '@/lib/notify';
+import { resolveFreeplaySubmissionGate } from '@/lib/freeplayEligibility';
 
 // GET - Check Freeplay eligibility, configured amount, active toggle and pending task status
 export async function GET(req) {
@@ -39,35 +40,44 @@ export async function GET(req) {
     }
 
     const claimed = Boolean(user?.freeplayClaimed);
+    const gate = user ? await resolveFreeplaySubmissionGate(db, user) : { allowed: true };
+    const pendingReview = gate.reason === 'pending_review';
 
-    // Check if there is an active pending freeplay task
-    const pendingTask = await db.collection('freeplay_tasks').findOne({
-      $or: [
-        { userId: user?._id ? user._id.toString() : '' },
-        { email: user?.email ? user.email.toLowerCase().trim() : '' },
-      ],
-      status: 'pending',
-    });
+    const pendingTask = pendingReview
+      ? await db.collection('freeplay_tasks').findOne({
+          $or: [
+            { userId: user?._id ? user._id.toString() : '' },
+            { email: user?.email ? user.email.toLowerCase().trim() : '' },
+          ],
+          status: 'pending',
+        })
+      : null;
 
     return NextResponse.json({
       success: true,
       claimed,
-      canClaim: !claimed && freeplayActive && !pendingTask,
+      canClaim: !claimed && freeplayActive && !pendingReview,
+      canSubmit: gate.allowed && freeplayActive,
       amount: configuredAmount,
       bonusAmount: configuredAmount,
       signupBonusClaimed: claimed,
       freeplayActive,
-      pending: Boolean(pendingTask),
-      pendingTask: pendingTask ? {
-        taskId: pendingTask.taskId,
-        gameTitle: pendingTask.gameTitle,
-        createdAt: pendingTask.createdAt,
-      } : null,
+      pending: pendingReview,
+      pendingTask: pendingTask
+        ? {
+            taskId: pendingTask.taskId,
+            gameTitle: pendingTask.gameTitle,
+            createdAt: pendingTask.createdAt,
+          }
+        : gate.pendingTaskId
+        ? { taskId: gate.pendingTaskId, gameTitle: null, createdAt: null }
+        : null,
       claimedAt: user?.freeplayClaimedAt || null,
       message: claimed
         ? `You have already claimed your $${configuredAmount.toFixed(2)} signup freeplay bonus.`
-        : pendingTask
-        ? `Your Freeplay verification task (#${pendingTask.taskId}) is under staff review.`
+        : pendingReview
+        ? (gate.message ||
+            `Your Freeplay verification task${gate.pendingTaskId ? ` (#${gate.pendingTaskId})` : ''} is under staff review.`)
         : `Claim your complimentary $${configuredAmount.toFixed(2)} signup freeplay now!`,
     });
   } catch (err) {
@@ -120,12 +130,17 @@ export async function POST(req) {
       );
     }
 
-    if (user.freeplayClaimed) {
-      return NextResponse.json({
-        success: false,
-        alreadyClaimed: true,
-        message: 'You have already claimed your Freeplay bonus! Make a deposit to receive reload bonuses.',
-      });
+    const submitGate = await resolveFreeplaySubmissionGate(db, user);
+    if (!submitGate.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          alreadyClaimed: submitGate.reason === 'already_claimed',
+          pending: submitGate.reason === 'pending_review',
+          message: submitGate.message,
+        },
+        { status: submitGate.reason === 'pending_review' ? 409 : 400 }
+      );
     }
 
     // Require game selection and screenshot proof
@@ -141,22 +156,6 @@ export async function POST(req) {
         { success: false, message: 'Please upload your Inbox screenshot proof before submitting.' },
         { status: 400 }
       );
-    }
-
-    // Check for existing pending task
-    const existingPending = await db.collection('freeplay_tasks').findOne({
-      $or: [
-        { userId: user._id.toString() },
-        { email: user.email.toLowerCase().trim() },
-      ],
-      status: 'pending',
-    });
-
-    if (existingPending) {
-      return NextResponse.json({
-        success: false,
-        message: 'You already have a Freeplay verification task pending staff review. Please wait for our desk to process it.',
-      });
     }
 
     const resolvedTaskId = taskId || `FP-${Math.floor(100000 + Math.random() * 900000)}`;

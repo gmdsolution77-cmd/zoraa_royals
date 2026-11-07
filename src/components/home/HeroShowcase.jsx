@@ -19,7 +19,12 @@ import {
 import confetti from 'canvas-confetti';
 import HeroBannerCard from './HeroBannerCard';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
-import { resolveFreeplayAmountSC, formatFreeplayUSD, playerEligibleForFreeplay } from '@/lib/freeplaySettings';
+import {
+  resolveFreeplayAmountSC,
+  formatFreeplayUSD,
+  playerEligibleForFreeplay,
+  playerCanUseFreeplayPromo,
+} from '@/lib/freeplaySettings';
 
 export default function HeroShowcase({
   user,
@@ -37,6 +42,8 @@ export default function HeroShowcase({
   const [freeplayFeedback, setFreeplayFeedback] = useState(null);
   const [gamesCount, setGamesCount] = useState(11);
   const [gamesList, setGamesList] = useState([]);
+  const [clientReady, setClientReady] = useState(false);
+  const [freeplayPending, setFreeplayPending] = useState(false);
   const [settings, setSettings] = useState({
     welcomeBonusPercentage: 300,
     regularBonusPercentage: 50,
@@ -49,10 +56,55 @@ export default function HeroShowcase({
       if (onOpenAuth) onOpenAuth('register');
       return;
     }
+    if (freeplayPending) {
+      setFreeplayFeedback({
+        type: 'info',
+        message: 'Your freeplay request is already under staff review. Please wait for approval or rejection.',
+      });
+      return;
+    }
+    if (!playerEligibleForFreeplay(user)) {
+      setFreeplayFeedback({
+        type: 'info',
+        message: 'You have already used your one-time signup freeplay.',
+      });
+      return;
+    }
     if (onOpenFreeplay) {
       onOpenFreeplay();
     }
   };
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.email) {
+      setFreeplayPending(false);
+      return;
+    }
+    fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success) setFreeplayPending(Boolean(d.pending));
+      })
+      .catch(() => {});
+  }, [user?.email, user?.freeplayClaimed]);
+
+  useEffect(() => {
+    const refreshPending = () => {
+      if (!user?.email) return;
+      fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.success) setFreeplayPending(Boolean(d.pending));
+        })
+        .catch(() => {});
+    };
+    window.addEventListener('royal-freeplay-submitted', refreshPending);
+    return () => window.removeEventListener('royal-freeplay-submitted', refreshPending);
+  }, [user?.email]);
 
   // Fetch dynamic settings and active games count
   useEffect(() => {
@@ -90,7 +142,8 @@ export default function HeroShowcase({
   const regularPct = settings.regularBonusPercentage ?? 50;
   const freeplaySC = resolveFreeplayAmountSC(settings);
   const freeplayDisplay = formatFreeplayUSD(freeplaySC);
-  const hasDeposited = Boolean(user?.firstDepositMade);
+  const hasDeposited = clientReady && Boolean(user?.firstDepositMade);
+  const canPromoFreeplay = playerCanUseFreeplayPromo(user, { pending: freeplayPending });
 
   const isFreeplayActive = settings?.freeplayActive !== false;
 
@@ -127,7 +180,7 @@ export default function HeroShowcase({
       title: `${freeplayDisplay} FREEPLAY BONUS`,
       subtitle: 'COMPLIMENTARY CREDIT FOR NEW PLAYERS • NO DEPOSIT',
       desc: `Test any of our ${gamesCount} sweepstakes platforms completely free! Claim your ${freeplayDisplay} instant starter credit and start playing.`,
-      ctaText: playerEligibleForFreeplay(user) ? `Claim ${freeplayDisplay} Freeplay` : 'Play Sweepstakes',
+      ctaText: canPromoFreeplay ? `Claim ${freeplayDisplay} Freeplay` : freeplayPending ? 'Freeplay Under Review' : 'Play Sweepstakes',
       ctaAction: handleGetFreeplay,
       secondaryText: 'Deposit & Get Bonus',
       secondaryHref: '/deposit',
@@ -169,11 +222,11 @@ export default function HeroShowcase({
     if (focusedFreeplaySlide.current || !isFreeplayActive) return;
     const freeplayIdx = slides.findIndex((s) => s.id === 1);
     if (freeplayIdx < 0) return;
-    if (!user || playerEligibleForFreeplay(user)) {
+    if (!user || canPromoFreeplay) {
       setCurrentSlide(freeplayIdx);
       focusedFreeplaySlide.current = true;
     }
-  }, [isFreeplayActive, slides, user?.freeplayClaimed, user?.email]);
+  }, [isFreeplayActive, slides, user?.freeplayClaimed, user?.email, freeplayPending, canPromoFreeplay]);
 
   // Auto-slide every 7s
   useEffect(() => {
@@ -246,7 +299,7 @@ export default function HeroShowcase({
 
           {/* Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            {isFreeplayActive && playerEligibleForFreeplay(user) && (
+            {isFreeplayActive && canPromoFreeplay && (
               <button
                 onClick={handleGetFreeplay}
                 className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_25px_rgba(212,175,55,0.5)] cursor-pointer"

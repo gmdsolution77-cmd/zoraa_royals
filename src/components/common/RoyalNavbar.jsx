@@ -25,7 +25,11 @@ import {
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 import { diffSet } from '@/lib/fastDiff';
 import NotificationsModal from '@/components/common/NotificationsModal';
-import { resolveFreeplayAmountSC, formatFreeplayUSD, playerEligibleForFreeplay } from '@/lib/freeplaySettings';
+import {
+  resolveFreeplayAmountSC,
+  formatFreeplayUSD,
+  playerCanUseFreeplayPromo,
+} from '@/lib/freeplaySettings';
 
 export default function RoyalNavbar({
   user,
@@ -97,6 +101,7 @@ export default function RoyalNavbar({
   const [mounted, setMounted] = useState(false);
   const [showPushPromptButton, setShowPushPromptButton] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
+  const [freeplayPendingReview, setFreeplayPendingReview] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
@@ -152,6 +157,25 @@ export default function RoyalNavbar({
 
   const activeUser = mounted ? (user || cachedUser) : null;
   const displayBalance = liveBalance ?? Number(activeUser?.balance ?? activeUser?.balanceSC ?? 0);
+
+  useEffect(() => {
+    if (!activeUser?.email) {
+      setFreeplayPendingReview(false);
+      return;
+    }
+    fetch('/api/freeplay', { cache: 'no-store', credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success) setFreeplayPendingReview(Boolean(d.pending));
+      })
+      .catch(() => {});
+  }, [activeUser?.email, activeUser?.freeplayClaimed]);
+
+  useEffect(() => {
+    const onSubmitted = () => setFreeplayPendingReview(true);
+    window.addEventListener('royal-freeplay-submitted', onSubmitted);
+    return () => window.removeEventListener('royal-freeplay-submitted', onSubmitted);
+  }, []);
 
   useEffect(() => {
     if (!activeUser) return;
@@ -211,7 +235,9 @@ export default function RoyalNavbar({
 
   const freeplayFeatureOn = bonusSettings?.freeplayActive !== false;
   const showFreeplayButton =
-    activeUser && freeplayFeatureOn && playerEligibleForFreeplay(activeUser);
+    activeUser &&
+    freeplayFeatureOn &&
+    playerCanUseFreeplayPromo(activeUser, { pending: freeplayPendingReview });
 
   const handleLogoutClick = () => {
     setDropdownOpen(false);

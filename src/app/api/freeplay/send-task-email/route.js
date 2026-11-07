@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { getSessionUser } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
+import { resolveFreeplaySubmissionGate } from '@/lib/freeplayEligibility';
 
 export async function POST(req) {
   try {
@@ -29,6 +31,26 @@ export async function POST(req) {
     const configuredAmount = settingsDoc?.freeplayAmountSC !== undefined 
       ? Number(settingsDoc.freeplayAmountSC) 
       : (settingsDoc?.signupBonusAmount !== undefined ? Number(settingsDoc.signupBonusAmount) : 3.0);
+
+    const usersCol = db.collection('users');
+    let player = null;
+    const sessionUserId = session?.userId || session?.id;
+    if (sessionUserId && ObjectId.isValid(String(sessionUserId))) {
+      player = await usersCol.findOne({ _id: new ObjectId(String(sessionUserId)) });
+    }
+    if (!player && targetEmail) {
+      player = await usersCol.findOne({ email: targetEmail });
+    }
+
+    if (player) {
+      const gate = await resolveFreeplaySubmissionGate(db, player);
+      if (!gate.allowed) {
+        return NextResponse.json(
+          { success: false, message: gate.message, reason: gate.reason },
+          { status: gate.reason === 'pending_review' ? 409 : 400 }
+        );
+      }
+    }
 
     const taskId = `FP-${Math.floor(100000 + Math.random() * 900000)}`;
 

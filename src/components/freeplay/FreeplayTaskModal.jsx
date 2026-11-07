@@ -41,6 +41,7 @@ export default function FreeplayTaskModal({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [statusMsg, setStatusMsg] = useState(null);
   const [liveWalletBal, setLiveWalletBal] = useState(null);
+  const [deskGate, setDeskGate] = useState('loading');
   const fileInputRef = useRef(null);
   const initialEmailSentRef = useRef(false);
 
@@ -113,13 +114,72 @@ export default function FreeplayTaskModal({
     }
   }, [isOpen]);
 
-  // Auto-send verification email on first open
   useEffect(() => {
-    if (isOpen && targetEmail && !initialEmailSentRef.current) {
-      initialEmailSentRef.current = true;
-      handleSendEmail();
+    if (!isOpen) {
+      initialEmailSentRef.current = false;
+      setDeskGate('loading');
+      return;
     }
-  }, [isOpen, targetEmail]);
+    fetch('/api/freeplay', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.success) {
+          setDeskGate('open');
+          return;
+        }
+        if (d.claimed) setDeskGate('claimed');
+        else if (d.pending) setDeskGate('pending');
+        else setDeskGate('open');
+      })
+      .catch(() => setDeskGate('open'));
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || deskGate !== 'open' || !targetEmail || initialEmailSentRef.current) return;
+    initialEmailSentRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      setEmailSending(true);
+      setStatusMsg(null);
+      try {
+        const res = await fetch('/api/freeplay/send-task-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: targetEmail,
+            name: user?.username || '',
+            gameTitle: selectedGame || '',
+          }),
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.success) {
+          setEmailSent(true);
+          if (data.taskId) setTaskId(data.taskId);
+          setResendCooldown(45);
+          setStatusMsg({
+            type: 'success',
+            text: 'Verification task email sent! Follow the instructions below.',
+          });
+        } else {
+          setStatusMsg({ type: 'error', text: data.message || 'Could not send verification email.' });
+          initialEmailSentRef.current = false;
+        }
+      } catch {
+        if (!cancelled) {
+          setStatusMsg({ type: 'error', text: 'Network error sending verification email.' });
+          initialEmailSentRef.current = false;
+        }
+      } finally {
+        if (!cancelled) setEmailSending(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, deskGate, targetEmail, selectedGame, user?.username]);
 
   if (!isOpen) return null;
 
@@ -129,6 +189,16 @@ export default function FreeplayTaskModal({
       return;
     }
     if (isManual && resendCooldown > 0) return;
+    if (deskGate !== 'open') {
+      setStatusMsg({
+        type: 'error',
+        text:
+          deskGate === 'pending'
+            ? 'A freeplay request is already under review. Please wait for staff to approve or reject it.'
+            : 'You have already used your one-time signup freeplay.',
+      });
+      return;
+    }
 
     setEmailSending(true);
     setStatusMsg(null);
@@ -220,6 +290,20 @@ export default function FreeplayTaskModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (deskGate === 'pending') {
+      setStatusMsg({
+        type: 'info',
+        text: 'Your freeplay is already submitted and waiting for staff review. You cannot send another request yet.',
+      });
+      return;
+    }
+    if (deskGate === 'claimed') {
+      setStatusMsg({
+        type: 'error',
+        text: 'You have already received your one-time signup freeplay.',
+      });
+      return;
+    }
     if (!selectedGame) {
       setStatusMsg({ type: 'error', text: 'Please select a casino game platform.' });
       return;
@@ -255,6 +339,8 @@ export default function FreeplayTaskModal({
         } catch {}
 
         if (onSuccess) onSuccess(data);
+        setDeskGate('pending');
+        window.dispatchEvent(new CustomEvent('royal-freeplay-submitted'));
         setStatusMsg({
           type: 'success',
           text: data.message || 'Freeplay task submitted successfully! Staff is reviewing your proof.',
@@ -274,7 +360,9 @@ export default function FreeplayTaskModal({
     }
   };
 
-  const canSubmit = Boolean(selectedGame && screenshot && !uploading && !submitting);
+  const canSubmit = Boolean(
+    deskGate === 'open' && selectedGame && screenshot && !uploading && !submitting
+  );
 
   const walletBal =
     liveWalletBal !== null
@@ -305,6 +393,23 @@ export default function FreeplayTaskModal({
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-[11px] font-mono font-bold text-emerald-300">
               Wallet: ${walletBal.toFixed(2)}
             </span>
+          </div>
+        )}
+
+        {deskGate === 'pending' && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 flex items-start gap-2">
+            <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-300" />
+            <span>
+              Your freeplay request is with our team. You cannot submit again until it is <strong>approved</strong> or{' '}
+              <strong>rejected</strong>.
+            </span>
+          </div>
+        )}
+
+        {deskGate === 'claimed' && (
+          <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-100 flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-300" />
+            <span>You have already claimed your one-time signup freeplay.</span>
           </div>
         )}
 

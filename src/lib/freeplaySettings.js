@@ -9,10 +9,17 @@ export function resolveFreeplayAmountSC(settings) {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_FREEPLAY_SC;
 }
 
-/** True when player may still complete the inbox freeplay verification flow. */
+/** True when player has not received their one-time signup freeplay approval. */
 export function playerEligibleForFreeplay(user) {
   if (!user) return true;
   return !Boolean(user.freeplayClaimed);
+}
+
+/** UI / CTA: eligible and no open desk review blocking a new submission. */
+export function playerCanUseFreeplayPromo(user, opts = {}) {
+  if (!playerEligibleForFreeplay(user)) return false;
+  if (opts.pending) return false;
+  return true;
 }
 
 /** e.g. $3 or $3.50 for UI copy */
