@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -105,6 +105,9 @@ export default function CashierHub({
 
   // Lightbox modal for previewing any image/QR
   const [previewImage, setPreviewImage] = useState(null); // { url, title }
+  const depositProofInputRef = useRef(null);
+  const withdrawGameShotInputRef = useRef(null);
+  const withdrawQrInputRef = useRef(null);
 
   // UI helpers
   const [copiedText, setCopiedText] = useState('');
@@ -843,26 +846,40 @@ export default function CashierHub({
                         </div>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#ffd700]/60 bg-[#111422]/60 hover:bg-[#151928] cursor-pointer transition text-center group">
-                        <div className="w-10 h-10 rounded-xl bg-white/5 group-hover:bg-[#ffd700]/20 flex items-center justify-center text-gray-400 group-hover:text-[#ffd700] transition mb-2">
-                          <Upload className="w-5 h-5" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-300 group-hover:text-white">
-                          Click to upload payment screenshot
-                        </span>
-                        <span className="text-[10px] text-gray-500 mt-0.5">
-                          PNG, JPG, or WEBP confirmation receipt from your payment app
-                        </span>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => depositProofInputRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            depositProofInputRef.current?.click();
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#ffd700]/60 bg-[#111422]/60 hover:bg-[#151928] cursor-pointer transition text-center group"
+                      >
                         <input
+                          ref={depositProofInputRef}
                           type="file"
                           accept="image/*"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleCompressAndSetImage(file, setProofImage, setProofImageName);
+                            e.target.value = '';
                           }}
-                          className="hidden"
+                          className="sr-only"
+                          aria-hidden
                         />
-                      </label>
+                        <div className="w-10 h-10 rounded-xl bg-white/5 group-hover:bg-[#ffd700]/20 flex items-center justify-center text-gray-400 group-hover:text-[#ffd700] transition mb-2 pointer-events-none">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-bold text-gray-300 group-hover:text-white pointer-events-none">
+                          Tap to upload payment screenshot
+                        </span>
+                        <span className="text-[10px] text-gray-500 mt-0.5 pointer-events-none">
+                          PNG, JPG, or WEBP confirmation receipt from your payment app
+                        </span>
+                      </div>
                     )}
                   </div>
 
@@ -1224,22 +1241,30 @@ export default function CashierHub({
                           </div>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-purple-400/60 bg-[#111422]/60 hover:bg-[#151928] cursor-pointer transition text-center group min-h-[110px]">
-                          <Upload className="w-4 h-4 text-gray-400 group-hover:text-purple-400 mb-1" />
-                          <span className="text-[11px] font-bold text-gray-300 group-hover:text-white">
-                            Upload Game Screenshot
-                          </span>
-                          <span className="text-[9px] text-gray-500 mt-0.5">Winning score proof</span>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => withdrawGameShotInputRef.current?.click()}
+                          className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-purple-400/60 bg-[#111422]/60 hover:bg-[#151928] cursor-pointer transition text-center group min-h-[110px]"
+                        >
                           <input
+                            ref={withdrawGameShotInputRef}
                             type="file"
                             accept="image/*"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleCompressAndSetImage(file, setGameScreenshot, setGameScreenshotName);
+                              e.target.value = '';
                             }}
-                            className="hidden"
+                            className="sr-only"
+                            aria-hidden
                           />
-                        </label>
+                          <Upload className="w-4 h-4 text-gray-400 group-hover:text-purple-400 mb-1 pointer-events-none" />
+                          <span className="text-[11px] font-bold text-gray-300 group-hover:text-white pointer-events-none">
+                            Tap to upload game screenshot
+                          </span>
+                          <span className="text-[9px] text-gray-500 mt-0.5 pointer-events-none">Winning score proof</span>
+                        </div>
                       )}
                     </div>
 
@@ -1281,22 +1306,30 @@ export default function CashierHub({
                           </div>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#ffd700]/60 bg-[#111422]/60 hover:bg-[#151928] cursor-pointer transition text-center group min-h-[110px]">
-                          <Upload className="w-4 h-4 text-gray-400 group-hover:text-[#ffd700] mb-1" />
-                          <span className="text-[11px] font-bold text-gray-300 group-hover:text-white">
-                            Upload Your QR Code
-                          </span>
-                          <span className="text-[9px] text-gray-500 mt-0.5">Cash App / Wallet QR</span>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => withdrawQrInputRef.current?.click()}
+                          className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#ffd700]/60 bg-[#111422]/60 hover:bg-[#151928] cursor-pointer transition text-center group min-h-[110px]"
+                        >
                           <input
+                            ref={withdrawQrInputRef}
                             type="file"
                             accept="image/*"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleCompressAndSetImage(file, setQrCodeImage, setQrCodeImageName);
+                              e.target.value = '';
                             }}
-                            className="hidden"
+                            className="sr-only"
+                            aria-hidden
                           />
-                        </label>
+                          <Upload className="w-4 h-4 text-gray-400 group-hover:text-[#ffd700] mb-1 pointer-events-none" />
+                          <span className="text-[11px] font-bold text-gray-300 group-hover:text-white pointer-events-none">
+                            Tap to upload your QR code
+                          </span>
+                          <span className="text-[9px] text-gray-500 mt-0.5 pointer-events-none">Cash App / Wallet QR</span>
+                        </div>
                       )}
                     </div>
                   </div>

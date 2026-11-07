@@ -6,7 +6,6 @@ import Image from 'next/image';
 import {
   Coins,
   Wallet,
-  Gift,
   Bell,
   User,
   Shield,
@@ -29,7 +28,6 @@ export default function RoyalNavbar({
   setCurrency,
   onOpenAuth,
   onOpenCashier,
-  onOpenFreeplay,
   onOpenGameVault,
   onOpenNotifications,
   onOpenKyc,
@@ -57,7 +55,6 @@ export default function RoyalNavbar({
   // Persistent Client-Side Cached User (Eliminates login/signup flicker on tab switches)
   const [cachedUser, setCachedUser] = useState(null);
   const [mounted, setMounted] = useState(false);
-  const [bonusSettings, setBonusSettings] = useState({ freeplayAmountSC: 5.0, freeplayActive: true });
   const [showPushPromptButton, setShowPushPromptButton] = useState(false);
 
   useEffect(() => {
@@ -81,15 +78,6 @@ export default function RoyalNavbar({
     setMounted(true);
     const cached = getCachedUser();
     if (cached) setCachedUser(cached);
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/settings')
-      .then(r => r.json())
-      .then(d => {
-        if (d?.success && d?.settings) diffSet(setBonusSettings, d.settings);
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -194,18 +182,6 @@ export default function RoyalNavbar({
                 <Wallet className="w-4 h-4" />
                 <span>Deposit</span>
               </button>
-
-              {/* Freeplay Signup Reward Quick Button if active & not claimed (Hidden on mobile) */}
-              {bonusSettings?.freeplayActive !== false && !activeUser.signupBonusClaimed && !activeUser.freeplayClaimed && (
-                <button
-                  onClick={onOpenFreeplay}
-                  className="hidden md:inline-flex px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400 text-amber-300 hover:brightness-125 transition items-center gap-1.5 text-xs font-black shadow-md cursor-pointer shrink-0"
-                  title={`Claim $${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Signup Freeplay`}
-                >
-                  <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span>${Number(bonusSettings?.freeplayAmountSC || 5).toFixed(0)} Freeplay</span>
-                </button>
-              )}
 
               {/* Notifications Button */}
               <button

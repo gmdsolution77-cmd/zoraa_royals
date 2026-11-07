@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -75,6 +75,7 @@ export default function DepositPage() {
   const [depositHistory, setDepositHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
+  const proofInputRef = useRef(null);
 
   // 1. Fetch current user & settings
   const fetchUserAndSettings = async (isSilent = false) => {
@@ -303,6 +304,11 @@ export default function DepositPage() {
       reader.onload = () => setProofImage(reader.result);
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
+  };
+
+  const openProofFilePicker = () => {
+    proofInputRef.current?.click();
   };
 
   const finalAmount = customAmount ? parseFloat(customAmount) : amount;
@@ -701,16 +707,28 @@ export default function DepositPage() {
                   <label className="block text-xs font-bold text-gray-300 mb-2 uppercase font-mono">
                     Upload Proof of Payment (Screenshot) *
                   </label>
-                  <div className="relative border-2 border-dashed border-[#d4af37]/40 hover:border-[#ffd700] rounded-2xl p-6 text-center bg-black/40 transition group cursor-pointer">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={openProofFilePicker}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openProofFilePicker();
+                      }
+                    }}
+                    className="relative border-2 border-dashed border-[#d4af37]/40 hover:border-[#ffd700] rounded-2xl p-6 text-center bg-black/40 transition group cursor-pointer"
+                  >
                     <input
+                      ref={proofInputRef}
                       type="file"
-                      required
-                      accept="image/*"
+                      accept="image/*,application/pdf"
                       onChange={handleImageUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      className="sr-only"
+                      aria-hidden
                     />
                     {proofImage ? (
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex flex-col items-center gap-2 pointer-events-none">
                         <img
                           src={proofImage}
                           alt="Uploaded receipt"
@@ -719,14 +737,14 @@ export default function DepositPage() {
                         <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 font-mono">
                           <CheckCircle2 size={14} /> Receipt Attached ({proofFileName || 'Screenshot.png'})
                         </span>
-                        <span className="text-[10px] text-gray-400">Click or drag another image to replace</span>
+                        <span className="text-[10px] text-gray-400">Tap here to replace screenshot</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex flex-col items-center gap-2 pointer-events-none">
                         <div className="w-12 h-12 rounded-xl bg-[#d4af37]/15 text-[#ffd700] flex items-center justify-center group-hover:scale-105 transition-transform">
                           <Upload size={22} />
                         </div>
-                        <span className="text-xs font-bold text-white">Click or Drag &amp; Drop Receipt Screenshot</span>
+                        <span className="text-xs font-bold text-white">Tap to upload payment screenshot</span>
                         <span className="text-[10px] text-gray-400 font-mono">PNG, JPG, WEBP up to 15MB</span>
                       </div>
                     )}
