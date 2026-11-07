@@ -1,5 +1,6 @@
 import { getDb } from './mongodb';
 import { sendPushNotification } from './fcm';
+import { isRealFcmToken } from './pushTokens';
 
 /**
  * Dispatches an instant royal in-app notification & push notification without blocking caller.
@@ -64,7 +65,7 @@ export function notifyPlayer({ userId, userEmail, username, title, message, type
           ...new Set(
             subs
               .map((s) => s.fcmToken || s.token)
-              .filter((t) => typeof t === 'string' && t.trim().length > 15)
+              .filter(isRealFcmToken)
           ),
         ];
 
@@ -127,7 +128,7 @@ export function notifyStaff({ title, message, type = 'staff_alert', data = {} })
         ...new Set(
           staffSubs
             .map((s) => s.fcmToken || s.token)
-            .filter((t) => typeof t === 'string' && t.trim().length > 15)
+            .filter(isRealFcmToken)
         ),
       ];
 

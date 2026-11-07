@@ -183,7 +183,7 @@ export default function GlobalLiveChatWidget() {
       <button
         type="button"
         onClick={handleOpenClick}
-        className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 p-3.5 rounded-full bg-gradient-to-tr from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black shadow-[0_0_25px_rgba(212,175,55,0.7)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer group"
+        className="fixed right-4 sm:right-6 z-[55] p-3.5 rounded-full bg-gradient-to-tr from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black shadow-[0_0_25px_rgba(212,175,55,0.7)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer group bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6"
         title="24/7 VIP Concierge Support"
         aria-label="24/7 VIP Concierge Support"
       >

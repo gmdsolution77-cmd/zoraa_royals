@@ -24,6 +24,9 @@ export function saveCachedUser(userData, options = {}) {
     if (userData && (userData._id || userData.userId || userData.email || userData.username)) {
       if (!areEqual(existing, userData)) {
         localStorage.setItem('zr_user_session', JSON.stringify(userData));
+        if (userData.email) {
+          localStorage.setItem('zorra_user_email', userData.email.toLowerCase().trim());
+        }
         if (broadcast) {
           window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: userData }));
         }

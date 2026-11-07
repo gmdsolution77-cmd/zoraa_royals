@@ -90,8 +90,33 @@ export async function POST(req) {
       });
     }
 
+    const userIdStr = user._id ? user._id.toString() : String(user._id);
+    const cleanEmail = (user.email || '').toLowerCase().trim();
+
+    const deviceId = body.deviceId ? String(body.deviceId).trim() : null;
+    const subsBindOr = [];
+    if (cleanEmail) subsBindOr.push({ email: cleanEmail });
+    if (deviceId) subsBindOr.push({ deviceId });
+    if (subsBindOr.length > 0) {
+      db.collection('subscriptions')
+        .updateMany(
+          { $or: subsBindOr },
+          {
+            $set: {
+              userId: userIdStr,
+              email: cleanEmail || user.email,
+              username: user.username,
+              role: user.role || 'player',
+              updatedAt: new Date(),
+            },
+          }
+        )
+        .catch(() => {});
+    }
+
     const safeUser = {
       id: user._id,
+      userId: userIdStr,
       email: user.email,
       username: user.username,
       role: user.role,

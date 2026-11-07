@@ -21,22 +21,34 @@ export default function PushNotificationManager() {
     }
   }, []);
 
-  const registerWebPushToken = async () => {
-    let storedEmail = localStorage.getItem('zorra_user_email') || '';
-    try {
-      const raw = localStorage.getItem('zr_user_session');
-      if (raw) {
-        const u = JSON.parse(raw);
-        if (u?.email) storedEmail = u.email;
-      }
-    } catch {}
+  const registerWebAudience = async (liveUser) => {
+    let email = (liveUser?.email || '').toLowerCase().trim();
+    let userId = liveUser?.userId || liveUser?.id || liveUser?._id || '';
+    let username = liveUser?.username || '';
+    if (!email) {
+      try {
+        const raw = localStorage.getItem('zr_user_session');
+        if (raw) {
+          const u = JSON.parse(raw);
+          email = (u?.email || '').toLowerCase().trim();
+          userId = userId || u?.userId || u?.id || u?._id || '';
+          username = username || u?.username || '';
+        }
+      } catch {}
+    }
+    if (!email) {
+      email = (localStorage.getItem('zorra_user_email') || '').toLowerCase().trim();
+    }
+    if (!email && !userId) return;
 
     await fetch('/api/notifications', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        email: storedEmail,
-        token: 'chrome_web_' + (storedEmail || 'client_' + Date.now().toString(36)),
+        email: email || undefined,
+        userId: userId ? String(userId) : undefined,
+        username: username || undefined,
         device: 'web_chrome',
       }),
     }).catch(() => {});
@@ -50,7 +62,7 @@ export default function PushNotificationManager() {
         if (perm === 'granted') {
           playTune('jackpot', 0.8);
           setShowAllowPrompt(false);
-          await registerWebPushToken();
+          await registerWebAudience();
 
           triggerChromeDesktopNotification({
             title: '👑 Royal Push Notifications Enabled!',
@@ -70,7 +82,7 @@ export default function PushNotificationManager() {
       if (typeof window === 'undefined' || !('Notification' in window)) return;
       if (Notification.permission === 'granted') {
         setShowAllowPrompt(false);
-        await registerWebPushToken();
+        await registerWebAudience();
       }
     };
     window.addEventListener('royal-push-enabled', syncFromNavbar);
@@ -80,46 +92,64 @@ export default function PushNotificationManager() {
   const lastSeenIdRef = useRef(null);
   const isInitialRef = useRef(true);
 
-  // Trigger Chrome Native Notification
-  const triggerChromeDesktopNotification = ({ title, message, url = '/' }) => {
-    if (typeof window === 'undefined') return;
+  const triggerChromeDesktopNotification = async (item) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
 
-    const notifTitle = title || '👑 Zorra Royals VIP Alert';
-    const notifBody = message || 'VIP reward credited to your account! Tap to claim.';
+    const title = item.title || '👑 Zorra Royals VIP Alert';
+    const body = item.message || item.body || 'VIP reward credited to your account! Tap to claim.';
+    const url = item.url || '/';
+    const tag = 'zorra-alert-' + (item.id || Date.now());
 
-    // Web Notification API
-    if ('Notification' in window && Notification.permission === 'granted') {
-      try {
-        const desktopNotif = new window.Notification(notifTitle, {
-          body: notifBody,
-          icon: '/apple-touch-icon.png',
-          badge: '/apple-touch-icon.png',
-          tag: 'zorra-push-' + Date.now(),
-          renotify: true,
-          requireInteraction: false,
-          silent: false,
-        });
-
-        desktopNotif.onclick = () => {
-          window.focus();
-          if (url && url !== '/') {
-            router.push(url);
+    try {
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg?.showNotification) {
+            await reg.showNotification(title, {
+              body,
+              icon: '/apple-touch-icon.png',
+              badge: '/apple-touch-icon.png',
+              tag,
+              renotify: true,
+              requireInteraction: true,
+              vibrate: [300, 100, 300],
+              data: { url, dateOfArrival: Date.now() },
+              actions: [
+                { action: 'open', title: 'Open / Claim' },
+                { action: 'dismiss', title: 'Dismiss' },
+              ],
+            });
+            return;
           }
-          desktopNotif.close();
-        };
-      } catch (err) {
-        console.warn('Native notification fallback:', err);
-      }
-    }
+        } catch (swErr) {
+          console.warn('SW showNotification notice:', swErr);
+        }
 
-    // Try service worker background notification if available
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SHOW_NOTIFICATION',
-        title: notifTitle,
-        body: notifBody,
-        url,
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'SHOW_NOTIFICATION',
+            title,
+            body,
+            url,
+            tag,
+          });
+          return;
+        }
+      }
+
+      const desktopNotif = new window.Notification(title, {
+        body,
+        icon: '/apple-touch-icon.png',
+        tag,
       });
+      desktopNotif.onclick = () => {
+        window.focus();
+        if (url && url !== '/') router.push(url);
+        desktopNotif.close();
+      };
+    } catch (err) {
+      console.warn('Chrome notification dispatch error:', err);
     }
   };
 
@@ -140,6 +170,7 @@ export default function PushNotificationManager() {
     setToastProgress(100);
 
     triggerChromeDesktopNotification({
+      id: notif.id,
       title: notif.title,
       message: notif.message,
       url: notif.url || '/',
@@ -184,6 +215,22 @@ export default function PushNotificationManager() {
           }
 
           if (permStatus.receive === 'granted') {
+            try {
+              await PushNotifications.createChannel({
+                id: 'default',
+                name: 'Zorra Royals Alerts',
+                description: 'Deposit approvals, Game IDs, VIP bonuses',
+                importance: 5,
+                visibility: 1,
+                sound: 'default',
+                vibration: true,
+                lights: true,
+                lightColor: '#D4AF37',
+              });
+            } catch {}
+
+            await PushNotifications.removeAllListeners().catch(() => {});
+
             await PushNotifications.addListener('registration', async (token) => {
               if (token?.value) {
                 try {
@@ -250,6 +297,9 @@ export default function PushNotificationManager() {
       try {
         const liveUser = e?.detail;
         const storedToken = localStorage.getItem('zorra_fcm_device_token') || '';
+        if (liveUser && (liveUser.userId || liveUser.email)) {
+          await registerWebAudience(liveUser);
+        }
         if (storedToken && liveUser && (liveUser.userId || liveUser.email)) {
           await fetch('/api/notifications', {
             method: 'PUT',
@@ -259,8 +309,9 @@ export default function PushNotificationManager() {
               token: storedToken,
               fcmToken: storedToken,
               email: liveUser.email,
-              userId: liveUser.userId || liveUser.id,
+              userId: liveUser.userId || liveUser.id || liveUser._id,
               username: liveUser.username,
+              device: 'android',
             }),
           }).catch(() => {});
         }
@@ -314,11 +365,17 @@ export default function PushNotificationManager() {
     let isCancelled = false;
 
     const checkIncomingNotifications = async () => {
-      if (document.hidden) return; // Save resources when tab inactive
-      if (pathname && pathname.startsWith('/admin')) return; // Never show player alerts on admin console
+      if (pathname && pathname.startsWith('/admin')) return;
 
       try {
-        const storedEmail = localStorage.getItem('zorra_user_email') || '';
+        let storedEmail = (localStorage.getItem('zorra_user_email') || '').toLowerCase().trim();
+        try {
+          const raw = localStorage.getItem('zr_user_session');
+          if (raw) {
+            const u = JSON.parse(raw);
+            if (u?.email) storedEmail = u.email.toLowerCase().trim();
+          }
+        } catch {}
         const params = new URLSearchParams();
         if (storedEmail) params.set('email', storedEmail);
         const notifUrl = params.toString() ? `/api/notifications?${params.toString()}` : '/api/notifications';

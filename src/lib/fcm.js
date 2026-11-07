@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getDb } from './mongodb';
+import { isRealFcmToken } from './pushTokens';
 
 let messagingInstance = null;
 let loadedAccountSource = null;
@@ -39,6 +40,40 @@ function findServiceAccount() {
       }
     }
   }
+
+  const envPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  if (envPath && fs.existsSync(/*turbopackIgnore: true*/ envPath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(/*turbopackIgnore: true*/ envPath, 'utf8'));
+      if (raw.private_key && raw.client_email) {
+        loadedAccountSource = envPath;
+        return raw;
+      }
+    } catch (e) {
+      console.warn('[FCM] FIREBASE_SERVICE_ACCOUNT_PATH read error:', e.message);
+    }
+  }
+
+  try {
+    const files = fs.readdirSync(/*turbopackIgnore: true*/ process.cwd());
+    for (const file of files) {
+      if (
+        file.endsWith('.json') &&
+        (file.includes('adminsdk') || file.includes('service-account') || file.includes('firebase')) &&
+        !file.includes('package') &&
+        !file.includes('tsconfig')
+      ) {
+        const fullPath = path.join(/*turbopackIgnore: true*/ process.cwd(), file);
+        try {
+          const raw = JSON.parse(fs.readFileSync(/*turbopackIgnore: true*/ fullPath, 'utf8'));
+          if (raw.private_key && raw.client_email) {
+            loadedAccountSource = file;
+            return raw;
+          }
+        } catch {}
+      }
+    }
+  } catch {}
 
   return null;
 }
@@ -155,6 +190,9 @@ export async function sendPushNotification({ token, topic, title, body, data = {
 
   // 1. Send strictly to single device token if specified (1-to-1 personal push)
   if (token) {
+    if (!isRealFcmToken(token)) {
+      return { success: false, error: 'Invalid or placeholder push token.' };
+    }
     try {
       const res = await messaging.send({ ...payload, token });
       return { success: true, messageId: res };
@@ -199,7 +237,7 @@ export async function sendPushNotification({ token, topic, title, body, data = {
         ...new Set(
           subs
             .map((s) => s.fcmToken || s.token)
-            .filter((t) => typeof t === 'string' && t.trim().length > 15)
+            .filter(isRealFcmToken)
         ),
       ];
 

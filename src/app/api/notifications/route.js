@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery } from '@/lib/mongodb';
-import { sendPushNotification } from '@/lib/fcm';
+import { sendPushNotification, getFirebaseMessaging } from '@/lib/fcm';
+import { isRealFcmToken } from '@/lib/pushTokens';
 
 // GET: Fetch in-app notifications for player OR broadcast history for admin
 export async function GET(req) {
@@ -218,10 +219,12 @@ export async function PUT(req) {
     const session = await getSessionUser();
     const body = await req.json().catch(() => ({}));
     const email = (session?.email || body.email || '').toLowerCase().trim();
-    const fcmToken = body.token || body.fcmToken || null;
+    const rawToken = body.token || body.fcmToken || null;
+    const fcmToken = isRealFcmToken(rawToken) ? rawToken.trim() : null;
     const device = body.device || 'web_chrome';
+    const deviceId = body.deviceId || null;
 
-    if (!fcmToken && !email) {
+    if (!fcmToken && !email && !session?.email) {
       return NextResponse.json({ success: false, error: 'Push token or email is required' }, { status: 400 });
     }
 
@@ -231,26 +234,58 @@ export async function PUT(req) {
 
     const resolvedUserId = body.userId || session?.id || session?.userId || null;
     const resolvedUsername = body.username || session?.username || null;
-    const effectiveEmail = email || (fcmToken ? `device_${fcmToken.slice(-10)}@push.zoraaroyal.com` : 'anonymous@push.zoraaroyal.com');
-    const filter = fcmToken ? { $or: [{ fcmToken }, { token: fcmToken }] } : { email: effectiveEmail };
+    const effectiveRole = session?.role || body.role || 'player';
+    const effectiveEmail =
+      email ||
+      (session?.email ? session.email.toLowerCase().trim() : '') ||
+      (fcmToken ? `device_${fcmToken.slice(-10)}@push.zorraroyal.com` : 'anonymous@push.zorraroyal.com');
+
+    const filter = fcmToken
+      ? { $or: [{ fcmToken }, { token: fcmToken }] }
+      : { email: effectiveEmail, device };
+
+    const setFields = {
+      email: effectiveEmail,
+      device,
+      deviceId,
+      userId: resolvedUserId ? String(resolvedUserId) : null,
+      username: resolvedUsername || effectiveEmail.split('@')[0],
+      role: effectiveRole,
+      isSubscribed: true,
+      updatedAt: new Date(),
+    };
+    if (fcmToken) {
+      setFields.fcmToken = fcmToken;
+      setFields.token = fcmToken;
+    }
 
     await subsCol.updateOne(
       filter,
       {
-        $set: {
-          email: effectiveEmail,
-          fcmToken,
-          token: fcmToken,
-          device,
-          userId: resolvedUserId ? String(resolvedUserId) : null,
-          username: resolvedUsername || effectiveEmail.split('@')[0],
-          isSubscribed: true,
-          updatedAt: new Date(),
-        },
+        $set: setFields,
         $setOnInsert: { createdAt: new Date() },
       },
       { upsert: true }
     );
+
+    if (fcmToken) {
+      setImmediate(async () => {
+        try {
+          const messaging = await getFirebaseMessaging();
+          if (!messaging) return;
+          await messaging.subscribeToTopic([fcmToken], 'zorra_all_players');
+          if (effectiveRole && effectiveRole !== 'player') {
+            await messaging.subscribeToTopic([fcmToken], 'zorra_staff_alerts');
+          } else {
+            try {
+              await messaging.unsubscribeFromTopic([fcmToken], 'zorra_staff_alerts');
+            } catch {}
+          }
+        } catch (subErr) {
+          console.warn('[FCM] Auto-subscribe device token note:', subErr.message);
+        }
+      });
+    }
 
     const uid = session?.id || session?.userId;
     if (uid) {

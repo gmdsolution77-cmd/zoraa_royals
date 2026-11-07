@@ -290,6 +290,27 @@ export default function RoyalNavbar({
     return () => clearInterval(interval);
   }, []);
 
+  const balanceButton = (extraClass = '') => (
+    <button
+      type="button"
+      onClick={() => onOpenCashier && onOpenCashier('deposit')}
+      className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl border transition-all shrink-0 ${extraClass} ${
+        balancePulse
+          ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_14px_rgba(16,185,129,0.45)] scale-[1.02]'
+          : 'border-emerald-500/35 bg-[#0e1218]/90 hover:border-emerald-400/60'
+      }`}
+      title="Wallet balance — tap to deposit"
+    >
+      <Coins className="w-3.5 h-3.5 text-emerald-400 shrink-0 md:hidden" />
+      <span className="text-[9px] font-black px-1 py-0.5 rounded bg-emerald-500 text-black uppercase hidden md:inline">
+        Bal
+      </span>
+      <span className="font-mono font-bold text-[11px] sm:text-xs text-emerald-300 tabular-nums whitespace-nowrap">
+        ${displayBalance.toFixed(2)}
+      </span>
+    </button>
+  );
+
   return (
     <>
     <header
@@ -324,6 +345,13 @@ export default function RoyalNavbar({
           </Link>
         </div>
 
+        {/* Mobile: wallet balance always visible in header center */}
+        {activeUser ? (
+          <div className="flex-1 flex justify-center min-w-0 px-0.5 md:hidden">{balanceButton('max-w-[9.5rem]')}</div>
+        ) : (
+          <div className="flex-1 md:hidden" aria-hidden />
+        )}
+
         {/* Center: Live Progressive Jackpot Counter (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#131622] via-[#1a1f30] to-[#131622] border border-[#d4af37]/30 shadow-inner">
           <Sparkles className="w-4 h-4 text-[#ffd700] animate-pulse" />
@@ -333,34 +361,16 @@ export default function RoyalNavbar({
         </div>
 
         {/* Right: Actions, Currency, Balance & User Menu */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0 max-w-[min(100%,calc(100vw-6.5rem))] sm:max-w-none overflow-x-auto overflow-y-visible flex-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0 md:max-w-none overflow-visible flex-nowrap">
           {activeUser ? (
             <>
-              {/* Balance first so it stays visible when header scrolls horizontally */}
-              <button
-                type="button"
-                onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className={`order-first inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl border transition-all shrink-0 ${
-                  balancePulse
-                    ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_14px_rgba(16,185,129,0.45)] scale-[1.02]'
-                    : 'border-emerald-500/35 bg-[#0e1218]/90 hover:border-emerald-400/60'
-                }`}
-                title="Wallet balance — tap to deposit"
-              >
-                <Coins className="w-3.5 h-3.5 text-emerald-400 shrink-0 sm:hidden" />
-                <span className="text-[9px] font-black px-1 py-0.5 rounded bg-emerald-500 text-black uppercase hidden sm:inline">
-                  Bal
-                </span>
-                <span className="font-mono font-bold text-[11px] sm:text-xs text-emerald-300 tabular-nums whitespace-nowrap">
-                  ${displayBalance.toFixed(2)}
-                </span>
-              </button>
+              <div className="hidden md:block">{balanceButton()}</div>
 
               {showFreeplayButton && (
                 <button
                   type="button"
                   onClick={handleFreeplayClick}
-                  className="order-2 inline-flex px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-500/20 border border-amber-400/90 text-amber-200 hover:brightness-125 transition items-center gap-1 text-[10px] sm:text-xs font-black shadow-md cursor-pointer shrink-0"
+                  className="hidden sm:inline-flex px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-500/20 border border-amber-400/90 text-amber-200 hover:brightness-125 transition items-center gap-1 text-[10px] sm:text-xs font-black shadow-md cursor-pointer shrink-0"
                   title={
                     freeplayPendingReview
                       ? 'Freeplay request under staff review'
