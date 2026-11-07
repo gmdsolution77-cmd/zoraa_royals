@@ -3,17 +3,31 @@ import bcrypt from 'bcryptjs';
 
 const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/zorra_royals';
 
+const PLACEHOLDER_URI =
+  /cluster0\.abcde\.mongodb\.net/i.test(uri) ||
+  /<cluster>/i.test(uri) ||
+  /YOUR_CLUSTER/i.test(uri);
+
 let client;
 let clientPromise;
+
+function assertMongoUriConfigured() {
+  if (!uri || !String(uri).trim()) {
+    throw new Error('MONGODB_URI is not set. File-based storage has been removed; use MongoDB only.');
+  }
+  if (PLACEHOLDER_URI) {
+    throw new Error(
+      'MONGODB_URI still uses the example host "cluster0.abcde.mongodb.net". In MongoDB Atlas: Cluster → Connect → Drivers → copy the real mongodb+srv:// connection string into .env.local (and on your live server). IP whitelist is fine — the hostname is wrong.'
+    );
+  }
+}
 
 /**
  * Single MongoDB connection — no local JSON fallback (.zorra_store.json removed).
  * Set MONGODB_URI in production (and ensure mongod is running for local dev).
  */
 export async function getDb(dbName = 'zorra_royals') {
-  if (!uri || !String(uri).trim()) {
-    throw new Error('MONGODB_URI is not set. File-based storage has been removed; use MongoDB only.');
-  }
+  assertMongoUriConfigured();
 
   if (!clientPromise) {
     client = new MongoClient(uri, {

@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "eslint",
+    "check:db": "node scripts/check-mongodb.mjs",
+    "test:push": "node scripts/test-push-pipeline.mjs",
     "cap:sync": "cap sync",
     "android:sync": "cap sync android",
     "android:open": "cap open android",

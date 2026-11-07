@@ -196,11 +196,17 @@ export default function PushNotificationManager() {
                     }
                   } catch {}
 
+                  const meRes = await fetch('/api/auth/me', { credentials: 'include' }).catch(() => null);
+                  const meData = meRes ? await meRes.json().catch(() => ({})) : {};
+                  if (meData?.user?.email) storedEmail = meData.user.email;
+
                   await fetch('/api/notifications', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                       token: token.value,
+                      fcmToken: token.value,
                       device: Capacitor.getPlatform(),
                       email: storedEmail,
                     }),
@@ -232,6 +238,21 @@ export default function PushNotificationManager() {
 
     initCapacitor();
   }, [router]);
+
+  // Re-bind FCM token to logged-in user (APK often registers before login → userId was null)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const resyncToken = async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!Capacitor?.isNativePlatform()) return;
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        await PushNotifications.register();
+      } catch {}
+    };
+    window.addEventListener('royal-user-sync', resyncToken);
+    return () => window.removeEventListener('royal-user-sync', resyncToken);
+  }, []);
 
   // 2. Browser Service Worker & Chrome Permission Setup
   useEffect(() => {
