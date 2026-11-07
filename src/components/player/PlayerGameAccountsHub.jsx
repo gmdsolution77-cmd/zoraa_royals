@@ -42,6 +42,11 @@ export default function PlayerGameAccountsHub({
   const [requestSuccessMsg, setRequestSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [loadCoinsGame, setLoadCoinsGame] = useState(null);
+  const [clientReady, setClientReady] = useState(false);
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const fetchAccountsAndRequests = async (isManual = false) => {
     if (!user?.email) return;
@@ -217,7 +222,7 @@ export default function PlayerGameAccountsHub({
           </p>
         </div>
 
-        {user && (
+        {clientReady && user ? (
           <button
             type="button"
             onClick={() => fetchAccountsAndRequests(true)}
@@ -227,7 +232,7 @@ export default function PlayerGameAccountsHub({
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>Sync Credentials</span>
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Success Notification Alert */}

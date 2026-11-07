@@ -17,7 +17,7 @@ import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function AccountsPage() {
   const router = useRouter();
-  const [user, setUser] = useState(() => getCachedUser());
+  const [user, setUser] = useState(null);
   const [games, setGames] = useState([]);
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
   const [cashierModal, setCashierModal] = useState({ open: false, tab: 'deposit' });
@@ -43,6 +43,8 @@ export default function AccountsPage() {
   };
 
   useEffect(() => {
+    const cached = getCachedUser();
+    if (cached) setUser(cached);
     refreshUser();
     const handleSync = (e) => {
       if (e?.detail) diffSet(setUser, e.detail);

@@ -174,7 +174,7 @@ export default function RoyalNavbar({
         if (d.claimed === false) {
           setCachedUser((prev) => {
             const merged = { ...(prev || {}), freeplayClaimed: false, signupBonusClaimed: false };
-            saveCachedUser(merged);
+            saveCachedUser(merged, { broadcast: false });
             return merged;
           });
         }
@@ -230,7 +230,7 @@ export default function RoyalNavbar({
             freeplayClaimed: Boolean(data.user.freeplayClaimed),
             signupBonusClaimed: Boolean(data.user.signupBonusClaimed),
           };
-          saveCachedUser(merged);
+          saveCachedUser(merged, { broadcast: false });
           return merged;
         });
       } catch {}

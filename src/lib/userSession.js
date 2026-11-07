@@ -16,19 +16,24 @@ export function getCachedUser() {
   return null;
 }
 
-export function saveCachedUser(userData) {
+export function saveCachedUser(userData, options = {}) {
+  const { broadcast = true } = options;
   if (typeof window === 'undefined') return;
   try {
     const existing = getCachedUser();
     if (userData && (userData._id || userData.userId || userData.email || userData.username)) {
       if (!areEqual(existing, userData)) {
         localStorage.setItem('zr_user_session', JSON.stringify(userData));
-        window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: userData }));
+        if (broadcast) {
+          window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: userData }));
+        }
       }
     } else {
       if (existing !== null) {
         localStorage.removeItem('zr_user_session');
-        window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: null }));
+        if (broadcast) {
+          window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: null }));
+        }
       }
     }
   } catch {}
