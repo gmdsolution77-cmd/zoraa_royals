@@ -38,6 +38,7 @@ export default function FreeplayTaskModal({
   const [taskId, setTaskId] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
   const [statusMsg, setStatusMsg] = useState(null);
+  const [liveWalletBal, setLiveWalletBal] = useState(null);
   const fileInputRef = useRef(null);
   const initialEmailSentRef = useRef(false);
 
@@ -52,6 +53,19 @@ export default function FreeplayTaskModal({
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.user) {
+          setLiveWalletBal(Number(d.user.balance ?? d.user.balanceSC ?? 0));
+          window.dispatchEvent(new CustomEvent('royal-user-sync', { detail: d.user }));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
+
   // Fetch dynamic active games from database
   useEffect(() => {
     if (isOpen) {
@@ -59,9 +73,14 @@ export default function FreeplayTaskModal({
         .then((r) => r.json())
         .then((d) => {
           if (d.success && Array.isArray(d.games)) {
-            const active = d.games
-              .filter((g) => g.status === 'active' || g.isActive !== false)
-              .map((g) => ({ ...g, title: sanitizeGameTitle(g.title) }));
+            const byTitle = new Map();
+            for (const g of d.games) {
+              if (g.status !== 'active' && g.isActive === false) continue;
+              const title = sanitizeGameTitle(g.title || g.name);
+              if (!title || byTitle.has(title)) continue;
+              byTitle.set(title, { ...g, title });
+            }
+            const active = Array.from(byTitle.values());
             diffSet(setAvailableGames, active);
             if (active.length > 0) {
               setSelectedGame((prev) => prev || active[0].title);
@@ -174,6 +193,7 @@ export default function FreeplayTaskModal({
       setStatusMsg({ type: 'error', text: 'Error reading file.' });
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleSubmit = async (e) => {
@@ -234,9 +254,18 @@ export default function FreeplayTaskModal({
 
   const canSubmit = Boolean(selectedGame && screenshot && !uploading && !submitting);
 
+  const walletBal =
+    liveWalletBal !== null
+      ? liveWalletBal
+      : Number(user?.balance ?? user?.balanceSC ?? 0);
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-xl rounded-3xl border border-[#d4af37]/40 bg-[#0c0e18] p-5 sm:p-7 shadow-[0_20px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(212,175,55,0.2)] my-8 text-white space-y-5">
+    <div
+      className="fixed inset-0 z-[9999] overflow-y-auto overscroll-y-contain bg-black/85 backdrop-blur-md"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      <div className="flex min-h-full items-start justify-center p-4 py-6 sm:py-10">
+      <div className="relative w-full max-w-xl rounded-3xl border border-[#d4af37]/40 bg-[#0c0e18] p-5 sm:p-7 shadow-[0_20px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(212,175,55,0.2)] text-white space-y-5">
         {/* Ambient Top Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-32 bg-[#ffd700]/15 rounded-full blur-3xl pointer-events-none" />
 
@@ -248,6 +277,14 @@ export default function FreeplayTaskModal({
         >
           <X size={18} />
         </button>
+
+        {user && (
+          <div className="flex justify-end -mb-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-[11px] font-mono font-bold text-emerald-300">
+              Wallet: ${walletBal.toFixed(2)}
+            </span>
+          </div>
+        )}
 
         {/* Modal Header */}
         <div className="flex items-center gap-3.5 border-b border-white/10 pb-4">
@@ -296,26 +333,27 @@ export default function FreeplayTaskModal({
               </span>
               <span>Select Casino Game Platform:</span>
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {availableGames.map((g) => {
-                const game = g.title || g.name;
-                const isSelected = selectedGame === game;
-                return (
-                  <button
-                    key={game}
-                    type="button"
-                    onClick={() => setSelectedGame(game)}
-                    className={`py-2 px-3 rounded-xl text-xs font-black font-heading transition border cursor-pointer text-center ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-amber-400 to-[#ffd700] text-black border-amber-300 shadow-[0_0_15px_rgba(212,175,55,0.4)]'
-                        : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    {game}
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              value={selectedGame}
+              onChange={(e) => setSelectedGame(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-[#ffd700] text-sm font-bold text-white outline-none cursor-pointer"
+            >
+              {availableGames.length === 0 ? (
+                <option value="">Loading platforms…</option>
+              ) : (
+                availableGames.map((g) => {
+                  const game = g.title || g.name;
+                  return (
+                    <option key={game} value={game} className="bg-slate-900 text-white">
+                      {game}
+                    </option>
+                  );
+                })
+              )}
+            </select>
+            <p className="text-[10px] text-slate-400 m-0">
+              Pick the sweepstakes platform where you want your freeplay loaded.
+            </p>
           </div>
 
           {/* Step 2: Verification Task Email Dispatch Info */}
@@ -492,6 +530,7 @@ export default function FreeplayTaskModal({
             )}
           </button>
         </form>
+      </div>
       </div>
     </div>
   );

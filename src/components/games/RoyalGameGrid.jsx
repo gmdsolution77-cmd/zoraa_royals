@@ -41,6 +41,18 @@ export default function RoyalGameGrid({
     return matchesCategory && matchesSearch;
   });
 
+  const dedupedGames = [];
+  const seenKeys = new Set();
+  for (const g of filteredGames) {
+    const dedupeKey =
+      g._id?.toString?.() ||
+      g.id?.toString?.() ||
+      `${g.gameId || ''}|${g.title || ''}`;
+    if (seenKeys.has(dedupeKey)) continue;
+    seenKeys.add(dedupeKey);
+    dedupedGames.push(g);
+  }
+
   return (
     <div className="space-y-6">
       {/* Category Pills & Search Bar */}
@@ -80,7 +92,7 @@ export default function RoyalGameGrid({
 
       {/* Grid of Games */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4">
-        {filteredGames.map((game) => {
+        {dedupedGames.map((game, idx) => {
           // Find matching user account for this game
           const account = accounts.find(
             (a) =>
@@ -98,7 +110,7 @@ export default function RoyalGameGrid({
 
           return (
             <GameCard
-              key={game.gameId || game._id}
+              key={game._id?.toString?.() || game.id?.toString?.() || `${game.gameId || 'game'}-${idx}`}
               game={game}
               account={account}
               pendingRequest={pendingRequest}
@@ -110,7 +122,7 @@ export default function RoyalGameGrid({
         })}
       </div>
 
-      {filteredGames.length === 0 && (
+      {dedupedGames.length === 0 && (
         <div className="py-16 text-center text-gray-500 text-sm">
           No sweepstakes platform found matching "{searchQuery}".
         </div>

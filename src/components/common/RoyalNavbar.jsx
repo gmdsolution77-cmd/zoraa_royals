@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -41,25 +42,54 @@ export default function RoyalNavbar({
 }) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [profileMenuCoords, setProfileMenuCoords] = useState(null);
+  const profileBtnRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const [tickerAmount, setTickerAmount] = useState(1842950.45);
   const [bonusSettings, setBonusSettings] = useState({ freeplayAmountSC: 3.0, freeplayActive: true });
   const [liveBalance, setLiveBalance] = useState(null);
   const [balancePulse, setBalancePulse] = useState(false);
   const lastBalanceRef = useRef(null);
 
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+  const updateProfileMenuCoords = useCallback(() => {
+    if (!profileBtnRef.current || typeof window === 'undefined') return;
+    const rect = profileBtnRef.current.getBoundingClientRect();
+    setProfileMenuCoords({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, []);
+
+  const toggleProfileMenu = () => {
+    if (!dropdownOpen) {
+      updateProfileMenuCoords();
+      setDropdownOpen(true);
+    } else {
+      setDropdownOpen(false);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen]);
+  };
+
+  // Close profile menu on outside click; reposition on scroll/resize
+  useEffect(() => {
+    if (!dropdownOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (profileBtnRef.current?.contains(e.target)) return;
+      if (profileMenuRef.current?.contains(e.target)) return;
+      setDropdownOpen(false);
+    };
+
+    const handleReposition = () => updateProfileMenuCoords();
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [dropdownOpen, updateProfileMenuCoords]);
 
   // Persistent Client-Side Cached User (Eliminates login/signup flicker on tab switches)
   const [cachedUser, setCachedUser] = useState(null);
@@ -196,9 +226,9 @@ export default function RoyalNavbar({
     <>
     <header
       style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
-      className="sticky top-0 z-40 w-full border-b border-[rgba(212,175,55,0.2)] bg-[#07080b]/90 backdrop-blur-md"
+      className="sticky top-0 z-[120] w-full border-b border-[rgba(212,175,55,0.2)] bg-[#07080b]/90 backdrop-blur-md overflow-visible"
     >
-      <div className="w-full px-2.5 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-1.5 sm:gap-4 overflow-x-clip">
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 min-h-16 sm:min-h-20 py-1 flex items-center justify-between gap-1 sm:gap-2 overflow-visible">
         {/* Left: Mobile Toggle & Logo (Hidden on desktop since Sidebar already displays logo) */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
@@ -235,46 +265,47 @@ export default function RoyalNavbar({
         </div>
 
         {/* Right: Actions, Currency, Balance & User Menu */}
-        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 min-w-0 overflow-visible">
           {activeUser ? (
             <>
-              {showPushPromptButton && (
-                  <button
-                    type="button"
-                    onClick={handleEnablePushNotifications}
-                    className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-black uppercase tracking-wide hover:bg-emerald-500/25 transition shrink-0"
-                  >
-                    <Bell className="w-3.5 h-3.5" />
-                    Allow alerts
-                  </button>
-                )}
-
-              {/* Live wallet balance */}
+              {/* Balance first so it stays visible when header scrolls horizontally */}
               <button
                 type="button"
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border transition-all shrink-0 ${
+                className={`order-first inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl border transition-all shrink-0 ${
                   balancePulse
                     ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_14px_rgba(16,185,129,0.45)] scale-[1.02]'
                     : 'border-emerald-500/35 bg-[#0e1218]/90 hover:border-emerald-400/60'
                 }`}
                 title="Wallet balance — tap to deposit"
               >
-                <span className="text-[9px] font-black px-1 py-0.5 rounded bg-emerald-500 text-black uppercase">
+                <Coins className="w-3.5 h-3.5 text-emerald-400 shrink-0 sm:hidden" />
+                <span className="text-[9px] font-black px-1 py-0.5 rounded bg-emerald-500 text-black uppercase hidden sm:inline">
                   Bal
                 </span>
-                <span className="font-mono font-bold text-[11px] sm:text-xs text-emerald-300 tabular-nums">
+                <span className="font-mono font-bold text-[11px] sm:text-xs text-emerald-300 tabular-nums whitespace-nowrap">
                   ${displayBalance.toFixed(2)}
                 </span>
               </button>
 
-              {/* Quick Deposit Button (Desktop & Tablet only - Mobile has bottom nav deposit) */}
+              {showPushPromptButton && (
+                  <button
+                    type="button"
+                    onClick={handleEnablePushNotifications}
+                    className="hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-black uppercase tracking-wide hover:bg-emerald-500/25 transition shrink-0"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    Allow alerts
+                  </button>
+                )}
+
+              {/* Quick Deposit */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="header-deposit-btn inline-flex btn-gold text-[11px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 font-bold items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0"
+                className="header-deposit-btn inline-flex btn-gold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2 font-bold items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0"
               >
                 <Wallet className="w-4 h-4" />
-                <span>Deposit</span>
+                <span className="hidden sm:inline">Deposit</span>
               </button>
 
               {showFreeplayButton && (
@@ -293,6 +324,7 @@ export default function RoyalNavbar({
               <button
                 type="button"
                 onClick={() => {
+                  setDropdownOpen(false);
                   setNotifsOpen(true);
                   if (typeof onOpenNotifications === 'function') onOpenNotifications();
                 }}
@@ -304,12 +336,15 @@ export default function RoyalNavbar({
                 <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-[#d4af37]" />
               </button>
 
-              {/* User Dropdown */}
-              <div className="relative shrink-0" ref={dropdownRef}>
+              {/* User profile — menu rendered in portal so it is not clipped by header scroll */}
+              <div className="relative shrink-0 z-[130]">
                 <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  ref={profileBtnRef}
+                  type="button"
+                  onClick={toggleProfileMenu}
                   className="flex items-center gap-1 sm:gap-2 p-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/5 border border-[#d4af37]/30 hover:border-[#d4af37] transition cursor-pointer"
                   aria-label="User Profile Menu"
+                  aria-expanded={dropdownOpen}
                 >
                   <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#131622] flex items-center justify-center text-xs font-black text-black shrink-0">
                     {activeUser.username ? activeUser.username[0].toUpperCase() : 'U'}
@@ -319,39 +354,6 @@ export default function RoyalNavbar({
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-[#0f121b] border border-[#d4af37]/30 shadow-2xl py-2 z-50 animate-slide-up">
-                    <div className="px-4 py-2.5 border-b border-white/10">
-                      <p className="text-xs font-bold text-white truncate">{activeUser.username}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{activeUser.email}</p>
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#ffd700] border border-[#d4af37]/40">
-                          {activeUser.vipTier || 'VIP Tier'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="py-1">
-                      <Link
-                        href="/promotions"
-                        onClick={() => setDropdownOpen(false)}
-                        className="w-full text-left px-4 py-2.5 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2.5 transition font-semibold"
-                      >
-                        <Sparkles className="w-4 h-4 text-amber-400" /> VIP &amp; Promotions
-                      </Link>
-                    </div>
-
-                    <div className="pt-1 border-t border-white/10">
-                      <button
-                        onClick={handleLogoutClick}
-                        className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition cursor-pointer font-bold"
-                      >
-                        <LogOut className="w-4 h-4" /> Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </>
           ) : (
@@ -380,6 +382,52 @@ export default function RoyalNavbar({
       onClose={() => setNotifsOpen(false)}
       user={activeUser}
     />
+
+    {dropdownOpen &&
+      profileMenuCoords &&
+      typeof document !== 'undefined' &&
+      createPortal(
+        <div
+          ref={profileMenuRef}
+          role="menu"
+          className="fixed w-52 max-w-[calc(100vw-16px)] rounded-2xl bg-[#0f121b] border border-[#d4af37]/30 shadow-[0_20px_50px_rgba(0,0,0,0.85)] py-2 z-[10100] animate-slide-up"
+          style={{
+            top: profileMenuCoords.top,
+            right: profileMenuCoords.right,
+          }}
+        >
+          <div className="px-4 py-2.5 border-b border-white/10">
+            <p className="text-xs font-bold text-white truncate">{activeUser?.username}</p>
+            <p className="text-[10px] text-gray-400 truncate">{activeUser?.email}</p>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#ffd700] border border-[#d4af37]/40">
+                {activeUser?.vipTier || 'VIP Tier'}
+              </span>
+            </div>
+          </div>
+
+          <div className="py-1">
+            <Link
+              href="/promotions"
+              onClick={() => setDropdownOpen(false)}
+              className="w-full text-left px-4 py-2.5 text-xs text-gray-200 hover:bg-[#d4af37]/10 hover:text-[#ffd700] flex items-center gap-2.5 transition font-semibold"
+            >
+              <Sparkles className="w-4 h-4 text-amber-400" /> VIP &amp; Promotions
+            </Link>
+          </div>
+
+          <div className="pt-1 border-t border-white/10">
+            <button
+              type="button"
+              onClick={handleLogoutClick}
+              className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition cursor-pointer font-bold"
+            >
+              <LogOut className="w-4 h-4" /> Sign Out
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }

@@ -24,7 +24,8 @@ import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSessio
 
 export default function SpinWheelPage() {
   const router = useRouter();
-  const [user, setUser] = useState(() => getCachedUser());
+  const [user, setUser] = useState(null);
+  const [hydrated, setHydrated] = useState(false);
   const [canSpin, setCanSpin] = useState(false);
   const [availableSpins, setAvailableSpins] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -74,6 +75,9 @@ export default function SpinWheelPage() {
   };
 
   useEffect(() => {
+    setHydrated(true);
+    const cached = getCachedUser();
+    if (cached) setUser(cached);
     loadUser();
     checkStatus();
   }, []);
@@ -192,8 +196,11 @@ export default function SpinWheelPage() {
             <div className="flex items-center gap-4 bg-black/50 border border-white/10 rounded-2xl p-3.5 px-5">
               <div className="text-right">
                 <span className="text-[10px] text-gray-400 uppercase font-mono block">WALLET BALANCE</span>
-                <span className="font-mono font-black text-xl text-gold-gradient">
-                  ${Number(user?.balanceSC ?? user?.balance ?? 0).toFixed(2)}
+                <span className="font-mono font-black text-xl text-gold-gradient" suppressHydrationWarning>
+                  $
+                  {hydrated
+                    ? Number(user?.balanceSC ?? user?.balance ?? 0).toFixed(2)
+                    : '0.00'}
                 </span>
                 <span className="text-[10px] text-emerald-400 font-bold flex items-center justify-end gap-1 mt-0.5 font-mono">
                   <Sparkles size={11} /> {availableSpins} Free Spins Ready
