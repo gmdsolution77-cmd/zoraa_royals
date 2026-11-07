@@ -19,9 +19,11 @@ import {
   RefreshCw,
   ExternalLink,
   Lock,
-  Gamepad2
+  Gamepad2,
+  Coins,
 } from 'lucide-react';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+import LoadCoinsModal from '@/components/player/LoadCoinsModal';
 
 export default function PlayerGameAccountsHub({
   user,
@@ -39,6 +41,7 @@ export default function PlayerGameAccountsHub({
   const [requestingGameId, setRequestingGameId] = useState(null);
   const [requestSuccessMsg, setRequestSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [loadCoinsGame, setLoadCoinsGame] = useState(null);
 
   const fetchAccountsAndRequests = async (isManual = false) => {
     if (!user?.email) return;
@@ -112,6 +115,20 @@ export default function PlayerGameAccountsHub({
       setRejectedRequests([]);
     }
   }, [user?.email]);
+
+  const openLoadCoins = (acc, matchedGame) => {
+    if (!user) {
+      onOpenAuth?.('login');
+      return;
+    }
+    setLoadCoinsGame(
+      matchedGame || {
+        title: acc.gameTitle,
+        name: acc.gameTitle,
+        gameId: acc.gameId || acc.gameTitle,
+      }
+    );
+  };
 
   const handleCopy = (text, key) => {
     if (!text) return;
@@ -384,15 +401,25 @@ export default function PlayerGameAccountsHub({
                     </div>
                   </div>
 
-                  <a
-                    href={gameUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black flex items-center justify-center gap-1.5 shadow-md hover:scale-102 transition w-full"
-                  >
-                    <span>Launch</span>
-                    <ExternalLink size={13} />
-                  </a>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                    <a
+                      href={gameUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#997b24] via-[#ffd700] to-[#fff0a8] text-black text-xs font-black flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.02] transition w-full"
+                    >
+                      <span>Launch</span>
+                      <ExternalLink size={13} />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => openLoadCoins(acc, matchedGame)}
+                      className="py-2.5 px-3 rounded-xl bg-[#0e1218] border border-[#ffd700]/45 text-[#ffd700] hover:bg-[#ffd700]/10 text-xs font-black flex items-center justify-center gap-1.5 transition w-full cursor-pointer"
+                    >
+                      <Coins size={14} />
+                      <span>Load Coins</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -570,6 +597,16 @@ export default function PlayerGameAccountsHub({
         </div>
       </div>
 
+      <LoadCoinsModal
+        isOpen={Boolean(loadCoinsGame)}
+        onClose={() => setLoadCoinsGame(null)}
+        game={loadCoinsGame}
+        user={user}
+        onSuccess={() => {
+          fetchAccountsAndRequests(true);
+          window.dispatchEvent(new CustomEvent('royal-balance-updated'));
+        }}
+      />
     </section>
   );
 }
