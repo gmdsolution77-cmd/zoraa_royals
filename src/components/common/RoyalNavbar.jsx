@@ -3,9 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Coins,
   Wallet,
+  Gift,
   Bell,
   User,
   Shield,
@@ -21,6 +23,7 @@ import {
 } from 'lucide-react';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 import { diffSet } from '@/lib/fastDiff';
+import NotificationsModal from '@/components/common/NotificationsModal';
 
 export default function RoyalNavbar({
   user,
@@ -28,6 +31,7 @@ export default function RoyalNavbar({
   setCurrency,
   onOpenAuth,
   onOpenCashier,
+  onOpenFreeplay,
   onOpenGameVault,
   onOpenNotifications,
   onOpenKyc,
@@ -35,9 +39,14 @@ export default function RoyalNavbar({
   onLogout,
   onToggleSidebar,
 }) {
+  const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [tickerAmount, setTickerAmount] = useState(1842950.45);
+  const [bonusSettings, setBonusSettings] = useState({ freeplayAmountSC: 3.0, freeplayActive: true });
+  const [liveBalance, setLiveBalance] = useState(null);
+  const [balancePulse, setBalancePulse] = useState(false);
+  const lastBalanceRef = useRef(null);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -56,6 +65,7 @@ export default function RoyalNavbar({
   const [cachedUser, setCachedUser] = useState(null);
   const [mounted, setMounted] = useState(false);
   const [showPushPromptButton, setShowPushPromptButton] = useState(false);
+  const [notifsOpen, setNotifsOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
@@ -81,9 +91,21 @@ export default function RoyalNavbar({
   }, []);
 
   useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d?.settings) diffSet(setBonusSettings, d.settings);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (user) {
       diffSet(setCachedUser, user);
       saveCachedUser(user);
+      const bal = Number(user.balance ?? user.balanceSC ?? 0);
+      setLiveBalance(bal);
+      lastBalanceRef.current = bal;
     }
   }, [user]);
 
@@ -96,6 +118,58 @@ export default function RoyalNavbar({
   }, []);
 
   const activeUser = mounted ? (user || cachedUser) : null;
+  const displayBalance = liveBalance ?? Number(activeUser?.balance ?? activeUser?.balanceSC ?? 0);
+
+  useEffect(() => {
+    if (!activeUser) return;
+    let cancelled = false;
+
+    const syncBalance = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'include' });
+        const data = await res.json();
+        if (cancelled || !data?.user) return;
+        const bal = Number(data.user.balance ?? data.user.balanceSC ?? 0);
+        if (lastBalanceRef.current !== null && bal !== lastBalanceRef.current) {
+          setBalancePulse(true);
+          setTimeout(() => setBalancePulse(false), 1200);
+        }
+        lastBalanceRef.current = bal;
+        setLiveBalance(bal);
+      } catch {}
+    };
+
+    syncBalance();
+    const interval = setInterval(syncBalance, 10000);
+    const onRefresh = () => syncBalance();
+    window.addEventListener('focus', onRefresh);
+    window.addEventListener('royal-user-sync', onRefresh);
+    window.addEventListener('royal-balance-updated', onRefresh);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', onRefresh);
+      window.removeEventListener('royal-user-sync', onRefresh);
+      window.removeEventListener('royal-balance-updated', onRefresh);
+    };
+  }, [activeUser?.userId, activeUser?.email, activeUser?.id]);
+
+  const handleFreeplayClick = () => {
+    if (onOpenFreeplay) {
+      onOpenFreeplay();
+      return;
+    }
+    router.push('/?freeplay=1');
+  };
+
+  const showFreeplayButton =
+    bonusSettings?.freeplayActive !== false &&
+    activeUser &&
+    !activeUser.signupBonusClaimed &&
+    !activeUser.freeplayClaimed;
+
+  const freeplayLabel = Number(bonusSettings?.freeplayAmountSC ?? bonusSettings?.signupBonusAmount ?? 3);
 
   const handleLogoutClick = () => {
     setDropdownOpen(false);
@@ -119,6 +193,7 @@ export default function RoyalNavbar({
   }, []);
 
   return (
+    <>
     <header
       style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
       className="sticky top-0 z-40 w-full border-b border-[rgba(212,175,55,0.2)] bg-[#07080b]/90 backdrop-blur-md"
@@ -174,18 +249,53 @@ export default function RoyalNavbar({
                   </button>
                 )}
 
+              {/* Live wallet balance */}
+              <button
+                type="button"
+                onClick={() => onOpenCashier && onOpenCashier('deposit')}
+                className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border transition-all shrink-0 ${
+                  balancePulse
+                    ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_14px_rgba(16,185,129,0.45)] scale-[1.02]'
+                    : 'border-emerald-500/35 bg-[#0e1218]/90 hover:border-emerald-400/60'
+                }`}
+                title="Wallet balance — tap to deposit"
+              >
+                <span className="text-[9px] font-black px-1 py-0.5 rounded bg-emerald-500 text-black uppercase">
+                  Bal
+                </span>
+                <span className="font-mono font-bold text-[11px] sm:text-xs text-emerald-300 tabular-nums">
+                  ${displayBalance.toFixed(2)}
+                </span>
+              </button>
+
               {/* Quick Deposit Button (Desktop & Tablet only - Mobile has bottom nav deposit) */}
               <button
                 onClick={() => onOpenCashier && onOpenCashier('deposit')}
-                className="header-deposit-btn hidden sm:inline-flex btn-gold text-xs sm:text-sm px-3 sm:px-4 py-2 font-bold items-center gap-1.5 cursor-pointer shrink-0"
+                className="header-deposit-btn inline-flex btn-gold text-[11px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 font-bold items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0"
               >
                 <Wallet className="w-4 h-4" />
                 <span>Deposit</span>
               </button>
 
+              {showFreeplayButton && (
+                <button
+                  type="button"
+                  onClick={handleFreeplayClick}
+                  className="inline-flex px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400/80 text-amber-300 hover:brightness-125 transition items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-black shadow-md cursor-pointer shrink-0"
+                  title={`Claim $${freeplayLabel.toFixed(0)} signup freeplay`}
+                >
+                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-bounce shrink-0" />
+                  <span className="whitespace-nowrap">${freeplayLabel.toFixed(0)} Freeplay</span>
+                </button>
+              )}
+
               {/* Notifications Button */}
               <button
-                onClick={onOpenNotifications}
+                type="button"
+                onClick={() => {
+                  setNotifsOpen(true);
+                  if (typeof onOpenNotifications === 'function') onOpenNotifications();
+                }}
                 className="relative p-1.5 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#d4af37]/40 transition shrink-0 cursor-pointer"
                 aria-label="View notifications"
               >
@@ -264,5 +374,12 @@ export default function RoyalNavbar({
         </div>
       </div>
     </header>
+
+    <NotificationsModal
+      isOpen={notifsOpen}
+      onClose={() => setNotifsOpen(false)}
+      user={activeUser}
+    />
+    </>
   );
 }

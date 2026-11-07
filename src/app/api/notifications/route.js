@@ -271,24 +271,59 @@ export async function PUT(req) {
   }
 }
 
-// PATCH: Mark notification as read
+// PATCH: Mark notification(s) as read
 export async function PATCH(req) {
   try {
     const session = await getSessionUser();
     const body = await req.json().catch(() => ({}));
+    const email = (session?.email || body.email || '').toLowerCase().trim();
+    const userId = session?.userId || session?.id || body.userId || null;
     const notificationId = body.notificationId || body.id || null;
+    const markAll = body.markAll === true || body.notificationId === 'all';
 
     const db = await getDb();
     const notifsCol = db.collection('notifications');
 
-    if (notificationId) {
-      await notifsCol.updateOne(toIdQuery(notificationId), {
-        $set: { read: true, readAt: new Date() },
-      });
+    const userKeys = [];
+    if (email) userKeys.push(email);
+    if (userId) userKeys.push(userId.toString());
+    if (session?.username) userKeys.push(session.username.toLowerCase());
+
+    const readUpdate = { $set: { read: true, readAt: new Date() } };
+    if (userKeys.length > 0) {
+      readUpdate.$addToSet = { readBy: { $each: userKeys } };
+    }
+
+    if (notificationId && !markAll) {
+      await notifsCol.updateOne(toIdQuery(notificationId), readUpdate);
       return NextResponse.json({ success: true, message: 'Notification marked as read.' });
     }
 
-    return NextResponse.json({ success: false, error: 'Notification ID required' }, { status: 400 });
+    const targetConditions = [{ target: 'all' }, { target: 'player' }];
+    if (userId) {
+      const uidStr = userId.toString();
+      targetConditions.push({ userId: uidStr });
+      try {
+        targetConditions.push({ userId: toIdQuery(uidStr)._id });
+      } catch {}
+    }
+    if (email) {
+      targetConditions.push({ email });
+      targetConditions.push({ userEmail: email });
+    }
+    if (session?.username) {
+      targetConditions.push({ username: session.username });
+    }
+
+    await notifsCol.updateMany(
+      {
+        target: { $ne: 'staff' },
+        $or: targetConditions,
+      },
+      readUpdate
+    );
+
+    return NextResponse.json({ success: true, message: 'Notifications marked as read.' });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

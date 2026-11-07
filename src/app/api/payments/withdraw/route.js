@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery, toObjectId } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
-import { notifyPlayer } from '@/lib/notify';
+import { notifyPlayer, notifyStaff } from '@/lib/notify';
 
 // GET: List Redemptions
 export async function GET(req) {
@@ -191,14 +191,24 @@ export async function POST(req) {
       createdAt: new Date(),
     });
 
-    // 3. Send Notification to User
-    await db.collection('notifications').insertOne({
-      userId: user._id,
+    notifyPlayer({
+      userId: user._id.toString(),
+      userEmail: user.email,
+      username: user.username,
       title: '💸 Cashout Request Submitted',
-      message: `Your cashout request for $${redeemAmount.toFixed(2)} from ${gameTitle || 'game'} has been queued. Our financial desk is verifying your game screenshot and will dispatch to ${destinationAddress.trim()}.`,
+      message: `Your cashout request for $${redeemAmount.toFixed(2)} from ${finalGameTitle} has been queued. Our desk is verifying your game screenshot and will dispatch to ${destinationAddress.trim()}.`,
       type: 'withdraw',
-      read: false,
-      createdAt: new Date(),
+      data: { redemptionId: insertRes.insertedId.toString(), url: '/cashout' },
+    });
+
+    notifyStaff({
+      title: '💸 New Cashout Request',
+      message: `@${user.username} requested a cashout of $${redeemAmount.toFixed(2)} via ${payoutMethod} (${finalGameTitle}).`,
+      type: 'withdraw_request',
+      data: {
+        redemptionId: insertRes.insertedId.toString(),
+        url: '/admin?tab=finance',
+      },
     });
 
     return NextResponse.json({

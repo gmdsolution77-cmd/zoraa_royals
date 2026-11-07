@@ -45,7 +45,6 @@ import RoyalSlotModal from '@/components/games/RoyalSlotModal';
 import RoyalCrashModal from '@/components/games/RoyalCrashModal';
 import RoyalBlackjackModal from '@/components/games/RoyalBlackjackModal';
 import LiveChatModal from '@/components/support/LiveChatModal';
-import NotificationsModal from '@/components/common/NotificationsModal';
 import KycModal from '@/components/common/KycModal';
 import DailySpinWheelModal from '@/components/common/DailySpinWheelModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
@@ -73,6 +72,9 @@ export default function HomePage() {
       }
       if (params.get('chat') === 'open' || window.location.hash === '#chat') {
         setChatOpen(true);
+      }
+      if (params.get('freeplay') === '1') {
+        setFreeplayOpen(true);
       }
     }
 
@@ -109,7 +111,6 @@ export default function HomePage() {
   const [gameVaultOpen, setGameVaultOpen] = useState(false);
   const [freeplayOpen, setFreeplayOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [notifsOpen, setNotifsOpen] = useState(false);
   const [kycOpen, setKycOpen] = useState(false);
   const [spinWheelOpen, setSpinWheelOpen] = useState(false);
   const [activeInternalGame, setActiveInternalGame] = useState(null);
@@ -226,7 +227,6 @@ export default function HomePage() {
           onOpenFreeplay={() => setFreeplayOpen(true)}
           onOpenSpinWheel={() => setSpinWheelOpen(true)}
           onOpenGameVault={() => setGameVaultOpen(true)}
-          onOpenNotifications={() => setNotifsOpen(true)}
           onOpenKyc={() => setKycOpen(true)}
           onLogout={handleLogout}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -377,12 +377,6 @@ export default function HomePage() {
         onClose={() => setChatOpen(false)}
         user={user}
         onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
-      />
-
-      <NotificationsModal
-        isOpen={notifsOpen}
-        onClose={() => setNotifsOpen(false)}
-        user={user}
       />
 
       <KycModal
