@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import DataLoadingPanel from '@/components/common/DataLoadingPanel';
 import {
   Search,
   Check,
@@ -35,6 +36,7 @@ export default function FinanceUnifiedDesk({
   onRejectRedemption,
   onRefresh,
   isRefreshing = false,
+  isInitialLoading = false,
   customDepositSC = {},
   setCustomDepositSC,
   onAddMethod,
@@ -107,6 +109,9 @@ export default function FinanceUnifiedDesk({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'Outfit, sans-serif, sans-serif' }}>
+      {isInitialLoading && (
+        <DataLoadingPanel variant="skeleton-table" label="Loading finance queue..." rows={5} />
+      )}
       {/* Top Header & Navigation Bar */}
       <div
         style={{

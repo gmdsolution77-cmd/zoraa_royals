@@ -41,6 +41,9 @@ export default function LiveChatModal({
         localStorage.setItem('zorra_guest_id', gid);
       }
       setGuestId(gid);
+      try {
+        window.dispatchEvent(new CustomEvent('zorra-guest-chat-ready'));
+      } catch {}
     }
   }, []);
 

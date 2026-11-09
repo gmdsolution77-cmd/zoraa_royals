@@ -3,6 +3,7 @@ import NativeAppBackHandler from '@/components/common/NativeAppBackHandler';
 import PushNotificationManager from '@/components/common/PushNotificationManager';
 import GlobalLiveChatWidget from '@/components/common/GlobalLiveChatWidget';
 import GlobalStaffAlertPoller from '@/components/common/GlobalStaffAlertPoller';
+import RealtimeBridge from '@/components/common/RealtimeBridge';
 
 export const metadata = {
   title: 'Zorra Royals | VIP Palace & Social Sweepstakes Casino',
@@ -42,6 +43,7 @@ export default function RootLayout({ children }) {
       <body className="bg-[#07080b] text-[#f8fafc] antialiased selection:bg-[#d4af37] selection:text-black min-h-screen">
         <NativeAppBackHandler />
         <PushNotificationManager />
+        <RealtimeBridge />
         <GlobalStaffAlertPoller />
         <GlobalLiveChatWidget />
         {children}

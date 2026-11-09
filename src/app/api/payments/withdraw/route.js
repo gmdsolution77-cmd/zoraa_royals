@@ -177,6 +177,20 @@ export async function POST(req) {
     });
 
     // 2. Write Immutable Ledger Entry
+    try {
+      const { publishFinanceWithdraw } = await import('@/lib/realtimePublish');
+      publishFinanceWithdraw({
+        action: 'created',
+        status: 'pending',
+        redemptionId: insertRes.insertedId.toString(),
+        amount: redeemAmount,
+        username: user.username,
+        gameTitle: finalGameTitle,
+        userEmail: user.email,
+        userId: user._id.toString(),
+      });
+    } catch {}
+
     await ledgerCol.insertOne({
       userId: user._id.toString(),
       username: user.username,

@@ -23,6 +23,8 @@ import {
   Coins,
 } from 'lucide-react';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+import { readClientCache, writeClientCache } from '@/lib/clientDataCache';
+import DataLoadingPanel from '@/components/common/DataLoadingPanel';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
 
 export default function PlayerGameAccountsHub({
@@ -36,6 +38,7 @@ export default function PlayerGameAccountsHub({
   const [pendingRequests, setPendingRequests] = useState([]);
   const [rejectedRequests, setRejectedRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [copiedKey, setCopiedKey] = useState(null);
   const [showPasswordMap, setShowPasswordMap] = useState({});
   const [requestingGameId, setRequestingGameId] = useState(null);
@@ -51,7 +54,20 @@ export default function PlayerGameAccountsHub({
   const fetchAccountsAndRequests = async (isManual = false) => {
     if (!user?.email) return;
 
+    const cacheKey = `player-game-hub:${user.email.toLowerCase()}`;
+    if (!isManual) {
+      const cached = readClientCache(cacheKey);
+      if (cached) {
+        diffSet(setActiveAccounts, cached.readyList || []);
+        diffSet(setPendingRequests, cached.pendingList || []);
+        diffSet(setRejectedRequests, cached.rejectedList || []);
+        setInitialLoading(false);
+      }
+    }
+
     if (isManual) setLoading(true);
+    else if (!readClientCache(cacheKey)) setInitialLoading(true);
+
     try {
       const [credRes, reqRes] = await Promise.all([
         fetch(`/api/game-accounts?email=${encodeURIComponent(user.email)}`),
@@ -102,10 +118,12 @@ export default function PlayerGameAccountsHub({
       diffSet(setActiveAccounts, readyList);
       diffSet(setPendingRequests, pendingList);
       diffSet(setRejectedRequests, rejectedList);
+      writeClientCache(cacheKey, { readyList, pendingList, rejectedList }, 90000);
     } catch (err) {
       console.error('Error fetching game accounts:', err);
     } finally {
       if (isManual) setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -249,6 +267,10 @@ export default function PlayerGameAccountsHub({
           <AlertCircle size={18} className="text-rose-400 shrink-0" />
           <span>{errorMsg}</span>
         </div>
+      )}
+
+      {initialLoading && user?.email && (
+        <DataLoadingPanel variant="skeleton-table" label="Loading your game IDs..." rows={4} className="mb-6" />
       )}
 
       {/* Summary KPI Strip */}

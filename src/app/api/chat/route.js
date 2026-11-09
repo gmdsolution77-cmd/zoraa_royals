@@ -1,5 +1,6 @@
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { publishChatRealtime } from '@/lib/realtimePublish';
 
 function isStaffRole(role) {
   const r = String(role || '').toLowerCase();
@@ -287,6 +288,20 @@ export async function POST(req) {
     };
 
     const result = await chatCol.insertOne(messageDoc);
+    const insertedId = result.insertedId ? String(result.insertedId) : '';
+
+    publishChatRealtime({
+      conversationId: resolvedConvId,
+      senderRole: effectiveSenderRole,
+      message: {
+        ...messageDoc,
+        id: insertedId,
+        _id: insertedId,
+      },
+      userEmail: effectiveEmail,
+      userId: String(effectiveUserId),
+      guestId: !session ? String(guestId || resolvedConvId) : undefined,
+    });
 
     if (isExplicitStaff) {
       try {

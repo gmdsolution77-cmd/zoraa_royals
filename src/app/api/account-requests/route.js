@@ -173,6 +173,15 @@ export async function POST(req) {
 
     const res = await requestsCol.insertOne(newRequest);
 
+    try {
+      const { publishAccountRequestCreated } = await import('@/lib/realtimePublish');
+      publishAccountRequestCreated({
+        request: { ...newRequest, id: res.insertedId.toString(), _id: res.insertedId.toString() },
+        userEmail,
+        userId: user._id.toString(),
+      });
+    } catch {}
+
     notifyPlayer({
       userId: user._id.toString(),
       userEmail,

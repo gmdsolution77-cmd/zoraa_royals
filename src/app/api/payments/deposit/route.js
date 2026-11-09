@@ -194,6 +194,20 @@ export async function POST(req) {
       },
     });
 
+    try {
+      const { publishFinanceDeposit } = await import('@/lib/realtimePublish');
+      publishFinanceDeposit({
+        action: 'created',
+        status: 'pending',
+        depositId: res.insertedId.toString(),
+        amount: depositAmount,
+        username: session.username,
+        methodName,
+        userEmail: cleanUserEmail,
+        userId: String(uid),
+      });
+    } catch {}
+
     return NextResponse.json({
       success: true,
       depositId: res.insertedId.toString(),

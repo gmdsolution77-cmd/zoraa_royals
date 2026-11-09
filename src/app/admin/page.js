@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import DataLoadingPanel from '@/components/common/DataLoadingPanel';
+import {
+  applyAdminTabPayload,
+  fetchAdminTabPayload,
+  hydrateAdminTabFromCache,
+  storeAdminTabCache,
+} from '@/lib/adminTabDataCache';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -79,10 +86,17 @@ import {
   requestDesktopNotificationPermission,
 } from '@/lib/soundAlerts';
 import { diffSet, areEqual, sanitizeGameTitle } from '@/lib/fastDiff';
+import {
+  mergeChatInboxPreservingUnread,
+  createChatInboxDedup,
+  applyInboundChatInboxBump,
+  dedupeChatMessagesById,
+} from '@/lib/zorraAdminChatInbox';
 
 export default function AdminPortal({ initialTab }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [adminTabLoading, setAdminTabLoading] = useState(false);
 
   // Normalize tab
   const normalizeTab = (tab) => {
@@ -280,6 +294,9 @@ export default function AdminPortal({ initialTab }) {
   const activeTabRef = useRef(activeTab);
   const lastActiveMsgKeyRef = useRef(null);
   const prevConvUnreadMapRef = useRef(new Map());
+  const claimChatInboxAlertRef = useRef(createChatInboxDedup());
+  const lastChatConvIdRef = useRef(null);
+  const chatInboxRefreshTimerRef = useRef(null);
 
   useEffect(() => {
     activeChatConvRef.current = activeChatConv;
@@ -301,10 +318,29 @@ export default function AdminPortal({ initialTab }) {
 
   const safeSetSortedMessages = (msgs) => {
     if (!Array.isArray(msgs)) return;
-    const sorted = [...msgs].sort(
+    const sorted = dedupeChatMessagesById(msgs).sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
     diffSet(setChatMessages, sorted);
+  };
+
+  const scheduleChatInboxRefresh = () => {
+    if (chatInboxRefreshTimerRef.current) clearTimeout(chatInboxRefreshTimerRef.current);
+    chatInboxRefreshTimerRef.current = setTimeout(() => {
+      const viewingOpen =
+        activeTabRef.current === 'chat' ? lastChatConvIdRef.current : null;
+      fetch('/api/chat?inbox=true', { credentials: 'include', cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (!d.success) return;
+          setChatConversations((prev) =>
+            mergeChatInboxPreservingUnread(prev, d.conversations || [], {
+              exceptConvId: viewingOpen,
+            })
+          );
+        })
+        .catch(() => {});
+    }, 450);
   };
 
   const [adminChatKeyboardOffset, setAdminChatKeyboardOffset] = useState(0);
@@ -955,6 +991,7 @@ export default function AdminPortal({ initialTab }) {
   const handleSelectChat = async (c) => {
     setActiveChatConv(c);
     activeChatConvRef.current = c;
+    lastChatConvIdRef.current = c?._id || null;
     // Immediately clear unread counter in client state
     setChatConversations(prev =>
       prev.map(item =>
@@ -1004,13 +1041,13 @@ export default function AdminPortal({ initialTab }) {
         diffSet(setAccountRequests, reqData.accountRequests || []);
       }
       if (chatData.success) {
-        const mappedConvs = (chatData.conversations || []).map(c => {
-          if (activeChatConvRef.current && (c._id === activeChatConvRef.current._id || c.userId === activeChatConvRef.current.userId)) {
-            return { ...c, unreadCount: 0, unreadStaff: false };
-          }
-          return c;
-        });
-        diffSet(setChatConversations, mappedConvs);
+        const viewingOpen =
+          activeTabRef.current === 'chat' ? lastChatConvIdRef.current : null;
+        setChatConversations((prev) =>
+          mergeChatInboxPreservingUnread(prev, chatData.conversations || [], {
+            exceptConvId: viewingOpen,
+          })
+        );
       }
 
       const pendingDeps = (depData.deposits || []).filter(d => d.status === 'pending');
@@ -1166,72 +1203,134 @@ export default function AdminPortal({ initialTab }) {
     }
   };
 
-  // Run persistent poller every 3.5 seconds
+  // SSE = instant desk; poll = backup (~2s)
   useEffect(() => {
     if (!user) return;
-    syncRequestsAndAlerts();
-    const interval = setInterval(syncRequestsAndAlerts, 3500);
-    return () => clearInterval(interval);
-  }, [user]);
+    const bumpCtx = { activeTabRef, activeChatConvRef };
+    const claim = claimChatInboxAlertRef.current;
 
-  // Fetch data for specific active tabs
-  useEffect(() => {
-    if (!user) return;
-
-    const loadData = () => {
-      if (activeTab === 'overview') {
-        fetch('/api/admin/stats').then(r => r.json()).then(d => { if (d.success) diffSet(setStats, d.stats); });
-      } else if (activeTab === 'games') {
-        fetch('/api/games?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setGames, d.games); });
-      } else if (activeTab === 'finance') {
-        fetch('/api/payments/methods?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setPaymentMethods, d.methods || []); });
-        fetch('/api/payments/deposit?status=all').then(r => r.json()).then(d => { if (d.success) diffSet(setDeposits, d.deposits || []); });
-        fetch('/api/payments/withdraw?status=all').then(r => r.json()).then(d => { if (d.success) diffSet(setRedemptions, d.redemptions || []); });
-      } else if (activeTab === 'chat') {
-        fetch('/api/chat?inbox=true').then(r => r.json()).then(d => {
-          if (d.success) {
-            const mapped = (d.conversations || []).map(item => {
-              if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
-                return { ...item, unreadCount: 0, unreadStaff: false };
-              }
-              return item;
-            });
-            diffSet(setChatConversations, mapped);
-          }
-        });
-      } else if (activeTab === 'kyc') {
-        fetch('/api/kyc?status=all').then(r => r.json()).then(d => { if (d.success) diffSet(setKycRequests, d.requests || []); });
-      } else if (activeTab === 'promos') {
-        fetch('/api/promos?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setPromos, d.promotions || []); });
-        fetch('/api/notifications?admin=true').then(r => r.json()).then(d => { if (d.success) diffSet(setBroadcastLogs, d.broadcasts || []); });
-      } else if (activeTab === 'affiliates' || activeTab === 'affiliate_commissions') {
-        fetch('/api/affiliates?mode=admin', { cache: 'no-store' }).then(r => r.json()).then(d => {
-          if (d.success) {
-            diffSet(setAffiliates, d.affiliates || []);
-            diffSet(setAffiliateSummary, d.summary || null);
-          }
-        });
-      } else if (activeTab === 'staff') {
-        fetch('/api/admin/staff').then(r => r.json()).then(d => { if (d.success) diffSet(setStaffList, d.staff || []); });
-      } else if (activeTab === 'account_requests') {
-        fetchAccountRequests();
-      } else if (activeTab === 'coins_allotment') {
-        fetchAllotmentData();
-      } else if (activeTab === 'users') {
-        fetch(`/api/users?search=${encodeURIComponent(userSearchQuery)}`).then(r => r.json()).then(d => { if (d.success) diffSet(setUsersList, d.users || []); });
-      } else if (activeTab === 'gateways') {
-        fetch('/api/payments/methods?all=true').then(r => r.json()).then(d => { if (d.success) diffSet(setPaymentMethods, d.methods || []); });
-      } else if (activeTab === 'tx_search') {
-        fetch(`/api/ledger?username=${encodeURIComponent(ledgerFilterUser)}&type=${ledgerFilterType}`).then(r => r.json()).then(d => { if (d.success) diffSet(setLedgerRecords, d.records || []); });
-      } else if (activeTab === 'settings') {
-        fetch('/api/admin/settings').then(r => r.json()).then(d => { if (d.success) diffSet(setSysSettings, d.settings); });
+    const onStaffInstant = (payload) => {
+      if (!payload?.type) return;
+      if (payload.type === 'NEW_CHAT_MESSAGE') {
+        const cid = String(payload.conversationId || '').trim();
+        const msgId = String(payload.message?.id || payload.message?._id || '').trim();
+        const tsNum = Number(payload.timestamp || payload.time || Date.now());
+        const dedupKey = msgId
+          ? `inbound:${cid}:${msgId}`
+          : `inbound:${cid}:${Math.floor(tsNum / 3000)}`;
+        if (claim(dedupKey)) {
+          applyInboundChatInboxBump(setChatConversations, payload, bumpCtx);
+          playAdminChime();
+          const uName = payload.username || 'VIP Patron';
+          const snippet = (payload.text || 'New message').slice(0, 80);
+          setActiveAlertToast({
+            type: 'chat',
+            title: `💬 Support: ${uName}`,
+            message: snippet,
+            subtext: 'Tap to open Live Support Desk',
+            targetTab: 'chat',
+            targetConv: { _id: cid, username: uName, userId: cid },
+          });
+        }
+        scheduleChatInboxRefresh();
+        return;
+      }
+      if (payload.type === 'NEW_DEPOSIT' || payload.type === 'NEW_WITHDRAW' || payload.type === 'NEW_REQUEST') {
+        syncRequestsAndAlerts();
       }
     };
 
-    loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
-  }, [user, activeTab, ledgerFilterUser, ledgerFilterType, accountReqFilter, userSearchQuery, allotmentSearch]);
+    const onDesk = () => syncRequestsAndAlerts();
+    const onStaffEv = (e) => onStaffInstant(e.detail);
+    window.addEventListener('zorra-admin-desk-sync', onDesk);
+    window.addEventListener('zorra_staff_event_local', onStaffEv);
+
+    syncRequestsAndAlerts();
+    const interval = setInterval(syncRequestsAndAlerts, 2000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('zorra-admin-desk-sync', onDesk);
+      window.removeEventListener('zorra_staff_event_local', onStaffEv);
+      if (chatInboxRefreshTimerRef.current) clearTimeout(chatInboxRefreshTimerRef.current);
+    };
+  }, [user]);
+
+  const adminApplyCtx = useMemo(
+    () => ({
+      setStats,
+      setGames,
+      setPaymentMethods,
+      setDeposits,
+      setRedemptions,
+      setChatConversations,
+      activeChatConvRef,
+      setKycRequests,
+      setPromos,
+      setBroadcastLogs,
+      setAffiliates,
+      setAffiliateSummary,
+      setStaffList,
+      setAccountRequests,
+      setAllotmentPlayers,
+      setAllotmentHistory,
+      setSelectedPlayer,
+      setUsersList,
+      setLedgerRecords,
+      setSysSettings,
+      diffSet,
+    }),
+    []
+  );
+
+  // Fetch data for specific active tabs (cached 2m — no full-screen reload when revisiting a tab)
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    const run = async (silent) => {
+      const extras = {
+        userSearchQuery,
+        ledgerFilterUser,
+        ledgerFilterType,
+        accountReqFilter,
+        allotmentSearch,
+      };
+
+      const hadCache = hydrateAdminTabFromCache(activeTab, extras, (tab, payload) => {
+        applyAdminTabPayload(tab, payload, adminApplyCtx);
+      });
+
+      if (!silent && !hadCache) setAdminTabLoading(true);
+
+      try {
+        const payload = await fetchAdminTabPayload(activeTab, extras);
+        if (cancelled || !payload) return;
+        storeAdminTabCache(activeTab, extras, payload);
+        applyAdminTabPayload(activeTab, payload, adminApplyCtx);
+      } catch (err) {
+        console.warn('Admin tab load:', err?.message || err);
+      } finally {
+        if (!cancelled) setAdminTabLoading(false);
+      }
+    };
+
+    run(false);
+    const interval = setInterval(() => run(true), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [
+    user,
+    activeTab,
+    ledgerFilterUser,
+    ledgerFilterType,
+    accountReqFilter,
+    userSearchQuery,
+    allotmentSearch,
+    adminApplyCtx,
+  ]);
 
   // Load chat messages when active conversation selected
   useEffect(() => {
@@ -1730,11 +1829,17 @@ export default function AdminPortal({ initialTab }) {
 
         {/* Dynamic Tab Body - Flush and fills remaining space */}
         <main
-          className={`flex-1 flex flex-col min-h-0 bg-[#07080b] ${
+          className={`relative flex-1 flex flex-col min-h-0 bg-[#07080b] ${
             activeTab === 'chat' ? 'p-2 sm:p-4 overflow-hidden' : 'p-3 sm:p-6 overflow-y-auto'
           }`}
           style={{ flex: 1 }}
         >
+          {adminTabLoading && (
+            <DataLoadingPanel
+              variant="overlay"
+              label={`Loading ${String(activeTab || 'desk').replace(/_/g, ' ')}...`}
+            />
+          )}
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -2602,6 +2707,7 @@ export default function AdminPortal({ initialTab }) {
               customDepositSC={customDepositSC}
               setCustomDepositSC={setCustomDepositSC}
               isRefreshing={refreshingFinance}
+              isInitialLoading={adminTabLoading && !deposits.length && !redemptions.length}
               onRefresh={() => {
                 setRefreshingFinance(true);
                 syncRequestsAndAlerts().finally(() => setRefreshingFinance(false));
@@ -4412,6 +4518,7 @@ export default function AdminPortal({ initialTab }) {
               activeTab="affiliates"
               affiliates={affiliates}
               summary={affiliateSummary}
+              isInitialLoading={adminTabLoading && affiliates.length === 0 && !affiliateSummary}
               onRefresh={() => {
                 fetch('/api/affiliates?mode=admin')
                   .then(r => r.json())
@@ -4435,6 +4542,7 @@ export default function AdminPortal({ initialTab }) {
               activeTab="affiliate_commissions"
               affiliates={affiliates}
               summary={affiliateSummary}
+              isInitialLoading={adminTabLoading && affiliates.length === 0 && !affiliateSummary}
               onRefresh={() => {
                 fetch('/api/affiliates?mode=admin')
                   .then(r => r.json())

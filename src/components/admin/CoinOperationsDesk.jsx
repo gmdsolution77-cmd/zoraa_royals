@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import useCachedFetch from '@/hooks/useCachedFetch';
+import DataLoadingPanel from '@/components/common/DataLoadingPanel';
 import {
   Coins,
   RefreshCw,
@@ -31,15 +33,36 @@ const freeplayWalletCredit = (item) => Number(item?.freeplayAmount || 3);
 
 export default function CoinOperationsDesk({ sessionUser }) {
   const [activeSection, setActiveSection] = useState('loads'); // 'loads' | 'cashouts'
-  const [loading, setLoading] = useState(false);
 
-  // Load Requests State (from /api/account-requests)
-  const [loadRequests, setLoadRequests] = useState([]);
+  const deskCacheKey = `coin-desk:${sessionUser?.id || sessionUser?._id || 'staff'}`;
+  const {
+    data: deskData,
+    loading: deskLoading,
+    refreshing: deskRefreshing,
+    refresh: refreshDesk,
+  } = useCachedFetch(
+    deskCacheKey,
+    async () => {
+      const [loadsRes, cashoutsRes] = await Promise.all([
+        fetch('/api/account-requests?status=all'),
+        fetch('/api/payments/withdraw?status=all'),
+      ]);
+      const loadsData = await loadsRes.json();
+      const cashoutsData = await cashoutsRes.json();
+      return {
+        loads: loadsData.success ? loadsData.accountRequests || [] : [],
+        cashouts: cashoutsData.success ? cashoutsData.redemptions || [] : [],
+      };
+    },
+    { ttl: 120000, pollInterval: 8000, enabled: Boolean(sessionUser) }
+  );
+
+  const loadRequests = deskData?.loads || [];
+  const cashoutRequests = deskData?.cashouts || [];
+  const loading = deskLoading || deskRefreshing;
+
   const [loadSearch, setLoadSearch] = useState('');
   const [loadFilter, setLoadFilter] = useState('all');
-
-  // Cashout Requests State (from /api/payments/withdraw)
-  const [cashoutRequests, setCashoutRequests] = useState([]);
   const [cashoutSearch, setCashoutSearch] = useState('');
   const [cashoutFilter, setCashoutFilter] = useState('all');
 
@@ -78,36 +101,7 @@ export default function CoinOperationsDesk({ sessionUser }) {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  // Fetch all data
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [loadsRes, cashoutsRes] = await Promise.all([
-        fetch('/api/account-requests?status=all'),
-        fetch('/api/payments/withdraw?status=all'),
-      ]);
-
-      const loadsData = await loadsRes.json();
-      const cashoutsData = await cashoutsRes.json();
-
-      if (loadsData.success) {
-        setLoadRequests(loadsData.accountRequests || []);
-      }
-      if (cashoutsData.success) {
-        setCashoutRequests(cashoutsData.redemptions || []);
-      }
-    } catch (err) {
-      console.error('Error fetching coin desk data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 8000);
-    return () => clearInterval(interval);
-  }, []);
+  const fetchData = () => refreshDesk();
 
   // Filtered Load Requests
   const pendingLoads = useMemo(() => {
@@ -380,6 +374,10 @@ export default function CoinOperationsDesk({ sessionUser }) {
           </button>
         </div>
       </div>
+
+      {deskLoading && !deskData && (
+        <DataLoadingPanel variant="skeleton-table" label="Loading coin desk queue..." rows={5} />
+      )}
 
       {/* Alert Banner */}
       {alert && (

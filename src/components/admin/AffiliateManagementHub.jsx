@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import DataLoadingPanel from '@/components/common/DataLoadingPanel';
 import {
   Users,
   DollarSign,
@@ -27,6 +28,7 @@ export default function AffiliateManagementHub({
   summary = null,
   onRefresh,
   onOpenPlayerProfile,
+  isInitialLoading = false,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState(activeTab === 'affiliate_commissions' ? 'unpaid' : 'all');
@@ -121,6 +123,9 @@ export default function AffiliateManagementHub({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'Lexend, sans-serif' }}>
+      {isInitialLoading && (
+        <DataLoadingPanel variant="skeleton-table" label="Loading affiliate network..." rows={4} />
+      )}
       {/* 1. Header with Live Actions */}
       <div
         className="relative overflow-hidden"
