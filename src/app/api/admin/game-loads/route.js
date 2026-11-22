@@ -1,6 +1,7 @@
 import { getDb, initDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, hasPermission } from '@/lib/auth';
 import { notifyPlayer } from '@/lib/notify';
+import { syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
 
 export async function GET() {
   try {
@@ -78,6 +79,15 @@ export async function POST(req) {
         }
       );
 
+      await syncRequestCardStatusInChat(db, {
+        requestId: loadReq._id.toString(),
+        status: 'approved',
+        updates: {
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
+
       // 3. Ledger record
       await db.collection('ledger').insertOne({
         userId: user._id,
@@ -116,6 +126,16 @@ export async function POST(req) {
           },
         }
       );
+
+      await syncRequestCardStatusInChat(db, {
+        requestId: loadReq._id.toString(),
+        status: 'rejected',
+        updates: {
+          rejectReason: reason,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
 
       notifyPlayer({
         userId: user._id.toString(),

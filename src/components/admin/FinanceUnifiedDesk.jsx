@@ -42,6 +42,7 @@ export default function FinanceUnifiedDesk({
   onAddMethod,
   onDeleteMethod,
   onToggleMethod,
+  hideDepositsQueue = false,
 }) {
   const [activeView, setActiveView] = useState('live_queue'); // 'live_queue' | 'deposit_history' | 'cashout_history' | 'methods'
   const [searchQuery, setSearchQuery] = useState('');
@@ -151,7 +152,9 @@ export default function FinanceUnifiedDesk({
             </span>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94A3B8' }}>
-            Top Box: Pending Deposits Desk • Bottom Box: Pending Withdrawal / Cashout Desk
+            {hideDepositsQueue
+              ? 'Pending Withdrawal / Cashout Desk (Deposit requests are approved directly in Live Support Chat)'
+              : 'Top Box: Pending Deposits Desk • Bottom Box: Pending Withdrawal / Cashout Desk'}
           </p>
         </div>
 
@@ -189,7 +192,7 @@ export default function FinanceUnifiedDesk({
           >
             <Coins size={14} />
             <span>Active Queue</span>
-            {(pendingDeposits.length > 0 || pendingRedemptions.length > 0) && (
+            {((hideDepositsQueue ? 0 : pendingDeposits.length) + pendingRedemptions.length > 0) && (
               <span
                 style={{
                   fontSize: '10px',
@@ -201,7 +204,7 @@ export default function FinanceUnifiedDesk({
                   marginLeft: '4px',
                 }}
               >
-                {pendingDeposits.length + pendingRedemptions.length}
+                {(hideDepositsQueue ? 0 : pendingDeposits.length) + pendingRedemptions.length}
               </span>
             )}
           </button>
@@ -358,6 +361,7 @@ export default function FinanceUnifiedDesk({
           {/* ============================================================== */}
           {/* ================= SECTION 1 (TOP): PENDING DEPOSITS =========== */}
           {/* ============================================================== */}
+          {!hideDepositsQueue && (
           <div
             style={{
               backgroundColor: '#0c0f24',
@@ -852,6 +856,7 @@ export default function FinanceUnifiedDesk({
               </div>
             )}
           </div>
+          )}
 
           {/* ============================================================== */}
           {/* ================= SECTION 2 (BOTTOM): PENDING CASHOUTS ======== */}

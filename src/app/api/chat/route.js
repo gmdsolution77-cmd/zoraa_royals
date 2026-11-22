@@ -1,6 +1,7 @@
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { publishChatRealtime } from '@/lib/realtimePublish';
+import { syncPendingRequestsToAdminChat } from '@/lib/adminChatRequests';
 
 function isStaffRole(role) {
   const r = String(role || '').toLowerCase();
@@ -33,6 +34,10 @@ async function buildStaffInbox(chatCol) {
         msg.sender !== 'staff' &&
         msg.senderRole !== 'staff';
 
+      const isPendingRequestCard =
+        msg.messageType === 'request_card' &&
+        String(msg.requestMeta?.status || 'pending').toLowerCase() === 'pending';
+
       if (!convMap.has(cid)) {
         convMap.set(cid, {
           _id: cid,
@@ -44,6 +49,7 @@ async function buildStaffInbox(chatCol) {
           updatedAt: msg.createdAt || new Date(),
           unreadCount: isUnreadPlayerMsg ? 1 : 0,
           unreadStaff: isUnreadPlayerMsg,
+          pendingRequestCount: isPendingRequestCard ? 1 : 0,
         });
       } else {
         const conv = convMap.get(cid);
@@ -56,6 +62,9 @@ async function buildStaffInbox(chatCol) {
         if (isUnreadPlayerMsg) {
           conv.unreadCount = (conv.unreadCount || 0) + 1;
           conv.unreadStaff = true;
+        }
+        if (isPendingRequestCard) {
+          conv.pendingRequestCount = (conv.pendingRequestCount || 0) + 1;
         }
       }
     }
@@ -96,7 +105,7 @@ export async function GET(req) {
       ];
 
       const guestMessages = await chatCol
-        .find({ $or: guestOrList })
+        .find({ $or: guestOrList, adminOnly: { $ne: true } })
         .sort({ createdAt: 1 })
         .toArray();
 
@@ -113,6 +122,7 @@ export async function GET(req) {
 
     // 1. Staff Inbox
     if (isStaff && inbox) {
+      await syncPendingRequestsToAdminChat(db);
       const activeConvs = await buildStaffInbox(chatCol);
       return Response.json({ success: true, conversations: activeConvs });
     }
@@ -201,6 +211,7 @@ export async function GET(req) {
     const playerMessages = await chatCol
       .find({
         $or: playerOrList,
+        adminOnly: { $ne: true },
       })
       .sort({ createdAt: 1 })
       .toArray();
@@ -352,6 +363,7 @@ export async function POST(req) {
           { userEmail: effectiveEmail },
           { conversationId: resolvedConvId },
         ],
+        adminOnly: { $ne: true },
       });
 
       if (messageCount === 1) {

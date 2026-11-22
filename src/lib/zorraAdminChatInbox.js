@@ -58,6 +58,8 @@ export function applyInboundChatInboxBump(setChatConversations, payload, ctx) {
 
   setChatConversations((prev) => {
     const idx = prev.findIndex((c) => String(c._id) === incomingCid);
+    const isReqCard = payload.message?.messageType === 'request_card';
+    const prevPendingReq = Number(idx >= 0 ? prev[idx].pendingRequestCount || 0 : 0);
     const next = {
       ...(idx >= 0 ? prev[idx] : {}),
       _id: incomingCid,
@@ -68,6 +70,7 @@ export function applyInboundChatInboxBump(setChatConversations, payload, ctx) {
       updatedAt: new Date(ts).toISOString(),
       unreadCount: viewingThread ? 0 : Number(idx >= 0 ? prev[idx].unreadCount || 0 : 0) + 1,
       unreadStaff: !viewingThread,
+      pendingRequestCount: isReqCard ? prevPendingReq + 1 : prevPendingReq,
     };
     const rest = idx >= 0 ? prev.filter((_, i) => i !== idx) : prev;
     return [next, ...rest];

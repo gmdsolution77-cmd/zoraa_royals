@@ -1,5 +1,6 @@
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { postRequestToAdminChat } from '@/lib/adminChatRequests';
 
 export async function GET() {
   try {
@@ -101,6 +102,23 @@ export async function POST(req) {
     };
 
     const result = await db.collection('game_load_requests').insertOne(loadRequest);
+
+    await postRequestToAdminChat(db, {
+      requestKind: 'game_load',
+      requestId: result.insertedId.toString(),
+      userId: user._id.toString(),
+      userEmail: user.email,
+      username: user.username,
+      requestMeta: {
+        status: 'pending',
+        gameId,
+        gameName,
+        gameTitle: gameName,
+        gameUsername: finalGameUsername,
+        amount: numAmount,
+        transferAmount: numAmount,
+      },
+    });
 
     // Notification to user
     await db.collection('notifications').insertOne({

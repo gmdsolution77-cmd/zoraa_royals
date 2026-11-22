@@ -77,6 +77,7 @@ import IncomingRequestToast from '@/components/admin/IncomingRequestToast';
 import Patron360ProfileModal from '@/components/admin/Patron360ProfileModal';
 import Player360ProfileModal from '@/components/admin/Player360ProfileModal';
 import AffiliateManagementHub from '@/components/admin/AffiliateManagementHub';
+import AdminChatRequestCard from '@/components/admin/AdminChatRequestCard';
 import {
   playTune,
   unlockAudioContext,
@@ -102,9 +103,7 @@ export default function AdminPortal({ initialTab }) {
   const normalizeTab = (tab) => {
     if (!tab) return 'overview';
     if (tab === 'dashboard') return 'overview';
-    if (tab === 'requests') return 'account_requests';
-    if (tab === 'support') return 'chat';
-    if (tab === 'coins' || tab === 'coins_allotment') return 'coins_allotment';
+    if (tab === 'requests' || tab === 'account_requests' || tab === 'support' || tab === 'coins' || tab === 'coins_allotment' || tab === 'finance') return 'chat';
     return tab;
   };
 
@@ -963,9 +962,7 @@ export default function AdminPortal({ initialTab }) {
         setUser(data.user);
         if (initialTab) {
           setActiveTab(normalizeTab(initialTab));
-        } else if (data.user.role === 'coin_manager') {
-          setActiveTab('coins_allotment');
-        } else if (data.user.role === 'chat_support') {
+        } else if (data.user.role === 'coin_manager' || data.user.role === 'chat_support') {
           setActiveTab('chat');
         } else {
           setActiveTab('overview');
@@ -1117,61 +1114,58 @@ export default function AdminPortal({ initialTab }) {
           targetConv: newestChatAlert,
         });
       }
-      // 1. Check for incoming new deposits (Finance)
+      // 1. Check for incoming new deposits -> Open in Admin Live Chat
       else if (pendingDeps.length > (prevCountsRef.current.deposits || 0)) {
         const newest = pendingDeps[0];
         playAdminChime();
         sendDesktopNotification(
           '💰 New Deposit Request!',
           `$${Number(newest?.amount || 0).toFixed(2)} USD from ${newest?.username || 'Player'} (${newest?.methodName || 'Payment'})`,
-          '/admin?tab=finance'
+          '/admin?tab=chat'
         );
         setActiveAlertToast({
           type: 'deposit',
           title: 'New Deposit Request!',
           message: `$${Number(newest?.amount || 0).toFixed(2)} USD from ${newest?.username || 'Player'}`,
-          subtext: `Via ${newest?.methodName || 'Payment'}${newest?.senderNote ? ` • ${newest.senderNote}` : ''}`,
-          targetTab: 'finance',
-          targetSubTab: 'deposits',
+          subtext: `Via ${newest?.methodName || 'Payment'} • Open in Live Chat to approve/reject`,
+          targetTab: 'chat',
         });
       }
-      // 2. Check for incoming new redemptions (Finance Stage 2)
+      // 2. Check for incoming new redemptions -> Open in Admin Live Chat
       else if (pendingWith.length > (prevCountsRef.current.redemptions || 0)) {
         const newest = pendingWith[0];
         playAdminChime();
         sendDesktopNotification(
           '💸 New Cashout Request!',
           `$${Number(newest?.amount || 0).toFixed(2)} USD for ${newest?.username || 'Player'} via ${newest?.payoutMethod || 'Direct'}`,
-          '/admin?tab=finance'
+          '/admin?tab=chat'
         );
         setActiveAlertToast({
           type: 'redemption',
           title: 'New Cashout Request!',
           message: `$${Number(newest?.amount || 0).toFixed(2)} USD for ${newest?.username || 'Player'}`,
-          subtext: `Payout via ${newest?.payoutMethod || 'Direct'}: ${newest?.destinationAddress || ''}`,
-          targetTab: 'finance',
-          targetSubTab: 'redemptions',
+          subtext: `Payout via ${newest?.payoutMethod || 'Direct'}: ${newest?.destinationAddress || ''} • Open in Live Chat`,
+          targetTab: 'chat',
         });
       }
-      // 3. Check for incoming coin cashout proof verifications (Stage 1 Coins Allotment Desk)
+      // 3. Check for incoming coin cashout proof verifications -> Open in Admin Live Chat
       else if (pendingCoinCashouts.length > (prevCountsRef.current.coinCashouts || 0)) {
         const newest = pendingCoinCashouts[0];
         playAdminChime();
         sendDesktopNotification(
-          '🎮 New Cashout Verification (Coins Desk)!',
+          '🎮 New Cashout Verification!',
           `$${Number(newest?.amount || 0).toFixed(2)} USD for ${newest?.username || 'Player'} (${newest?.gameTitle || 'Game'})`,
-          '/admin?tab=coins_allotment'
+          '/admin?tab=chat'
         );
         setActiveAlertToast({
           type: 'coin_verification',
-          title: 'New Cashout Verification (Coins Desk)!',
+          title: 'New Cashout Verification!',
           message: `$${Number(newest?.amount || 0).toFixed(2)} USD for ${newest?.username || 'Player'}`,
-          subtext: `${newest?.gameTitle || 'Game'} winning proof uploaded • Stage 1 Inspection`,
-          targetTab: 'coins_allotment',
-          targetSubTab: 'cashouts',
+          subtext: `${newest?.gameTitle || 'Game'} winning proof uploaded • Open in Live Chat`,
+          targetTab: 'chat',
         });
       }
-      // 4. Check for incoming new game account / load requests
+      // 4. Check for incoming new game account / load requests -> Open in Admin Live Chat
       else if (pendingReqs.length > (prevCountsRef.current.requests || 0)) {
         const newest = pendingReqs[0];
         const isCoinLoad = Number(newest?.transferAmount || 0) > 0;
@@ -1179,15 +1173,14 @@ export default function AdminPortal({ initialTab }) {
         sendDesktopNotification(
           isCoinLoad ? '🪙 New Game Coin Load Request!' : '🎮 New Game Account Request!',
           `${newest?.gameTitle || 'Game'} request from ${newest?.userName || 'Player'}${isCoinLoad ? ` ($${newest.transferAmount} SC)` : ''}`,
-          isCoinLoad ? '/admin?tab=coins_allotment' : '/admin?tab=account_requests'
+          '/admin?tab=chat'
         );
         setActiveAlertToast({
           type: isCoinLoad ? 'coin_verification' : 'account',
           title: isCoinLoad ? '🪙 New Coin Load Request!' : '🎮 New Game Account Request!',
           message: `${newest?.gameTitle || 'Game'} for ${newest?.userName || 'Player'}`,
-          subtext: isCoinLoad ? `Load Amount: $${newest?.transferAmount} SC (Escrow Frozen)` : 'Ready to issue credentials',
-          targetTab: isCoinLoad ? 'coins_allotment' : 'account_requests',
-          targetSubTab: isCoinLoad ? 'loads' : null,
+          subtext: isCoinLoad ? `Load Amount: $${newest?.transferAmount} SC • Open in Live Chat` : 'Open in Live Chat to issue credentials',
+          targetTab: 'chat',
         });
       }
 
@@ -1425,12 +1418,12 @@ export default function AdminPortal({ initialTab }) {
 
     // Financial Manager
     if (r === 'financial_manager' || r === 'financial_admin') {
-      return ['overview', 'finance', 'coins_allotment', 'gateways', 'tx_search', 'affiliate_commissions', 'kyc'].includes(tabId);
+      return ['overview', 'chat', 'finance', 'gateways', 'tx_search', 'affiliate_commissions', 'kyc'].includes(tabId);
     }
 
     // Coins Staff
     if (r === 'coin_manager' || r === 'coins_admin') {
-      return ['overview', 'account_requests', 'coins_allotment', 'tx_search'].includes(tabId);
+      return ['overview', 'chat', 'tx_search'].includes(tabId);
     }
 
     // Live Support Staff
@@ -1521,38 +1514,14 @@ export default function AdminPortal({ initialTab }) {
     );
   }
 
-  // Permitted Tabs matching Player Paradise structure (all 14 core tabs)
+  // Permitted Tabs (Deposits, Cashouts, Load Coins, and Account Requests are all handled in Live Support Desk chat)
   const allTabs = [
     { id: 'overview', label: 'Command Center', icon: LayoutDashboard, category: 'Operations' },
-    {
-      id: 'account_requests',
-      label: 'Account Requests',
-      icon: Key,
-      badge: (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING' && Number(r.transferAmount || 0) <= 0).length,
-      category: 'Operations',
-    },
-    {
-      id: 'coins_allotment',
-      label: 'Coins Allotment',
-      icon: Coins,
-      badge: (
-        (redemptions || []).filter(r => r.status === 'pending_coin' || r.stage === 'coin_verification').length +
-        (accountRequests || []).filter(r => (r.status || '').toUpperCase() === 'PENDING' && Number(r.transferAmount || 0) > 0).length
-      ),
-      category: 'Operations',
-    },
-    {
-      id: 'finance',
-      label: 'Finance & Cashier',
-      icon: CreditCard,
-      badge: (deposits.filter(d => d.status === 'pending').length + redemptions.filter(r => r.status === 'pending').length),
-      category: 'Operations',
-    },
     {
       id: 'chat',
       label: 'Live Support Desk',
       icon: MessageSquare,
-      badge: chatConversations.filter(c => Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0))).length,
+      badge: chatConversations.filter(c => Boolean(c.unreadStaff || (c.unreadCount && c.unreadCount > 0) || (c.pendingRequestCount && c.pendingRequestCount > 0))).length,
       category: 'Operations',
     },
     { id: 'games', label: 'Games Library', icon: Gamepad2, category: 'Catalog & Players' },
@@ -1896,10 +1865,10 @@ export default function AdminPortal({ initialTab }) {
                     <p className="text-2xl font-black text-emerald-400 font-mono mt-1">{stats?.pendingDeposits || 0}</p>
                   </div>
                   <button
-                    onClick={() => { setActiveTab('finance'); setFinanceSubTab('deposits'); }}
+                    onClick={() => { setChatFilterTab('requests'); setActiveTab('chat'); }}
                     className="btn-gold text-xs py-1.5 px-3.5"
                   >
-                    Review
+                    Open Chat
                   </button>
                 </div>
 
@@ -1909,10 +1878,10 @@ export default function AdminPortal({ initialTab }) {
                     <p className="text-2xl font-black text-purple-400 font-mono mt-1">{stats?.pendingRedemptions || 0}</p>
                   </div>
                   <button
-                    onClick={() => { setActiveTab('finance'); setFinanceSubTab('redemptions'); }}
+                    onClick={() => { setChatFilterTab('requests'); setActiveTab('chat'); }}
                     className="btn-gold text-xs py-1.5 px-3.5"
                   >
-                    Review
+                    Open Chat
                   </button>
                 </div>
 
@@ -2701,6 +2670,7 @@ export default function AdminPortal({ initialTab }) {
           {/* TAB 6: FINANCE & PAYMENTS */}
           {activeTab === 'finance' && (
             <FinanceUnifiedDesk
+              hideDepositsQueue={true}
               deposits={deposits}
               redemptions={redemptions}
               paymentMethods={paymentMethods}
@@ -3053,6 +3023,7 @@ export default function AdminPortal({ initialTab }) {
                         <th className="p-3">Type</th>
                         <th className="p-3">Amount ($ USD)</th>
                         <th className="p-3">Status</th>
+                        <th className="p-3">Proof</th>
                         <th className="p-3">Details / Reason</th>
                       </tr>
                     </thead>
@@ -3081,6 +3052,44 @@ export default function AdminPortal({ initialTab }) {
                             }`}>
                               {r.status || 'completed'}
                             </span>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {r.proofImage || r.gameScreenshot || r.qrCodeImage ? (
+                              <div className="flex items-center gap-1.5">
+                                {r.proofImage && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setAdminChatPreviewImage(r.proofImage)}
+                                    className="group relative w-9 h-9 rounded-lg overflow-hidden border border-emerald-400/40 hover:border-[#ffd700] transition cursor-pointer shrink-0"
+                                    title="View Receipt Screenshot"
+                                  >
+                                    <img src={r.proofImage} alt="Proof" className="w-full h-full object-cover" />
+                                  </button>
+                                )}
+                                {r.gameScreenshot && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setAdminChatPreviewImage(r.gameScreenshot)}
+                                    className="group relative w-9 h-9 rounded-lg overflow-hidden border border-purple-400/40 hover:border-[#ffd700] transition cursor-pointer shrink-0"
+                                    title="View Game Proof Screenshot"
+                                  >
+                                    <img src={r.gameScreenshot} alt="Game Proof" className="w-full h-full object-cover" />
+                                  </button>
+                                )}
+                                {r.qrCodeImage && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setAdminChatPreviewImage(r.qrCodeImage)}
+                                    className="group relative w-9 h-9 rounded-lg overflow-hidden border border-cyan-400/40 hover:border-[#ffd700] transition cursor-pointer shrink-0"
+                                    title="View Recipient QR"
+                                  >
+                                    <img src={r.qrCodeImage} alt="QR" className="w-full h-full object-cover" />
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-600">—</span>
+                            )}
                           </td>
                           <td className="p-3 text-gray-400">{r.notes || r.reason || '—'}</td>
                         </tr>
@@ -3121,6 +3130,38 @@ export default function AdminPortal({ initialTab }) {
                           <span className="text-gray-300 truncate max-w-[150px]">{r.notes || r.reason}</span>
                         ) : null}
                       </div>
+
+                      {(r.proofImage || r.gameScreenshot || r.qrCodeImage) && (
+                        <div className="flex items-center gap-2 pt-1.5">
+                          {r.proofImage && (
+                            <button
+                              type="button"
+                              onClick={() => setAdminChatPreviewImage(r.proofImage)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye size={11} /> View Receipt
+                            </button>
+                          )}
+                          {r.gameScreenshot && (
+                            <button
+                              type="button"
+                              onClick={() => setAdminChatPreviewImage(r.gameScreenshot)}
+                              className="px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/35 text-purple-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye size={11} /> Game Proof
+                            </button>
+                          )}
+                          {r.qrCodeImage && (
+                            <button
+                              type="button"
+                              onClick={() => setAdminChatPreviewImage(r.qrCodeImage)}
+                              className="px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/35 text-cyan-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye size={11} /> QR Code
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3144,6 +3185,7 @@ export default function AdminPortal({ initialTab }) {
             };
 
             const totalUnreadChat = chatConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+            const totalPendingChatRequests = chatConversations.reduce((acc, c) => acc + (c.pendingRequestCount || 0), 0);
 
             const filteredChatConvs = chatConversations.filter(c => {
               const q = chatSearchQuery.trim().toLowerCase();
@@ -3152,6 +3194,9 @@ export default function AdminPortal({ initialTab }) {
                 (c.lastMessage && c.lastMessage.toLowerCase().includes(q));
               if (chatFilterTab === 'unread') {
                 return matchesSearch && ((c.unreadCount || 0) > 0);
+              }
+              if (chatFilterTab === 'requests') {
+                return matchesSearch && ((c.pendingRequestCount || 0) > 0);
               }
               return matchesSearch;
             });
@@ -3387,6 +3432,21 @@ export default function AdminPortal({ initialTab }) {
                             </span>
                           )}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setChatFilterTab('requests')}
+                          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold text-center transition flex items-center justify-center gap-1.5 ${chatFilterTab === 'requests'
+                            ? 'bg-amber-500/25 text-amber-300 border border-amber-400/50 shadow-sm'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                          <span>Requests</span>
+                          {totalPendingChatRequests > 0 && (
+                            <span className="px-1.5 h-4 rounded-full bg-amber-500 text-black text-[9px] font-black flex items-center justify-center">
+                              {totalPendingChatRequests}
+                            </span>
+                          )}
+                        </button>
                       </div>
                     </div>
 
@@ -3442,12 +3502,19 @@ export default function AdminPortal({ initialTab }) {
                                   </p>
                                 </div>
 
-                                {/* Unread Pill */}
-                                {hasUnread && (
-                                  <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-red-500 text-white font-black text-[9px] shadow-sm animate-pulse">
-                                    {c.unreadCount}
-                                  </span>
-                                )}
+                                {/* Unread & Pending Request Pills */}
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  {(c.pendingRequestCount || 0) > 0 && (
+                                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-black font-black text-[9px] shadow-sm animate-pulse">
+                                      ⚡ {c.pendingRequestCount} Req
+                                    </span>
+                                  )}
+                                  {hasUnread && (
+                                    <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white font-black text-[9px] shadow-sm animate-pulse">
+                                      {c.unreadCount}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           );
@@ -3550,6 +3617,56 @@ export default function AdminPortal({ initialTab }) {
                           ) : (
                             chatMessages.map((m, idx) => {
                               const isStaff = m.senderRole === 'staff';
+                              const isRequestCard = m.messageType === 'request_card';
+
+                              if (isRequestCard) {
+                                return (
+                                  <div
+                                    key={m._id || m.id || `req-${idx}`}
+                                    className="flex flex-col items-start"
+                                  >
+                                    <div className="flex items-start gap-2 w-full max-w-lg">
+                                      <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-black uppercase mt-1 border border-amber-400/40 bg-amber-500/20 text-amber-300 shadow-sm">
+                                        {m.username ? m.username.charAt(0) : 'P'}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <AdminChatRequestCard
+                                          message={m}
+                                          onPreviewImage={(imgUrl) => setAdminChatPreviewImage(imgUrl)}
+                                          onActionComplete={() => {
+                                            if (activeChatConvRef.current) {
+                                              fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConvRef.current._id)}&markRead=true`)
+                                                .then(r => r.json())
+                                                .then(d => { if (d.success && Array.isArray(d.messages)) safeSetSortedMessages(d.messages); })
+                                                .catch(() => {});
+                                            }
+                                            fetch('/api/chat?inbox=true')
+                                              .then(r => r.json())
+                                              .then(d => {
+                                                if (d.success) {
+                                                  const mapped = (d.conversations || []).map(item => {
+                                                    if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
+                                                      return { ...item, unreadCount: 0, unreadStaff: false };
+                                                    }
+                                                    return item;
+                                                  });
+                                                  setChatConversations(mapped);
+                                                }
+                                              })
+                                              .catch(() => {});
+                                            syncRequestsAndAlerts();
+                                          }}
+                                        />
+                                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-500 font-mono">
+                                          <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                          <span className="text-amber-400/80">• Admin Action Card</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <div
                                   key={m._id || m.id || `msg-${idx}`}

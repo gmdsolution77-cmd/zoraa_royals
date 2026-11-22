@@ -3,6 +3,7 @@ import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery, toObjectId } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
 import { notifyPlayer, notifyStaff } from '@/lib/notify';
+import { postRequestToAdminChat, syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
 
 // GET: List Redemptions
 export async function GET(req) {
@@ -176,6 +177,25 @@ export async function POST(req) {
       updatedAt: new Date(),
     });
 
+    await postRequestToAdminChat(db, {
+      requestKind: 'cashout',
+      requestId: insertRes.insertedId.toString(),
+      userId: user._id.toString(),
+      userEmail: cleanPlayerEmail,
+      username: user.username,
+      requestMeta: {
+        status: 'pending',
+        amount: redeemAmount,
+        payoutMethod,
+        destinationAddress: destinationAddress.trim(),
+        gameTitle: finalGameTitle,
+        gameUsername: finalGameUsername,
+        gameScreenshot: gameScreenshot || null,
+        qrCodeImage: qrCodeImage || null,
+        notes: notes || '',
+      },
+    });
+
     // 2. Write Immutable Ledger Entry
     try {
       const { publishFinanceWithdraw } = await import('@/lib/realtimePublish');
@@ -320,6 +340,16 @@ export async function PUT(req) {
         }
       );
 
+      await syncRequestCardStatusInChat(db, {
+        requestId: redemption._id.toString(),
+        status: 'rejected',
+        updates: {
+          rejectReason: reason,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
+
       notifyPlayer({
         userId: redemption.userId?.toString?.() || String(redemption.userId),
         userEmail: user?.email || redemption.userEmail,
@@ -370,6 +400,15 @@ export async function PUT(req) {
           },
         }
       );
+
+      await syncRequestCardStatusInChat(db, {
+        requestId: redemption._id.toString(),
+        status: 'approved',
+        updates: {
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
 
       // Increment user's total redeemed stats without deducting website balance
       await usersCol.updateOne(
@@ -438,6 +477,16 @@ export async function PUT(req) {
           },
         }
       );
+
+      await syncRequestCardStatusInChat(db, {
+        requestId: redemption._id.toString(),
+        status: 'rejected',
+        updates: {
+          rejectReason: reason,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
 
       notifyPlayer({
         userId: redemption.userId?.toString?.() || String(redemption.userId),

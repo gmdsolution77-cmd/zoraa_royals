@@ -3,6 +3,7 @@ import { getDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { notifyPlayer } from '@/lib/notify';
 import { syncFreeplayAdminQueue } from '@/lib/syncFreeplayAdminQueue';
+import { postRequestToAdminChat, syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
 
 // GET Account Requests
 export async function GET(req) {
@@ -151,13 +152,37 @@ export async function POST(req) {
     }
 
     // Look up existing game account username if player already has an account for this game
-    const existingGameAcc = await db.collection('gameAccounts').findOne({
-      userEmail,
-      gameTitle: new RegExp(`^${gameTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
-      status: 'READY',
-    });
+    const titleRegex = new RegExp(`^${gameTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const existingGameAcc =
+      (await db.collection('gameAccounts').findOne({
+        userEmail,
+        $or: [
+          { gameTitle: titleRegex },
+          ...(gameId ? [{ gameId: String(gameId) }] : []),
+        ],
+        status: { $in: ['READY', 'ready', 'active'] },
+      })) ||
+      (await db.collection('game_accounts').findOne({
+        $or: [{ userEmail }, { userId: user._id.toString() }],
+        gameTitle: titleRegex,
+      })) ||
+      (await requestsCol.findOne(
+        {
+          userEmail,
+          gameTitle: titleRegex,
+          status: 'READY',
+          gameAccountUsername: { $exists: true, $nin: [null, ''] },
+        },
+        { sort: { approvedAt: -1, createdAt: -1 } }
+      ));
 
-    const gameAccountUsername = body.gameUsername || body.gameAccountUsername || existingGameAcc?.username || null;
+    const gameAccountUsername =
+      body.gameUsername ||
+      body.gameAccountUsername ||
+      existingGameAcc?.username ||
+      existingGameAcc?.gameAccountUsername ||
+      existingGameAcc?.gameUsername ||
+      null;
 
     // 2. Create the Load / Account Request
     const newRequest = {
@@ -172,6 +197,22 @@ export async function POST(req) {
     };
 
     const res = await requestsCol.insertOne(newRequest);
+
+    await postRequestToAdminChat(db, {
+      requestKind: transferAmount > 0 ? 'coin_load' : 'account_request',
+      requestId: res.insertedId.toString(),
+      userId: user._id.toString(),
+      userEmail,
+      username: user.username || userName,
+      requestMeta: {
+        status: 'pending',
+        gameTitle,
+        gameId,
+        gameUsername: gameAccountUsername || '',
+        transferAmount,
+        source: 'player_request',
+      },
+    });
 
     try {
       const { publishAccountRequestCreated } = await import('@/lib/realtimePublish');
@@ -317,6 +358,18 @@ export async function PUT(req) {
         },
         { upsert: true }
       );
+
+      await syncRequestCardStatusInChat(db, {
+        requestId: targetRequest._id.toString(),
+        status: 'approved',
+        updates: {
+          issuedUsername: finalUsername,
+          issuedPassword: finalPassword,
+          finalTransferAmount,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
 
       // 4. Handle Freeplay Attached Tasks — credit wallet + issue game credentials
       if (targetRequest.freeplayPending) {
@@ -476,6 +529,16 @@ export async function PUT(req) {
           },
         }
       );
+
+      await syncRequestCardStatusInChat(db, {
+        requestId: targetRequest._id.toString(),
+        status: 'rejected',
+        updates: {
+          rejectReason: reason,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
 
       notifyPlayer({
         userId: targetRequest.userId,

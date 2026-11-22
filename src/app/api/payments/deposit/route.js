@@ -3,6 +3,7 @@ import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
 import { notifyPlayer, notifyStaff } from '@/lib/notify';
+import { postRequestToAdminChat, syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
 
 // GET: List Deposits (Admin / Financial Manager) or Player's own
 export async function GET(req) {
@@ -174,6 +175,31 @@ export async function POST(req) {
 
     const res = await depositsCol.insertOne(newDeposit);
 
+    await postRequestToAdminChat(db, {
+      requestKind: 'deposit',
+      requestId: res.insertedId.toString(),
+      userId: String(uid),
+      userEmail: cleanUserEmail,
+      username: session.username,
+      requestMeta: {
+        status: 'pending',
+        amount: depositAmount,
+        methodName,
+        senderTag: newDeposit.senderTag,
+        senderEmail: newDeposit.senderEmail,
+        senderNote: newDeposit.senderNote,
+        txHash: newDeposit.txHash,
+        bonusType,
+        bonusPercent,
+        bonusSC,
+        totalSC,
+        totalGC,
+        gameTitle: targetGameTitle,
+        gameUsername: finalGameUsername,
+        proofImage: proofImage || null,
+      },
+    });
+
     notifyPlayer({
       userId: uid,
       userEmail: cleanUserEmail,
@@ -306,6 +332,17 @@ export async function PUT(req) {
         }
       );
 
+      await syncRequestCardStatusInChat(db, {
+        requestId: deposit._id.toString(),
+        status: 'approved',
+        updates: {
+          creditedSC,
+          creditedGC,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
+
       // 3. Write Immutable Ledger
       await ledgerCol.insertOne({
         userId: user._id.toString(),
@@ -351,7 +388,7 @@ export async function PUT(req) {
         });
 
         if (!existingPending) {
-          await db.collection('accountRequests').insertOne({
+          const autoReqRes = await db.collection('accountRequests').insertOne({
             userEmail: cleanPlayerEmail,
             userName: user.username || deposit.username,
             gameTitle: targetGame,
@@ -364,6 +401,22 @@ export async function PUT(req) {
             depositId: deposit._id.toString(),
             notes: `Auto-generated from approved deposit #${deposit._id.toString()} ($${deposit.amount} USD). Please create ${targetGame} game credentials for player.`,
             createdAt: new Date(),
+          });
+
+          await postRequestToAdminChat(db, {
+            requestKind: 'account_request',
+            requestId: autoReqRes.insertedId.toString(),
+            userId: user._id.toString(),
+            userEmail: cleanPlayerEmail,
+            username: user.username || deposit.username,
+            requestMeta: {
+              status: 'pending',
+              gameTitle: targetGame,
+              gameId: deposit.gameId || '',
+              transferAmount: 0,
+              initialDepositAmount: deposit.amount,
+              source: 'auto_from_approved_deposit',
+            },
           });
 
           notifyPlayer({
@@ -483,6 +536,16 @@ export async function PUT(req) {
           },
         }
       );
+
+      await syncRequestCardStatusInChat(db, {
+        requestId: deposit._id.toString(),
+        status: 'rejected',
+        updates: {
+          rejectReason: reason,
+          processedBy: session.username,
+          processedAt: new Date().toISOString(),
+        },
+      });
 
       notifyPlayer({
         userId: user._id.toString(),
