@@ -44,6 +44,30 @@ export async function getDb(dbName = 'zorra_royals') {
 export async function initDb() {
   const db = await getDb();
 
+  // 0. Ensure High-Performance Database Indexes
+  try {
+    await Promise.all([
+      db.collection('chat_messages').createIndex({ conversationId: 1, createdAt: 1 }),
+      db.collection('chat_messages').createIndex({ userId: 1, createdAt: 1 }),
+      db.collection('chat_messages').createIndex({ userEmail: 1, createdAt: 1 }),
+      db.collection('chat_messages').createIndex({ customerUserId: 1, createdAt: 1 }),
+      db.collection('chat_messages').createIndex({ createdAt: -1 }),
+      db.collection('chat_messages').createIndex({ messageType: 1, requestId: 1 }),
+      db.collection('accountRequests').createIndex({ status: 1, createdAt: -1 }),
+      db.collection('accountRequests').createIndex({ userEmail: 1 }),
+      db.collection('deposits').createIndex({ status: 1, createdAt: -1 }),
+      db.collection('deposits').createIndex({ userId: 1 }),
+      db.collection('redemptions').createIndex({ status: 1, createdAt: -1 }),
+      db.collection('redemptions').createIndex({ userId: 1 }),
+      db.collection('ledger').createIndex({ createdAt: -1 }),
+      db.collection('ledger').createIndex({ userId: 1, createdAt: -1 }),
+      db.collection('users').createIndex({ email: 1 }),
+      db.collection('users').createIndex({ username: 1 }),
+    ]);
+  } catch (idxErr) {
+    console.warn('Index initialization notice:', idxErr?.message);
+  }
+
   // 1. Ensure Super Admin & Staff
   const usersCol = db.collection('users');
   const adminExists = await usersCol.findOne({ email: 'admin@zorraroyals.com' });

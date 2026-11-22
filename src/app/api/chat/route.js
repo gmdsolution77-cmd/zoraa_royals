@@ -13,8 +13,24 @@ async function buildStaffInbox(chatCol) {
   try {
     const rawMessages = await chatCol
       .find({})
+      .project({
+        conversationId: 1,
+        userId: 1,
+        userEmail: 1,
+        customerUserId: 1,
+        customerUsername: 1,
+        username: 1,
+        sender: 1,
+        senderRole: 1,
+        text: 1,
+        imageUrl: 1,
+        read: 1,
+        createdAt: 1,
+        messageType: 1,
+        requestMeta: 1,
+      })
       .sort({ createdAt: -1 })
-      .limit(2000)
+      .limit(400)
       .toArray();
 
     const convMap = new Map();

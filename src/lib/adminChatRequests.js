@@ -156,14 +156,23 @@ export async function syncRequestCardStatusInChat(db, {
   }
 }
 
+let lastSyncPendingTime = 0;
+
 /**
  * Backfills any PENDING deposits, accountRequests (including load coins & freeplay),
  * or game_load_requests that don't yet have a request_card in chat_messages.
  * Guarantees Admin Live Chat NEVER misses a pending request.
+ * Throttled to run at most once every 30s unless force=true.
  */
-export async function syncPendingRequestsToAdminChat(db) {
+export async function syncPendingRequestsToAdminChat(db, force = false) {
   try {
     if (!db) return;
+    const now = Date.now();
+    if (!force && now - lastSyncPendingTime < 30000) {
+      return;
+    }
+    lastSyncPendingTime = now;
+
     const chatCol = db.collection('chat_messages');
     const usersCol = db.collection('users');
 

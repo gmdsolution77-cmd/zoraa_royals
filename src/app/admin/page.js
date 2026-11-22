@@ -296,6 +296,7 @@ export default function AdminPortal({ initialTab }) {
   const claimChatInboxAlertRef = useRef(createChatInboxDedup());
   const lastChatConvIdRef = useRef(null);
   const chatInboxRefreshTimerRef = useRef(null);
+  const chatThreadCacheRef = useRef(new Map());
 
   useEffect(() => {
     activeChatConvRef.current = activeChatConv;
@@ -986,9 +987,20 @@ export default function AdminPortal({ initialTab }) {
   const isInitialLoadRef = useRef(true);
 
   const handleSelectChat = async (c) => {
+    if (!c) return;
     setActiveChatConv(c);
     activeChatConvRef.current = c;
     lastChatConvIdRef.current = c?._id || null;
+
+    // 0ms instant display from in-memory cache if thread was previously loaded
+    const cached = chatThreadCacheRef.current.get(String(c._id));
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      safeSetSortedMessages(cached);
+    } else {
+      // Immediately reset so previous user's messages NEVER display under new user!
+      setChatMessages([]);
+    }
+
     // Immediately clear unread counter in client state
     setChatConversations(prev =>
       prev.map(item =>
@@ -1001,10 +1013,14 @@ export default function AdminPortal({ initialTab }) {
       const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(c._id)}&markRead=true`);
       const d = await res.json();
       if (d.success && Array.isArray(d.messages)) {
-        safeSetSortedMessages(d.messages);
-        setTimeout(() => {
-          scrollToBottom(true);
-        }, 60);
+        chatThreadCacheRef.current.set(String(c._id), d.messages);
+        // Only apply if user hasn't switched away while request was in-flight
+        if (activeChatConvRef.current?._id === c._id) {
+          safeSetSortedMessages(d.messages);
+          setTimeout(() => {
+            scrollToBottom(true);
+          }, 40);
+        }
       }
     } catch (err) {
       console.error('Error fetching chat messages:', err);
@@ -1224,6 +1240,20 @@ export default function AdminPortal({ initialTab }) {
             targetTab: 'chat',
             targetConv: { _id: cid, username: uName, userId: cid },
           });
+
+          // 0ms REALTIME INSTANT APPEND TO OPEN THREAD
+          if (payload.message) {
+            const openCid = String(activeChatConvRef.current?._id || '');
+            const openUid = String(activeChatConvRef.current?.userId || '');
+            if (openCid === cid || openUid === cid) {
+              setChatMessages((prev) => {
+                const updated = dedupeChatMessagesById([...prev, payload.message]);
+                chatThreadCacheRef.current.set(openCid, updated);
+                return updated;
+              });
+              setTimeout(() => scrollToBottom(true), 30);
+            }
+          }
         }
         scheduleChatInboxRefresh();
         return;
@@ -1239,7 +1269,7 @@ export default function AdminPortal({ initialTab }) {
     window.addEventListener('zorra_staff_event_local', onStaffEv);
 
     syncRequestsAndAlerts();
-    const interval = setInterval(syncRequestsAndAlerts, 2000);
+    const interval = setInterval(syncRequestsAndAlerts, 4500);
     return () => {
       clearInterval(interval);
       window.removeEventListener('zorra-admin-desk-sync', onDesk);
@@ -1325,34 +1355,38 @@ export default function AdminPortal({ initialTab }) {
     adminApplyCtx,
   ]);
 
-  // Load chat messages when active conversation selected
+  // Background interval for active conversation
   useEffect(() => {
-    if (!activeChatConv) return;
+    if (!activeChatConv?._id) return;
     lastActiveMsgKeyRef.current = null; // reset for newly selected conversation
+    const currentId = activeChatConv._id;
 
     const fetchChatMsgs = () => {
-      fetch(`/api/chat?conversationId=${encodeURIComponent(activeChatConv._id)}`)
+      fetch(`/api/chat?conversationId=${encodeURIComponent(currentId)}`)
         .then(r => r.json())
         .then(d => {
           if (d.success && Array.isArray(d.messages)) {
-            // Detect new incoming player messages in this open thread
-            const playerMsgs = d.messages.filter(m => m.sender === 'player' || m.senderRole === 'player' || m.sender === 'user');
-            const latestPlayerMsg = playerMsgs[playerMsgs.length - 1];
-            if (latestPlayerMsg) {
-              const msgKey = String(latestPlayerMsg._id || `${latestPlayerMsg.createdAt}_${latestPlayerMsg.text}`);
-              if (lastActiveMsgKeyRef.current && lastActiveMsgKeyRef.current !== msgKey) {
-                playAdminChime();
+            chatThreadCacheRef.current.set(String(currentId), d.messages);
+            if (activeChatConvRef.current?._id === currentId) {
+              // Detect new incoming player messages in this open thread
+              const playerMsgs = d.messages.filter(m => m.sender === 'player' || m.senderRole === 'player' || m.sender === 'user');
+              const latestPlayerMsg = playerMsgs[playerMsgs.length - 1];
+              if (latestPlayerMsg) {
+                const msgKey = String(latestPlayerMsg._id || `${latestPlayerMsg.createdAt}_${latestPlayerMsg.text}`);
+                if (lastActiveMsgKeyRef.current && lastActiveMsgKeyRef.current !== msgKey) {
+                  playAdminChime();
+                }
+                lastActiveMsgKeyRef.current = msgKey;
               }
-              lastActiveMsgKeyRef.current = msgKey;
+              safeSetSortedMessages(d.messages);
             }
-            safeSetSortedMessages(d.messages);
           }
-        });
+        })
+        .catch(() => {});
     };
-    fetchChatMsgs();
-    const interval = setInterval(fetchChatMsgs, 3000);
+    const interval = setInterval(fetchChatMsgs, 4000);
     return () => clearInterval(interval);
-  }, [activeChatConv]);
+  }, [activeChatConv?._id]);
 
   const prevAdminMsgCountRef = useRef(0);
   const prevAdminLastIdRef = useRef('');
@@ -1803,12 +1837,6 @@ export default function AdminPortal({ initialTab }) {
           }`}
           style={{ flex: 1 }}
         >
-          {adminTabLoading && (
-            <DataLoadingPanel
-              variant="overlay"
-              label={`Loading ${String(activeTab || 'desk').replace(/_/g, ' ')}...`}
-            />
-          )}
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
