@@ -457,6 +457,20 @@ export async function PUT(req) {
         }).catch(() => {});
       }
 
+      try {
+        const { publishFinanceWithdraw } = await import('@/lib/realtimePublish');
+        publishFinanceWithdraw({
+          action: 'approved',
+          redemptionId: redemption._id.toString(),
+          status: 'approved',
+          amount: redemption.amount,
+          userEmail: user?.email || redemption.userEmail,
+          userId: redemption.userId?.toString?.() || String(redemption.userId),
+          username: redemption.username || user?.username,
+          payoutMethod: redemption.payoutMethod,
+        });
+      } catch {}
+
       return NextResponse.json({ success: true, message: `Cashout dispatched to ${redemption.destinationAddress}! Website balance untouched.` });
     }
 
@@ -514,6 +528,21 @@ export async function PUT(req) {
         notes: `Finance desk rejected payout ($${redemption.amount}): ${reason}`,
         createdAt: new Date(),
       });
+
+      try {
+        const { publishFinanceWithdraw } = await import('@/lib/realtimePublish');
+        publishFinanceWithdraw({
+          action: 'rejected',
+          redemptionId: redemption._id.toString(),
+          status: 'rejected',
+          amount: redemption.amount,
+          userEmail: user?.email || redemption.userEmail,
+          userId: redemption.userId?.toString?.() || String(redemption.userId),
+          username: redemption.username || user?.username,
+          payoutMethod: redemption.payoutMethod,
+          reason,
+        });
+      } catch {}
 
       return NextResponse.json({ success: true, message: 'Payout rejected by Finance. Note sent to player.' });
     }

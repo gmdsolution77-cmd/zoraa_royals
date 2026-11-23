@@ -107,6 +107,18 @@ export async function POST(req) {
         data: { url: '/games' },
       });
 
+      try {
+        const { publishAccountRequestUpdated } = await import('@/lib/realtimePublish');
+        publishAccountRequestUpdated({
+          requestId: loadReq._id.toString(),
+          status: 'READY',
+          gameTitle: loadReq.gameName,
+          userEmail: loadReq.clientEmail,
+          userId: user._id.toString(),
+          transferAmount: loadReq.amount,
+        });
+      } catch {}
+
       return Response.json({
         success: true,
         message: `Successfully loaded $${loadReq.amount.toFixed(2)} into ${loadReq.gameName} for ${loadReq.clientName}`,
@@ -146,6 +158,18 @@ export async function POST(req) {
         type: 'alert',
         data: { url: '/games' },
       });
+
+      try {
+        const { publishAccountRequestUpdated } = await import('@/lib/realtimePublish');
+        publishAccountRequestUpdated({
+          requestId: loadReq._id.toString(),
+          status: 'REJECTED',
+          gameTitle: loadReq.gameName,
+          userEmail: loadReq.clientEmail,
+          userId: user._id.toString(),
+          reason,
+        });
+      } catch {}
 
       return Response.json({
         success: true,

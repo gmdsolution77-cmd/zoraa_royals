@@ -130,8 +130,22 @@ export default function PlayerGameAccountsHub({
   useEffect(() => {
     if (user?.email) {
       fetchAccountsAndRequests(false);
-      const interval = setInterval(() => fetchAccountsAndRequests(false), 4000);
-      return () => clearInterval(interval);
+
+      const onRealtimeUpdate = () => {
+        fetchAccountsAndRequests(false);
+      };
+
+      window.addEventListener('accountRequestUpdated', onRealtimeUpdate);
+      window.addEventListener('zorra-instant-sync', onRealtimeUpdate);
+      window.addEventListener('zorra-realtime', onRealtimeUpdate);
+
+      const interval = setInterval(() => fetchAccountsAndRequests(false), 6000);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('accountRequestUpdated', onRealtimeUpdate);
+        window.removeEventListener('zorra-instant-sync', onRealtimeUpdate);
+        window.removeEventListener('zorra-realtime', onRealtimeUpdate);
+      };
     } else {
       setActiveAccounts([]);
       setPendingRequests([]);

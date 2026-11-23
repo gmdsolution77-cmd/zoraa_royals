@@ -519,6 +519,21 @@ export async function PUT(req) {
         html: `<p>Hi ${user.username}, your deposit of $${deposit.amount} via ${deposit.methodName} was verified and $${creditedSC} USD was credited to your account. Best of luck at the games!</p>`,
       }).catch(() => {});
 
+      try {
+        const { publishFinanceDeposit } = await import('@/lib/realtimePublish');
+        publishFinanceDeposit({
+          action: 'approved',
+          depositId: deposit._id.toString(),
+          status: 'approved',
+          amount: deposit.amount,
+          creditedSC,
+          userEmail: user.email || deposit.senderEmail,
+          userId: user._id.toString(),
+          username: user.username,
+          methodName: deposit.methodName,
+        });
+      } catch {}
+
       return NextResponse.json({ success: true, message: `Deposit approved! Credited $${creditedSC} to ${user.username}.` });
     } else if (action === 'reject') {
       const reason = rejectReason?.trim() || body.rejectionReason?.trim() || 'Payment receipt could not be verified in ledger.';
@@ -556,6 +571,21 @@ export async function PUT(req) {
         type: 'deposit_rejected',
         data: { depositId: deposit._id.toString(), url: '/cashier' },
       });
+
+      try {
+        const { publishFinanceDeposit } = await import('@/lib/realtimePublish');
+        publishFinanceDeposit({
+          action: 'rejected',
+          depositId: deposit._id.toString(),
+          status: 'rejected',
+          amount: deposit.amount,
+          userEmail: user.email || deposit.senderEmail,
+          userId: user._id.toString(),
+          username: user.username,
+          methodName: deposit.methodName,
+          reason,
+        });
+      } catch {}
 
       return NextResponse.json({ success: true, message: 'Deposit rejected.' });
     }

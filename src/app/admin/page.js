@@ -1258,8 +1258,62 @@ export default function AdminPortal({ initialTab }) {
         scheduleChatInboxRefresh();
         return;
       }
-      if (payload.type === 'NEW_DEPOSIT' || payload.type === 'NEW_WITHDRAW' || payload.type === 'NEW_REQUEST') {
+      if (payload.type === 'NEW_DEPOSIT') {
+        const depKey = `dep:${payload.depositId || payload.timestamp}`;
+        if (claim(depKey)) {
+          playAdminChime();
+          const amt = Number(payload.amount || 0).toFixed(2);
+          const uName = payload.username || 'Player';
+          setActiveAlertToast({
+            type: 'deposit',
+            title: 'New Deposit Request!',
+            message: `$${amt} USD from ${uName}`,
+            subtext: `Via ${payload.methodName || 'Payment'} • Open in Live Chat to approve/reject`,
+            targetTab: 'chat',
+          });
+        }
         syncRequestsAndAlerts();
+        return;
+      }
+      if (payload.type === 'NEW_WITHDRAW') {
+        const withKey = `with:${payload.redemptionId || payload.timestamp}`;
+        if (claim(withKey)) {
+          playAdminChime();
+          const amt = Number(payload.amount || 0).toFixed(2);
+          const uName = payload.username || 'Player';
+          setActiveAlertToast({
+            type: 'redemption',
+            title: 'New Cashout Request!',
+            message: `$${amt} USD for ${uName}`,
+            subtext: 'Cashout request submitted • Open in Live Chat',
+            targetTab: 'chat',
+          });
+        }
+        syncRequestsAndAlerts();
+        return;
+      }
+      if (payload.type === 'NEW_REQUEST' || payload.type === 'NEW_COIN_LOAD') {
+        const isCoin = payload.type === 'NEW_COIN_LOAD';
+        const reqKey = `req:${payload.request?.id || payload.request?._id || payload.timestamp}`;
+        if (claim(reqKey)) {
+          playAdminChime();
+          const game = payload.request?.gameTitle || 'Game';
+          const uName = payload.request?.userName || payload.userEmail || 'Player';
+          const amt = payload.request?.transferAmount;
+          setActiveAlertToast({
+            type: isCoin ? 'coin_verification' : 'account',
+            title: isCoin ? '🪙 New Coin Load Request!' : '🎮 New Game Account Request!',
+            message: `${game} for ${uName}`,
+            subtext: isCoin ? `Load Amount: $${amt} SC • Open in Live Chat` : 'Open in Live Chat to issue credentials',
+            targetTab: 'chat',
+          });
+        }
+        syncRequestsAndAlerts();
+        return;
+      }
+      if (payload.type === 'DESK_SYNC') {
+        syncRequestsAndAlerts();
+        return;
       }
     };
 

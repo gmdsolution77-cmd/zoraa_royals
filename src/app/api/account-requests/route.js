@@ -455,6 +455,29 @@ export async function PUT(req) {
         });
       }
 
+      try {
+        const { publishAccountRequestUpdated } = await import('@/lib/realtimePublish');
+        publishAccountRequestUpdated({
+          requestId: targetRequest._id.toString(),
+          status: 'READY',
+          gameTitle: cleanTitle,
+          userEmail: cleanEmail,
+          userId: targetRequest.userId?.toString?.() || String(targetRequest.userId || ''),
+          gameAccountUsername: finalUsername,
+          gameAccountPassword: finalPassword,
+          transferAmount: finalTransferAmount,
+          request: {
+            ...targetRequest,
+            id: targetRequest._id.toString(),
+            _id: targetRequest._id.toString(),
+            status: 'READY',
+            gameAccountUsername: finalUsername,
+            gameAccountPassword: finalPassword,
+            transferAmount: finalTransferAmount,
+          },
+        });
+      } catch {}
+
       return NextResponse.json({
         success: true,
         message: targetRequest.freeplayPending
@@ -553,6 +576,25 @@ export async function PUT(req) {
         type: 'account_rejected',
         data: { gameTitle: cleanTitle, rejectionReason: reason },
       });
+
+      try {
+        const { publishAccountRequestUpdated } = await import('@/lib/realtimePublish');
+        publishAccountRequestUpdated({
+          requestId: targetRequest._id.toString(),
+          status: 'REJECTED',
+          gameTitle: cleanTitle,
+          userEmail: cleanEmail,
+          userId: targetRequest.userId?.toString?.() || String(targetRequest.userId || ''),
+          reason,
+          request: {
+            ...targetRequest,
+            id: targetRequest._id.toString(),
+            _id: targetRequest._id.toString(),
+            status: 'REJECTED',
+            rejectionReason: reason,
+          },
+        });
+      } catch {}
 
       return NextResponse.json({
         success: true,

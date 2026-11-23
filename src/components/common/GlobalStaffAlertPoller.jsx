@@ -200,9 +200,40 @@ export default function GlobalStaffAlertPoller() {
       } catch {}
     };
 
+    const onStaffRealtime = (e) => {
+      const payload = e?.detail || {};
+      if (!payload?.type) return;
+
+      if (payload.type === 'NEW_CHAT_MESSAGE') {
+        playStaffChime();
+        desktopPing('💬 New Live Chat Message', `${payload.username || 'Patron'}: ${payload.text || 'New message'}`, '/admin?tab=chat');
+      } else if (payload.type === 'NEW_DEPOSIT') {
+        playStaffChime();
+        desktopPing('💰 New Deposit Request', `$${Number(payload.amount || 0).toFixed(2)} from ${payload.username || 'Player'}`, '/admin?tab=chat');
+      } else if (payload.type === 'NEW_WITHDRAW') {
+        playStaffChime();
+        desktopPing('💸 New Cashout Request', `$${Number(payload.amount || 0).toFixed(2)} for ${payload.username || 'Player'}`, '/admin?tab=chat');
+      } else if (payload.type === 'NEW_REQUEST' || payload.type === 'NEW_COIN_LOAD') {
+        playStaffChime();
+        desktopPing(
+          payload.type === 'NEW_COIN_LOAD' ? '🪙 New Coin Load Request' : '🎮 New Game Account Request',
+          `${payload.request?.gameTitle || 'Game'} from ${payload.request?.userName || payload.userEmail || 'Player'}`,
+          '/admin?tab=chat'
+        );
+      }
+      pollPendingWork();
+    };
+
+    window.addEventListener('zorra_staff_event_local', onStaffRealtime);
+    window.addEventListener('zorra-admin-desk-sync', pollPendingWork);
+
     pollPendingWork();
-    const interval = setInterval(pollPendingWork, 3500);
-    return () => clearInterval(interval);
+    const interval = setInterval(pollPendingWork, 4500);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('zorra_staff_event_local', onStaffRealtime);
+      window.removeEventListener('zorra-admin-desk-sync', pollPendingWork);
+    };
   }, [staffUser, pathname]);
 
   return null;

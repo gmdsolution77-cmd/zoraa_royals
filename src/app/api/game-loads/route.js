@@ -130,6 +130,22 @@ export async function POST(req) {
       createdAt: new Date(),
     });
 
+    try {
+      const { publishStaffPlayerSync, REALTIME_TYPES } = await import('@/lib/realtimePublish');
+      publishStaffPlayerSync(REALTIME_TYPES.ACCOUNT_REQUEST_CREATED, {
+        request: {
+          ...loadRequest,
+          id: result.insertedId.toString(),
+          _id: result.insertedId.toString(),
+          requestType: 'COIN_LOAD',
+          transferAmount: numAmount,
+          gameTitle: gameName,
+        },
+        userEmail: user.email,
+        userId: user._id.toString(),
+      });
+    } catch {}
+
     return Response.json({
       success: true,
       message: `Request to load $${numAmount.toFixed(2)} into ${gameName} submitted successfully.`,

@@ -41,8 +41,15 @@ export async function getDb(dbName = 'zorra_royals') {
   return c.db(dbName);
 }
 
+let isDbInitialized = false;
+let initDbPromise = null;
+
 export async function initDb() {
-  const db = await getDb();
+  if (isDbInitialized) return true;
+  if (initDbPromise) return initDbPromise;
+
+  initDbPromise = (async () => {
+    const db = await getDb();
 
   // 0. Ensure High-Performance Database Indexes
   try {
@@ -439,5 +446,12 @@ export async function initDb() {
     ]);
   }
 
-  return true;
+    isDbInitialized = true;
+    return true;
+  })().catch((err) => {
+    initDbPromise = null;
+    throw err;
+  });
+
+  return initDbPromise;
 }
