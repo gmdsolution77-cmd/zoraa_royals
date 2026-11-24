@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
+import { useRouter } from 'next/navigation';
+import { openSupportChat } from '@/lib/supportChatFlow';
 
 export default function GameCredentialsModal({
   isOpen,
@@ -33,6 +35,7 @@ export default function GameCredentialsModal({
   onLoadCredits,
   user,
 }) {
+  const router = useRouter();
   const [copiedField, setCopiedField] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [requesting, setRequesting] = useState(false);
@@ -156,31 +159,16 @@ export default function GameCredentialsModal({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleRequest = async () => {
+  const handleRequest = () => {
     if (!user) return;
-    setRequesting(true);
-    try {
-      const res = await fetch('/api/account-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameTitle: game.title,
-          gameId: game.gameId || game.id,
-          userEmail: user.email,
-          userName: user.username,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAccountStatus('PENDING');
-        setStepTimer(5);
-        if (onRequestAccount) onRequestAccount(game);
-      }
-    } catch (err) {
-      console.error('Request account error:', err);
-    } finally {
-      setRequesting(false);
-    }
+    openSupportChat({
+      action: 'game_id',
+      user,
+      meta: { gameTitle: game.title, gameId: game.gameId || game.id },
+      router,
+    });
+    if (onRequestAccount) onRequestAccount(game);
+    onClose?.();
   };
 
   const gameUrl = game.url || game.downloadUrl || 'https://orionstars.vip';

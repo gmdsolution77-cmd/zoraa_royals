@@ -8,6 +8,7 @@ export default function QuickActionCards({
   onOpenCashier,
   onOpenVault,
   onOpenFreeplay,
+  onOpenSupportChat,
 }) {
   const cards = [
     {
@@ -48,7 +49,10 @@ export default function QuickActionCards({
       glow: 'hover:shadow-[0_10px_35px_rgba(212,175,55,0.3)]',
       badgeClass: 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/40',
       action: () => {
-        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openRoyalChat'));
+        if (onOpenSupportChat) onOpenSupportChat();
+        else if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('zorra-open-chat', { detail: { action: 'support' } }));
+        }
       },
     },
     {

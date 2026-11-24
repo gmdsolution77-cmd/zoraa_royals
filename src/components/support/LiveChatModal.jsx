@@ -15,12 +15,16 @@ import {
   Eye,
 } from 'lucide-react';
 import { areEqual } from '@/lib/fastDiff';
+import { consumePendingSupportMessage } from '@/lib/supportChatFlow';
 
 export default function LiveChatModal({
   isOpen,
   onClose,
   user,
   onOpenAuth,
+  fullScreen = false,
+  embedded = false,
+  autoSendPending = false,
 }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -29,6 +33,7 @@ export default function LiveChatModal({
   const [selectedPreviewImage, setSelectedPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const pendingSentRef = useRef(false);
 
   const [guestId, setGuestId] = useState('');
 
@@ -218,16 +223,12 @@ export default function LiveChatModal({
     e.target.value = '';
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!text.trim() && !attachedImage) return;
-
-    const gid = guestId || (typeof window !== 'undefined' ? localStorage.getItem('zorra_guest_id') : '') || ('guest_' + Date.now().toString(36));
-    const outgoing = text.trim();
-    const imagePayload = attachedImage;
-    setText('');
-    setAttachedImage(null);
-    setLoading(true);
+  const postChatMessage = async (outgoing, imagePayload = null) => {
+    const gid =
+      guestId ||
+      (typeof window !== 'undefined' ? localStorage.getItem('zorra_guest_id') : '') ||
+      'guest_' + Date.now().toString(36);
+    if (!outgoing && !imagePayload) return false;
 
     // Optimistic UI append at the very bottom
     const optimisticMsg = {
@@ -239,7 +240,10 @@ export default function LiveChatModal({
       createdAt: new Date().toISOString(),
       optimistic: true,
     };
-    safeSetSortedMessages([...messages, optimisticMsg]);
+    setMessages((prev) => {
+      const next = [...prev, optimisticMsg];
+      return areEqual(prev, next) ? prev : next;
+    });
     setTimeout(() => scrollToBottom(false), 20);
 
     try {
@@ -251,20 +255,49 @@ export default function LiveChatModal({
           message: outgoing,
           imageUrl: imagePayload,
           guestId: user ? undefined : gid,
-          userId: user ? (user.userId || user.id || user._id) : gid,
+          userId: user ? user.userId || user.id || user._id : gid,
           username: user?.username || 'Guest Patron',
+          email: user?.email,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        fetchChat();
+        await fetchChat();
+        return true;
       }
-    } catch {
+    } catch {}
+    return false;
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!text.trim() && !attachedImage) return;
+    const outgoing = text.trim();
+    const imagePayload = attachedImage;
+    setText('');
+    setAttachedImage(null);
+    setLoading(true);
+  try {
+      await postChatMessage(outgoing, imagePayload);
     } finally {
       setLoading(false);
       setTimeout(() => scrollToBottom(true), 80);
     }
   };
+
+  useEffect(() => {
+    if (!isOpen || !autoSendPending || pendingSentRef.current) return;
+    if (!user && !guestId) return;
+    const pending = consumePendingSupportMessage();
+    if (!pending?.text) return;
+    pendingSentRef.current = true;
+    setText(pending.text);
+    setLoading(true);
+    postChatMessage(pending.text, null).finally(() => {
+      setLoading(false);
+      setText('');
+    });
+  }, [isOpen, autoSendPending, user, guestId]);
 
   const handleFocus = () => {
     setTimeout(() => {
@@ -272,63 +305,72 @@ export default function LiveChatModal({
     }, 250);
   };
 
+  const shellClass = fullScreen
+    ? 'w-full h-full min-h-0 flex flex-col overflow-hidden bg-[#090b12] border-0 rounded-none shadow-none'
+    : `fixed z-50 bottom-0 sm:bottom-6 right-0 sm:right-6 w-full sm:w-[410px] h-[85vh] sm:h-[600px] max-h-[100dvh] bg-[#090b12] border-t-2 sm:border-2 border-[#d4af37]/40 rounded-t-3xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden animate-slide-up`;
+
   return (
     <>
-      {/* Mobile Backdrop Only */}
-      <div
-        onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/60 sm:hidden backdrop-blur-[2px] animate-fade-in"
-      />
+      {!fullScreen && !embedded && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/60 sm:hidden backdrop-blur-[2px] animate-fade-in"
+        />
+      )}
 
-      {/* Floating Bottom-Right Chat Drawer Widget */}
       <div
         ref={containerRef}
         data-royal-modal="true"
-        className="fixed z-50 bottom-0 sm:bottom-6 right-0 sm:right-6 w-full sm:w-[410px] h-[85vh] sm:h-[600px] max-h-[100dvh] bg-[#090b12] border-t-2 sm:border-2 border-[#d4af37]/40 rounded-t-3xl sm:rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden animate-slide-up"
-        style={{
-          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(212, 175, 55, 0.2)',
-          ...(keyboardHeight > 0 ? { bottom: `${keyboardHeight + 8}px` } : {}),
-        }}
+        className={shellClass}
+        style={
+          fullScreen
+            ? undefined
+            : {
+                boxShadow: '0 25px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(212, 175, 55, 0.2)',
+                ...(keyboardHeight > 0 ? { bottom: `${keyboardHeight + 8}px` } : {}),
+              }
+        }
       >
-        {/* WhatsApp-Style Royal Header */}
-        <div className="px-4 py-3 bg-gradient-to-r from-[#141828] via-[#101320] to-[#0d0f19] border-b border-[#d4af37]/25 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
+        {!embedded && (
+          <div className="px-4 py-3 bg-gradient-to-r from-[#141828] via-[#101320] to-[#0d0f19] border-b border-[#d4af37]/25 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                data-modal-close="true"
+                className="p-1.5 -ml-1 text-gray-300 hover:text-white rounded-lg hover:bg-white/10 sm:hidden transition"
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-5 h-5 text-[#ffd700]" />
+              </button>
+
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-tr from-[#d4af37] via-[#ffd700] to-[#997b24] p-0.5 shadow-md">
+                <div className="w-full h-full bg-[#0a0c14] rounded-full flex items-center justify-center">
+                  <Headphones className="w-5 h-5 text-[#ffd700]" />
+                </div>
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-[#090b12] animate-pulse" />
+              </div>
+
+              <div>
+                <h3 className="text-sm font-black text-white font-serif tracking-wide flex items-center gap-1.5">
+                  <span>ZORRA ROYALS CONCIERGE</span>
+                </h3>
+                <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>Online • 24/7 VIP Support Desk</span>
+                </p>
+              </div>
+            </div>
+
             <button
               onClick={onClose}
               data-modal-close="true"
-              className="p-1.5 -ml-1 text-gray-300 hover:text-white rounded-lg hover:bg-white/10 sm:hidden transition"
-              aria-label="Back"
+              className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition hidden sm:block"
+              aria-label="Close"
             >
-              <ArrowLeft className="w-5 h-5 text-[#ffd700]" />
+              <X className="w-5 h-5" />
             </button>
-
-            <div className="relative w-10 h-10 rounded-full bg-gradient-to-tr from-[#d4af37] via-[#ffd700] to-[#997b24] p-0.5 shadow-md">
-              <div className="w-full h-full bg-[#0a0c14] rounded-full flex items-center justify-center">
-                <Headphones className="w-5 h-5 text-[#ffd700]" />
-              </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-[#090b12] animate-pulse" />
-            </div>
-
-            <div>
-              <h3 className="text-sm font-black text-white font-serif tracking-wide flex items-center gap-1.5">
-                <span>ZORRA ROYALS CONCIERGE</span>
-              </h3>
-              <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Online • 24/7 VIP Support Desk</span>
-              </p>
-            </div>
           </div>
-
-          <button
-            onClick={onClose}
-            data-modal-close="true"
-            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition hidden sm:block"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        )}
 
         {/* WhatsApp Wallpaper Texture / Chat Messages Container */}
         <div

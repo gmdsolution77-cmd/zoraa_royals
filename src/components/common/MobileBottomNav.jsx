@@ -2,13 +2,8 @@
 
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  Gamepad2,
-  Trophy,
-  KeyRound,
-  Wallet,
-  Sparkles,
-} from 'lucide-react';
+import { Gamepad2, KeyRound, Wallet } from 'lucide-react';
+import { openSupportChat } from '@/lib/supportChatFlow';
 
 export default function MobileBottomNav({
   user,
@@ -30,13 +25,6 @@ export default function MobileBottomNav({
       isActive: pathname === '/' || activeTab === 'lobby' || activeTab === 'main',
     },
     {
-      id: 'games',
-      label: 'Games',
-      icon: Trophy,
-      action: () => router.push('/games'),
-      isActive: pathname === '/games' || activeTab === 'games',
-    },
-    {
       id: 'ids',
       label: 'Game IDs',
       icon: KeyRound,
@@ -49,20 +37,13 @@ export default function MobileBottomNav({
       label: 'Deposit',
       icon: Wallet,
       action: () => {
-        if (onOpenCashier) onOpenCashier('deposit');
-        else router.push('/deposit');
+        openSupportChat({
+          action: 'deposit',
+          user,
+          router,
+        });
       },
-      isActive: pathname === '/deposit' || pathname === '/cashier' || activeTab === 'deposit',
-    },
-    {
-      id: 'spin',
-      label: 'Lucky Spin',
-      icon: Sparkles,
-      action: () => {
-        if (onOpenSpinWheel) onOpenSpinWheel();
-        else router.push('/spin-wheel');
-      },
-      isActive: pathname === '/spin-wheel' || activeTab === 'spin',
+      isActive: pathname === '/chat' || activeTab === 'deposit',
     },
   ];
 

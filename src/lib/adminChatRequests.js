@@ -1,4 +1,159 @@
-import { publishRealtimeEvent, REALTIME_TYPES } from '@/lib/realtimePublish';
+import { publishRealtimeEvent, REALTIME_TYPES, publishChatRealtime } from '@/lib/realtimePublish';
+
+const CONCIERGE_FOOTER = '— Zorra Royals VIP Concierge';
+
+export function buildGameCredentialsChatText({
+  headline,
+  gameTitle,
+  username,
+  password,
+  pin,
+  extraLines = [],
+}) {
+  const lines = [
+    headline || '✅ Your request has been approved!',
+    '',
+    `🎮 Platform: ${gameTitle || 'Game'}`,
+    `👤 Username: ${username || '—'}`,
+    `🔑 Password: ${password || '—'}`,
+  ];
+  if (pin) lines.push(`🔢 PIN: ${pin}`);
+  for (const line of extraLines) {
+    if (line) lines.push(line);
+  }
+  lines.push('', CONCIERGE_FOOTER);
+  return lines.join('\n');
+}
+
+export function buildDepositApprovedChatText({
+  amount,
+  methodName,
+  creditedSC,
+  gameTitle,
+  gameUsername,
+  gamePassword,
+}) {
+  const lines = [
+    '✅ Your deposit has been verified and approved!',
+    '',
+    `💵 Deposit: $${Number(amount || 0).toFixed(2)} via ${methodName || 'Direct'}`,
+    `💰 Credited to your royal wallet: +$${Number(creditedSC || 0).toFixed(2)} SC`,
+  ];
+  if (gameTitle && gameUsername && gamePassword) {
+    lines.push(
+      '',
+      `🎮 Your ${gameTitle} credentials:`,
+      `👤 Username: ${gameUsername}`,
+      `🔑 Password: ${gamePassword}`
+    );
+  } else if (gameTitle) {
+    lines.push(
+      '',
+      `🎮 Your ${gameTitle} Game ID is being prepared — we'll send login details in this chat shortly.`
+    );
+  }
+  lines.push('', CONCIERGE_FOOTER);
+  return lines.join('\n');
+}
+
+export function buildCoinLoadApprovedChatText({
+  gameTitle,
+  amount,
+  username,
+  password,
+  issuedNewCredentials,
+}) {
+  const extra = [
+    '',
+    `🪙 Loaded: $${Number(amount || 0).toFixed(2)} SC into your game account.`,
+  ];
+  const headline = '✅ Coins loaded successfully!';
+  if (issuedNewCredentials && password) {
+    return buildGameCredentialsChatText({
+      headline: '✅ Game ID issued & coins loaded!',
+      gameTitle,
+      username,
+      password,
+      extraLines: extra,
+    });
+  }
+  return buildGameCredentialsChatText({
+    headline,
+    gameTitle,
+    username,
+    password: password || '(use your existing game password)',
+    extraLines: extra,
+  });
+}
+
+/**
+ * Visible staff reply in the player's live chat thread (not adminOnly).
+ */
+export async function postConciergeReplyToPlayerChat(db, {
+  userId,
+  userEmail,
+  username,
+  text,
+  agentName = 'VIP Concierge',
+}) {
+  try {
+    if (!db || !text?.trim()) return null;
+    const cleanEmail = String(userEmail || '').toLowerCase().trim();
+    const cleanUid = String(userId || cleanEmail || '').trim();
+    if (!cleanUid) return null;
+
+    const cleanUsername = String(username || cleanEmail.split('@')[0] || 'VIP Patron').trim();
+    const chatCol = db.collection('chat_messages');
+
+    const messageDoc = {
+      conversationId: cleanUid,
+      userId: cleanUid,
+      userEmail: cleanEmail,
+      username: 'VIP Concierge',
+      customerUserId: cleanUid,
+      customerUsername: cleanUsername,
+      sender: 'support',
+      senderRole: 'staff',
+      agentName: agentName || 'VIP Concierge',
+      guestId: null,
+      text: String(text).trim(),
+      imageUrl: null,
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    const result = await chatCol.insertOne(messageDoc);
+    const insertedId = result.insertedId ? String(result.insertedId) : '';
+
+    try {
+      publishChatRealtime({
+        conversationId: cleanUid,
+        senderRole: 'staff',
+        message: { ...messageDoc, id: insertedId, _id: insertedId },
+        userEmail: cleanEmail,
+        userId: cleanUid,
+      });
+    } catch {}
+
+    try {
+      const { notifyPlayer } = await import('@/lib/notify');
+      notifyPlayer({
+        userId: cleanUid,
+        userEmail: cleanEmail,
+        username: cleanUsername,
+        title: '💬 VIP Concierge Update',
+        message: String(text).trim().slice(0, 160),
+        type: 'chat_message',
+        data: { url: '/chat' },
+      });
+    } catch {}
+
+    return { ...messageDoc, _id: insertedId, id: insertedId };
+  } catch (err) {
+    console.error('postConciergeReplyToPlayerChat error:', err);
+    return null;
+  }
+}
 
 function buildRequestSummaryText(requestKind, meta = {}) {
   if (requestKind === 'deposit') {

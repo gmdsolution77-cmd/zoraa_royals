@@ -467,7 +467,9 @@ export default function PushNotificationManager() {
   const handleOpenAction = () => {
     if (!activeToast) return;
     if (activeToast.type === 'chat' || activeToast.action === 'chat') {
-      window.dispatchEvent(new CustomEvent('zorra-open-chat'));
+      if (typeof window !== 'undefined') {
+        window.location.href = '/chat';
+      }
     } else if (activeToast.url) {
       router.push(activeToast.url);
     }

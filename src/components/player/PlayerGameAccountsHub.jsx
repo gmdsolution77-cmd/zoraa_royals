@@ -25,6 +25,8 @@ import {
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 import { readClientCache, writeClientCache } from '@/lib/clientDataCache';
 import DataLoadingPanel from '@/components/common/DataLoadingPanel';
+import { openSupportChat } from '@/lib/supportChatFlow';
+import { useRouter } from 'next/navigation';
 import LoadCoinsModal from '@/components/player/LoadCoinsModal';
 
 export default function PlayerGameAccountsHub({
@@ -34,6 +36,7 @@ export default function PlayerGameAccountsHub({
   onPlayGame,
   onDeposit,
 }) {
+  const router = useRouter();
   const [activeAccounts, setActiveAccounts] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [rejectedRequests, setRejectedRequests] = useState([]);
@@ -188,38 +191,12 @@ export default function PlayerGameAccountsHub({
     }
 
     const gameTitle = game.title || game.name;
-    const gameId = game.gameId || game.id || game._id;
-
-    setRequestingGameId(gameId);
-    setErrorMsg(null);
-    setRequestSuccessMsg(null);
-
-    try {
-      const res = await fetch('/api/account-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameTitle,
-          gameId,
-          userEmail: user.email,
-          userName: user.username,
-        }),
-      });
-
-      const data = await res.json();
-      setRequestingGameId(null);
-
-      if (data.success) {
-        setRequestSuccessMsg(`🎉 Account request for "${gameTitle}" submitted! Our palace coin manager is issuing your private credentials.`);
-        fetchAccountsAndRequests();
-        setTimeout(() => setRequestSuccessMsg(null), 6000);
-      } else {
-        setErrorMsg(data.message || data.error || 'Failed to submit request.');
-      }
-    } catch {
-      setRequestingGameId(null);
-      setErrorMsg('Network error. Could not request game account.');
-    }
+    openSupportChat({
+      action: 'game_id',
+      user,
+      meta: { gameTitle, gameId: game.gameId || game.id || game._id },
+      router,
+    });
   };
 
   // Find games not yet requested or owned

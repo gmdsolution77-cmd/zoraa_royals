@@ -8,11 +8,10 @@ import RoyalNavbar from '@/components/common/RoyalNavbar';
 import RoyalSidebar from '@/components/common/RoyalSidebar';
 import MobileBottomNav from '@/components/common/MobileBottomNav';
 import RoyalFooter from '@/components/common/RoyalFooter';
-import LiveChatModal from '@/components/support/LiveChatModal';
 import AuthModal from '@/components/common/AuthModal';
-import CashierModal from '@/components/cashier/CashierModal';
 import PlayerGameAccountsHub from '@/components/player/PlayerGameAccountsHub';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
+import { openSupportChat } from '@/lib/supportChatFlow';
 import { diffSet, sanitizeGameTitle } from '@/lib/fastDiff';
 
 export default function AccountsPage() {
@@ -20,8 +19,6 @@ export default function AccountsPage() {
   const [user, setUser] = useState(null);
   const [games, setGames] = useState([]);
   const [authModal, setAuthModal] = useState({ open: false, tab: 'login' });
-  const [cashierModal, setCashierModal] = useState({ open: false, tab: 'deposit' });
-  const [chatOpen, setChatOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -83,8 +80,10 @@ export default function AccountsPage() {
         mobileOpen={mobileSidebarOpen}
         setMobileOpen={setMobileSidebarOpen}
         user={user}
-        onOpenCashier={(tab) => setCashierModal({ open: true, tab: tab || 'deposit' })}
-        onOpenChat={() => setChatOpen(true)}
+        onOpenCashier={(tab) =>
+          openSupportChat({ action: tab === 'withdraw' ? 'cashout' : 'deposit', user, router })
+        }
+        onOpenChat={() => openSupportChat({ action: 'support', user, router })}
       />
 
       {/* 2. Main Content Layout with dynamic left padding on desktop */}
@@ -97,7 +96,9 @@ export default function AccountsPage() {
         <RoyalNavbar
           user={user}
           onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
-          onOpenCashier={(tab) => setCashierModal({ open: true, tab: tab || 'deposit' })}
+          onOpenCashier={(tab) =>
+            openSupportChat({ action: tab === 'withdraw' ? 'cashout' : 'deposit', user, router })
+          }
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
 
@@ -120,7 +121,7 @@ export default function AccountsPage() {
             games={games}
             onOpenAuth={(tab) => setAuthModal({ open: true, tab: tab || 'login' })}
             onPlayGame={handlePlayGame}
-            onDeposit={() => setCashierModal({ open: true, tab: 'deposit' })}
+            onDeposit={() => openSupportChat({ action: 'deposit', user, router })}
           />
         </main>
 
@@ -133,14 +134,10 @@ export default function AccountsPage() {
           if (tab === 'lobby') router.push('/');
           else if (tab === 'games') router.push('/games');
         }}
-        onOpenCashier={(tab) => setCashierModal({ open: true, tab: tab || 'deposit' })}
-      />
-
-      {/* Modals */}
-      <LiveChatModal
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
         user={user}
+        onOpenCashier={(tab) =>
+          openSupportChat({ action: tab === 'withdraw' ? 'cashout' : 'deposit', user, router })
+        }
       />
 
       <AuthModal
@@ -150,13 +147,6 @@ export default function AccountsPage() {
         onAuthSuccess={refreshUser}
       />
 
-      <CashierModal
-        isOpen={cashierModal.open}
-        initialTab={cashierModal.tab}
-        onClose={() => setCashierModal({ open: false, tab: 'deposit' })}
-        user={user}
-        onBalanceChange={refreshUser}
-      />
     </div>
   );
 }

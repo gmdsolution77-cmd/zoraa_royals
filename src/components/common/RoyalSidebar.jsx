@@ -6,21 +6,16 @@ import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   Gamepad2,
-  Trophy,
   KeyRound,
   Wallet,
   Receipt,
-  Gift,
-  Download,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
   Crown,
-  Users,
-  Headphones,
-  Sparkles,
   X
 } from 'lucide-react';
+import { openSupportChat } from '@/lib/supportChatFlow';
 
 export default function RoyalSidebar({
   collapsed: controlledCollapsed,
@@ -59,42 +54,20 @@ export default function RoyalSidebar({
 
   const navItems = [
     { label: 'Game Lobby', path: '/', icon: Gamepad2, badge: 'HOT' },
-    { label: 'All Games', path: '/games', icon: Trophy },
     { label: 'My Game IDs', path: '/accounts', icon: KeyRound, highlight: true },
     {
       label: 'Deposit Funds',
-      path: '/deposit',
+      path: '#',
       icon: Wallet,
-      action: onOpenCashier ? () => onOpenCashier('deposit') : (onOpenWallet ? () => onOpenWallet('deposit') : undefined)
+      action: () => openSupportChat({ action: 'deposit', user, router }),
     },
     {
       label: 'Redeem Cashout',
-      path: '/cashout',
-      icon: Receipt,
-      action: onOpenCashier ? () => onOpenCashier('withdraw') : (onOpenWallet ? () => onOpenWallet('withdraw') : undefined)
-    },
-    {
-      label: 'Lucky Spin Wheel',
-      path: '/spin-wheel',
-      icon: Sparkles,
-      glow: true,
-      action: onOpenSpinWheel || (() => router.push('/spin-wheel'))
-    },
-    {
-      label: '24/7 Live Support',
       path: '#',
-      icon: Headphones,
-      badge: 'ONLINE',
-      action: () => {
-        if (onOpenChat) onOpenChat();
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('openRoyalChat'));
-          window.dispatchEvent(new CustomEvent('zorra-open-chat'));
-        }
-      },
+      icon: Receipt,
+      action: () => openSupportChat({ action: 'cashout', user, router }),
     },
     { label: 'Promotions & VIP', path: '/promotions', icon: Crown },
-    { label: 'Download App', path: '/download-app', icon: Download, badge: 'APK / iOS' },
     { label: 'How To Play', path: '/how-to-play', icon: HelpCircle },
   ];
 
@@ -271,9 +244,7 @@ export default function RoyalSidebar({
               <button
                 type="button"
                 onClick={() => {
-                  if (onOpenCashier) onOpenCashier('deposit');
-                  else if (onOpenWallet) onOpenWallet('deposit');
-                  else router.push('/deposit');
+                  openSupportChat({ action: 'deposit', user, router });
                   setMobileOpen(false);
                 }}
                 className="btn-gold text-[11px] py-2 font-black flex items-center justify-center gap-1 shadow-[0_0_12px_rgba(212,175,55,0.3)]"
@@ -284,9 +255,7 @@ export default function RoyalSidebar({
               <button
                 type="button"
                 onClick={() => {
-                  if (onOpenCashier) onOpenCashier('withdraw');
-                  else if (onOpenWallet) onOpenWallet('withdraw');
-                  else router.push('/cashout');
+                  openSupportChat({ action: 'cashout', user, router });
                   setMobileOpen(false);
                 }}
                 className="rounded-xl bg-slate-900 border border-slate-700 hover:border-[#ffd700]/50 text-slate-200 text-[11px] py-2 font-bold flex items-center justify-center gap-1 transition-all"
@@ -302,9 +271,7 @@ export default function RoyalSidebar({
           <div className="p-2 border-t border-[#d4af37]/20 flex justify-center">
             <button
               onClick={() => {
-                if (onOpenCashier) onOpenCashier('deposit');
-                else if (onOpenWallet) onOpenWallet('deposit');
-                else router.push('/deposit');
+                openSupportChat({ action: 'deposit', user, router });
               }}
               className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#ffd700] via-[#d4af37] to-[#b38f26] text-black flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 transition-transform"
               title="Deposit Credits"

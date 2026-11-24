@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { openSupportChat } from '@/lib/supportChatFlow';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -44,13 +46,19 @@ import RoyalFreeplayModal from '@/components/freeplay/RoyalFreeplayModal';
 import RoyalSlotModal from '@/components/games/RoyalSlotModal';
 import RoyalCrashModal from '@/components/games/RoyalCrashModal';
 import RoyalBlackjackModal from '@/components/games/RoyalBlackjackModal';
-import LiveChatModal from '@/components/support/LiveChatModal';
 import KycModal from '@/components/common/KycModal';
-import DailySpinWheelModal from '@/components/common/DailySpinWheelModal';
 import { getCachedUser, saveCachedUser, clearCachedUser } from '@/lib/userSession';
 
 export default function HomePage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
+
+  const goSupport = useCallback(
+    (action, meta = {}) => {
+      openSupportChat({ action, user, meta, router });
+    },
+    [user, router]
+  );
   const [currency, setCurrency] = useState('SC');
   const [activeCategory, setActiveCategory] = useState('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -71,21 +79,24 @@ export default function HomePage() {
         setCurrentView(tabParam === 'load' ? 'deposit' : tabParam);
       }
       if (params.get('chat') === 'open' || window.location.hash === '#chat') {
-        setChatOpen(true);
+        goSupport('support');
       }
       if (params.get('freeplay') === '1') {
         setFreeplayOpen(true);
       }
     }
 
-    const handleOpenChat = () => setChatOpen(true);
+    const handleOpenChat = (e) => {
+      const detail = e?.detail || {};
+      goSupport(detail.action || 'support', detail.meta || {});
+    };
     window.addEventListener('openRoyalChat', handleOpenChat);
     window.addEventListener('zorra-open-chat', handleOpenChat);
     return () => {
       window.removeEventListener('openRoyalChat', handleOpenChat);
       window.removeEventListener('zorra-open-chat', handleOpenChat);
     };
-  }, []);
+  }, [goSupport]);
 
   const handleSwitchView = (view) => {
     setCurrentView(view);
@@ -206,11 +217,11 @@ export default function HomePage() {
         mobileOpen={mobileSidebarOpen}
         setMobileOpen={setMobileSidebarOpen}
         user={user}
-        onOpenCashier={(tab) => setCashierModal({ open: true, tab })}
-        onOpenFreeplay={() => setFreeplayOpen(true)}
-        onOpenSpinWheel={() => setSpinWheelOpen(true)}
-        onOpenGameVault={() => setGameVaultOpen(true)}
-        onOpenChat={() => setChatOpen(true)}
+        onOpenCashier={(tab) => goSupport(tab === 'withdraw' ? 'cashout' : 'deposit')}
+        onOpenFreeplay={() => goSupport('freeplay')}
+        onOpenSpinWheel={() => goSupport('spin_wheel')}
+        onOpenGameVault={() => router.push('/accounts')}
+        onOpenChat={() => goSupport('support')}
       />
 
       {/* 2. Main Content Layout with dynamic left padding on desktop */}
@@ -225,11 +236,11 @@ export default function HomePage() {
           currency={currency}
           setCurrency={setCurrency}
           onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
-          onOpenCashier={(tab) => setCashierModal({ open: true, tab })}
-          onOpenFreeplay={() => setFreeplayOpen(true)}
-          onOpenSpinWheel={() => setSpinWheelOpen(true)}
-          onOpenGameVault={() => setGameVaultOpen(true)}
-          onOpenKyc={() => setKycOpen(true)}
+          onOpenCashier={(tab) => goSupport(tab === 'withdraw' ? 'cashout' : 'deposit')}
+          onOpenFreeplay={() => goSupport('freeplay')}
+          onOpenSpinWheel={() => goSupport('spin_wheel')}
+          onOpenGameVault={() => router.push('/accounts')}
+          onOpenKyc={() => goSupport('kyc')}
           onLogout={handleLogout}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
@@ -247,18 +258,22 @@ export default function HomePage() {
                 <HeroShowcase
                   user={user}
                   onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
-                  onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
-                  onOpenFreeplay={() => setFreeplayOpen(true)}
-                  onOpenSpinWheel={() => setSpinWheelOpen(true)}
+                  onOpenCashier={(tab) => goSupport(tab === 'withdraw' ? 'cashout' : 'deposit')}
+                  onOpenFreeplay={() => goSupport('freeplay')}
+                  onOpenSpinWheel={() => goSupport('spin_wheel')}
+                  onOpenSupportChat={(action, meta) => goSupport(action, meta)}
                   onBalanceUpdated={fetchUser}
-                  onOpenVault={() => handleSwitchView('deposit')}
+                  onOpenVault={() => goSupport('game_id', { gameTitle: 'My Game Accounts' })}
                 />
 
                 {/* B. 4 Quick VIP Service Stations */}
                 <QuickActionCards
-                  onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
-                  onOpenVault={() => handleSwitchView('deposit')}
-                  onOpenFreeplay={() => setFreeplayOpen(true)}
+                  onOpenCashier={(tab) =>
+                    goSupport(tab === 'withdraw' ? 'cashout' : tab === 'history' ? 'support' : 'deposit')
+                  }
+                  onOpenVault={() => goSupport('game_id', { gameTitle: 'My Game Accounts' })}
+                  onOpenFreeplay={() => goSupport('freeplay')}
+                  onOpenSupportChat={() => goSupport('support')}
                 />
 
                 {/* C. Master Sweepstakes Platforms Section (Single clean showcase) */}
@@ -323,17 +338,9 @@ export default function HomePage() {
             }
           }
         }}
-        onOpenCashier={(tab) => handleSwitchView(tab || 'deposit')}
-        onOpenFreeplay={() => setFreeplayOpen(true)}
-        onOpenSpinWheel={() => setSpinWheelOpen(true)}
-      />
-
-      {/* Daily Lucky Spin Wheel Modal */}
-      <DailySpinWheelModal
-        isOpen={spinWheelOpen}
-        onClose={() => setSpinWheelOpen(false)}
-        user={user}
-        onBalanceUpdated={fetchUser}
+        onOpenCashier={(tab) => goSupport(tab === 'withdraw' ? 'cashout' : 'deposit')}
+        onOpenFreeplay={() => goSupport('freeplay')}
+        onOpenSpinWheel={() => goSupport('spin_wheel')}
       />
 
       {/* Modals */}
@@ -372,13 +379,6 @@ export default function HomePage() {
           fetchUser();
           fetchVaultData();
         }}
-      />
-
-      <LiveChatModal
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        user={user}
-        onOpenAuth={(tab) => setAuthModal({ open: true, tab })}
       />
 
       <KycModal

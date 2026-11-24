@@ -3,7 +3,13 @@ import { getDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, ROLES } from '@/lib/auth';
 import { notifyPlayer } from '@/lib/notify';
 import { syncFreeplayAdminQueue } from '@/lib/syncFreeplayAdminQueue';
-import { postRequestToAdminChat, syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
+import {
+  postRequestToAdminChat,
+  syncRequestCardStatusInChat,
+  postConciergeReplyToPlayerChat,
+  buildGameCredentialsChatText,
+  buildCoinLoadApprovedChatText,
+} from '@/lib/adminChatRequests';
 
 // GET Account Requests
 export async function GET(req) {
@@ -371,6 +377,45 @@ export async function PUT(req) {
         },
       });
 
+      const playerChatUid = user?._id?.toString() || String(targetRequest.userId || '').trim() || cleanEmail;
+      const hadExistingGameId = Boolean(
+        targetRequest.gameAccountUsername || targetRequest.gameUsername
+      );
+      let playerChatText = '';
+      if (targetRequest.freeplayPending) {
+        const fpAmount = Number(targetRequest.freeplayAmount || 3.0);
+        playerChatText = buildGameCredentialsChatText({
+          headline: `✅ Freeplay approved! +$${fpAmount.toFixed(2)} SC added to your wallet.`,
+          gameTitle: cleanTitle,
+          username: finalUsername,
+          password: finalPassword,
+          extraLines: ['', `🎁 Freeplay bonus: $${fpAmount.toFixed(2)} SC`],
+        });
+      } else if (finalTransferAmount > 0) {
+        playerChatText = buildCoinLoadApprovedChatText({
+          gameTitle: cleanTitle,
+          amount: finalTransferAmount,
+          username: finalUsername,
+          password: finalPassword,
+          issuedNewCredentials: !hadExistingGameId,
+        });
+      } else {
+        playerChatText = buildGameCredentialsChatText({
+          headline: '✅ Your Game ID is ready!',
+          gameTitle: cleanTitle,
+          username: finalUsername,
+          password: finalPassword,
+          extraLines: ['', 'Open the game app and sign in with the credentials above.'],
+        });
+      }
+      await postConciergeReplyToPlayerChat(db, {
+        userId: playerChatUid,
+        userEmail: cleanEmail,
+        username: targetRequest.userName || user?.username,
+        text: playerChatText,
+        agentName: session.username,
+      });
+
       // 4. Handle Freeplay Attached Tasks — credit wallet + issue game credentials
       if (targetRequest.freeplayPending) {
         const fpAmount = Number(targetRequest.freeplayAmount || 3.0);
@@ -561,6 +606,15 @@ export async function PUT(req) {
           processedBy: session.username,
           processedAt: new Date().toISOString(),
         },
+      });
+
+      const rejectUser = await usersCol.findOne({ email: cleanEmail });
+      await postConciergeReplyToPlayerChat(db, {
+        userId: rejectUser?._id?.toString() || String(targetRequest.userId || '').trim() || cleanEmail,
+        userEmail: cleanEmail,
+        username: targetRequest.userName || rejectUser?.username,
+        text: `⚠️ Your ${cleanTitle} request was declined.\n\nReason: ${reason}\n\nReply here if you need help. — Zorra Royals VIP Concierge`,
+        agentName: session.username,
       });
 
       notifyPlayer({

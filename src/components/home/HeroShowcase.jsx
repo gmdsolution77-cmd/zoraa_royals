@@ -1,20 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
 import {
   Crown,
   Sparkles,
-  Wallet,
   Gift,
   Key,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
   ArrowRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  MessageSquare,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import HeroBannerCard from './HeroBannerCard';
@@ -34,8 +31,25 @@ export default function HeroShowcase({
   onOpenFreeplay,
   onOpenVault,
   onOpenSpinWheel,
+  onOpenSupportChat,
   onBalanceUpdated,
 }) {
+  const openChat = (action, meta) => {
+    if (onOpenSupportChat) onOpenSupportChat(action, meta);
+    else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('zorra-open-chat', { detail: { action, meta } }));
+    }
+  };
+
+  const openDepositChat = () => {
+    if (onOpenCashier) onOpenCashier('deposit');
+    else openChat('deposit');
+  };
+
+  const openCashoutChat = () => {
+    if (onOpenCashier) onOpenCashier('withdraw');
+    else openChat('cashout');
+  };
   const [currentSlide, setCurrentSlide] = useState(0);
   const focusedFreeplaySlide = useRef(false);
   const [jackpot, setJackpot] = useState(1842954.29);
@@ -72,9 +86,8 @@ export default function HeroShowcase({
       });
       return;
     }
-    if (onOpenFreeplay) {
-      onOpenFreeplay();
-    }
+    if (onOpenFreeplay) onOpenFreeplay();
+    else openChat('freeplay');
   };
 
   useEffect(() => {
@@ -172,7 +185,7 @@ export default function HeroShowcase({
       subtitle: `UNLIMITED RELOAD BONUS • 24/7 INSTANT CREDITING`,
       desc: `Enjoy an extra +${regularPct}% bonus coins automatically added on every deposit. Fast processing via Cash App, Zelle & Crypto.`,
       ctaText: `Deposit & Get +${regularPct}%`,
-      ctaHref: '/deposit',
+      ctaAction: openDepositChat,
       secondaryText: 'Lucky Spin Wheel',
       secondaryAction: onOpenSpinWheel,
       imageBadge: `+${regularPct}% RELOAD`,
@@ -184,8 +197,9 @@ export default function HeroShowcase({
       subtitle: `${welcomePct}% MATCH + ${freeplayDisplay} COMPLIMENTARY SIGNUP FREEPLAY`,
       desc: `Deposit via Cash App, Zelle or Crypto and get an instant +${welcomePct}% match bonus added directly to your dollar balance!`,
       ctaText: user ? 'Deposit & Triple Balance' : (isFreeplayActive ? `Claim ${freeplayDisplay} Freeplay & Join` : 'Join Palace VIP'),
-      ctaHref: user ? '/deposit' : null,
-      ctaAction: user ? () => {} : () => onOpenAuth('register'),
+      ctaAction: user
+        ? openDepositChat
+        : () => (isFreeplayActive ? handleGetFreeplay() : onOpenAuth?.('register')),
       secondaryText: 'Lucky Spin Wheel',
       secondaryAction: onOpenSpinWheel,
       imageBadge: `+${welcomePct}% WELCOME`,
@@ -200,7 +214,7 @@ export default function HeroShowcase({
       ctaText: canPromoFreeplay ? `Claim ${freeplayDisplay} Freeplay` : freeplayPending ? 'Freeplay Under Review' : 'Play Sweepstakes',
       ctaAction: handleGetFreeplay,
       secondaryText: 'Deposit & Get Bonus',
-      secondaryHref: '/deposit',
+      secondaryAction: openDepositChat,
       imageBadge: `${freeplayDisplay} COMPLIMENTARY`,
       glowColor: '#10b981',
     }] : []),
@@ -210,10 +224,13 @@ export default function HeroShowcase({
       title: `${gamesCount} SWEEPSTAKES PLATFORMS`,
       subtitle: 'ORION STARS • FIRE KIRIN • JUWA • GAME VAULT • ULTRA PANDA',
       desc: 'One single wallet for all platforms. Fast credentials generation and direct credit loading with 24/7 VIP assistance.',
-      ctaText: 'View My Game IDs',
-      ctaHref: '/accounts',
-      secondaryText: 'Lucky Spin Wheel',
-      secondaryAction: onOpenSpinWheel,
+      ctaText: 'Request Game ID',
+      ctaAction: () =>
+        openChat('game_id', {
+          gameTitle: 'VIP Sweepstakes Platform',
+        }),
+      secondaryText: onOpenVault ? 'My Game Vault' : 'View Accounts',
+      secondaryAction: onOpenVault || (() => openChat('game_id')),
       imageBadge: 'INSTANT TRANSFER',
       glowColor: '#a855f7',
     },
@@ -224,11 +241,9 @@ export default function HeroShowcase({
       subtitle: 'CASH APP • ZELLE • BITCOIN • 24/7 CONCIERGE ASSISTANCE',
       desc: 'Load funds into your account instantly with zero fees. Rapid approvals, verified transactions, and direct crediting into your game IDs.',
       ctaText: 'Deposit Funds Now',
-      ctaHref: '/deposit',
-      secondaryText: 'Live Chat Support',
-      secondaryAction: () => {
-        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openRoyalChat'));
-      },
+      ctaAction: openDepositChat,
+      secondaryText: 'Redeem / Cashout',
+      secondaryAction: openCashoutChat,
       imageBadge: '0% FEES • INSTANT',
       glowColor: '#eab308',
     },
@@ -332,40 +347,34 @@ export default function HeroShowcase({
               </button>
             )}
 
-            {slide.ctaHref ? (
-              <Link
-                href={slide.ctaHref}
-                className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)]"
-              >
-                <Crown className="w-4 h-4 stroke-[2.5]" />
-                <span>{slide.ctaText}</span>
-              </Link>
-            ) : (
-              <button
-                onClick={slide.ctaAction}
-                className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)]"
-              >
-                <Crown className="w-4 h-4 stroke-[2.5]" />
-                <span>{slide.ctaText}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => slide.ctaAction?.()}
+              className="btn-gold text-sm px-6 py-3.5 font-black flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] cursor-pointer"
+            >
+              <Crown className="w-4 h-4 stroke-[2.5]" />
+              <span>{slide.ctaText}</span>
+            </button>
 
-            {slide.secondaryHref ? (
-              <Link
-                href={slide.secondaryHref}
-                className="btn-surface text-sm px-5 py-3.5 font-bold flex items-center gap-1.5"
+            {slide.secondaryText && slide.secondaryAction && (
+              <button
+                type="button"
+                onClick={() => slide.secondaryAction?.()}
+                className="btn-surface text-sm px-5 py-3.5 font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <span>{slide.secondaryText}</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
-            ) : (
-              <button
-                onClick={slide.secondaryAction}
-                className="btn-surface text-sm px-5 py-3.5 font-bold"
-              >
-                {slide.secondaryText}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => openChat('support')}
+              className="btn-surface text-sm px-5 py-3.5 font-bold flex items-center gap-2 border border-[#ffd700]/45 text-[#ffd700] hover:bg-[#ffd700]/10 shadow-[0_0_18px_rgba(255,215,0,0.15)] cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>24/7 Chat Support</span>
+            </button>
           </div>
         </div>
 

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { openSupportChat } from '@/lib/supportChatFlow';
 import {
   Coins,
   X,
@@ -21,6 +23,7 @@ export default function LoadCoinsModal({
   user,
   onSuccess,
 }) {
+  const router = useRouter();
   const [loadAmount, setLoadAmount] = useState(20);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -66,37 +69,13 @@ export default function LoadCoinsModal({
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch('/api/account-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameTitle,
-          gameId,
-          transferAmount: amt,
-          userEmail: user.email,
-          userName: user.username,
-        }),
-      });
-
-      const data = await res.json();
-      setLoading(false);
-
-      if (data.success) {
-        setSuccessMsg(`🎉 $${amt.toFixed(2)} USD frozen in escrow and submitted to Coin Desk for ${gameTitle}!`);
-        window.dispatchEvent(new CustomEvent('balanceUpdated'));
-        if (onSuccess) onSuccess(data);
-        setTimeout(() => {
-          onClose();
-        }, 1800);
-      } else {
-        setErrorMsg(data.message || 'Failed to submit load request.');
-      }
-    } catch {
-      setLoading(false);
-      setErrorMsg('Network error. Could not submit load request.');
-    }
+    onClose();
+    openSupportChat({
+      action: 'load_coins',
+      user,
+      meta: { gameTitle, gameId, amount: amt },
+      router,
+    });
   };
 
   return (

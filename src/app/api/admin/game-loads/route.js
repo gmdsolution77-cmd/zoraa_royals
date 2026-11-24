@@ -1,7 +1,7 @@
 import { getDb, initDb, toIdQuery } from '@/lib/mongodb';
 import { getSessionUser, hasPermission } from '@/lib/auth';
 import { notifyPlayer } from '@/lib/notify';
-import { syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
+import { syncRequestCardStatusInChat, postConciergeReplyToPlayerChat } from '@/lib/adminChatRequests';
 
 export async function GET() {
   try {
@@ -107,6 +107,29 @@ export async function POST(req) {
         data: { url: '/games' },
       });
 
+      const gAcc = await db.collection('gameAccounts').findOne({
+        userEmail: loadReq.clientEmail,
+        gameTitle: new RegExp(`^${String(loadReq.gameName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+        status: { $in: ['READY', 'ready', 'active'] },
+      });
+      const loadLines = [
+        `✅ $${loadReq.amount.toFixed(2)} SC loaded into your ${loadReq.gameName} account!`,
+        '',
+        `🎮 Platform: ${loadReq.gameName}`,
+        `👤 Game ID: ${loadReq.gameUsername || gAcc?.username || '—'}`,
+      ];
+      if (gAcc?.password) {
+        loadLines.push(`🔑 Password: ${gAcc.password}`);
+      }
+      loadLines.push('', '— Zorra Royals VIP Concierge');
+      await postConciergeReplyToPlayerChat(db, {
+        userId: user._id.toString(),
+        userEmail: user.email,
+        username: user.username,
+        text: loadLines.join('\n'),
+        agentName: session.username,
+      });
+
       try {
         const { publishAccountRequestUpdated } = await import('@/lib/realtimePublish');
         publishAccountRequestUpdated({
@@ -157,6 +180,14 @@ export async function POST(req) {
         message: `Your request to load $${loadReq.amount.toFixed(2)} into ${loadReq.gameName} (${loadReq.gameUsername}) was rejected: "${reason}". No funds were deducted.`,
         type: 'alert',
         data: { url: '/games' },
+      });
+
+      await postConciergeReplyToPlayerChat(db, {
+        userId: user._id.toString(),
+        userEmail: user.email,
+        username: user.username,
+        text: `⚠️ Your $${loadReq.amount.toFixed(2)} SC load for ${loadReq.gameName} was declined.\n\nReason: ${reason}\n\n— Zorra Royals VIP Concierge`,
+        agentName: session.username,
       });
 
       try {

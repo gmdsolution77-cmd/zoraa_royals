@@ -3,7 +3,7 @@ import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery, toObjectId } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
 import { notifyPlayer, notifyStaff } from '@/lib/notify';
-import { postRequestToAdminChat, syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
+import { postRequestToAdminChat, syncRequestCardStatusInChat, postConciergeReplyToPlayerChat } from '@/lib/adminChatRequests';
 
 // GET: List Redemptions
 export async function GET(req) {
@@ -448,6 +448,22 @@ export async function PUT(req) {
         data: { url: '/cashier' },
       });
 
+      await postConciergeReplyToPlayerChat(db, {
+        userId: redemption.userId?.toString?.() || String(redemption.userId),
+        userEmail: (user?.email || redemption.userEmail || '').toLowerCase().trim(),
+        username: redemption.username || user?.username,
+        text: [
+          '✅ Your cashout has been approved and dispatched!',
+          '',
+          `💸 Amount: $${Number(redemption.amount).toFixed(2)}`,
+          `🎮 From: ${redemption.gameTitle || 'Game'}`,
+          `📱 Sent via: ${redemption.payoutMethod || 'Direct'} → ${redemption.destinationAddress || 'your tag'}`,
+          '',
+          '— Zorra Royals VIP Concierge',
+        ].join('\n'),
+        agentName: session.username,
+      });
+
       // Email notification
       if (user?.email) {
         sendEmail({
@@ -510,6 +526,14 @@ export async function PUT(req) {
         message: `Your cashout request for $${Number(redemption.amount).toFixed(2)} via ${redemption.payoutMethod} was rejected by finance desk. Note: ${reason}`,
         type: 'withdraw_rejected',
         data: { url: '/cashier' },
+      });
+
+      await postConciergeReplyToPlayerChat(db, {
+        userId: redemption.userId?.toString?.() || String(redemption.userId),
+        userEmail: (user?.email || redemption.userEmail || '').toLowerCase().trim(),
+        username: redemption.username || user?.username,
+        text: `⚠️ Your $${Number(redemption.amount).toFixed(2)} cashout request was declined.\n\nReason: ${reason}\n\n— Zorra Royals VIP Concierge`,
+        agentName: session.username,
       });
 
       // Log in ledger

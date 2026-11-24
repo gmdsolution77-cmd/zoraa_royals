@@ -3,7 +3,12 @@ import { getSessionUser, ROLES } from '@/lib/auth';
 import { getDb, toIdQuery } from '@/lib/mongodb';
 import { sendEmail } from '@/lib/email';
 import { notifyPlayer, notifyStaff } from '@/lib/notify';
-import { postRequestToAdminChat, syncRequestCardStatusInChat } from '@/lib/adminChatRequests';
+import {
+  postRequestToAdminChat,
+  syncRequestCardStatusInChat,
+  postConciergeReplyToPlayerChat,
+  buildDepositApprovedChatText,
+} from '@/lib/adminChatRequests';
 
 // GET: List Deposits (Admin / Financial Manager) or Player's own
 export async function GET(req) {
@@ -380,6 +385,21 @@ export async function PUT(req) {
         status: 'READY',
       });
 
+      await postConciergeReplyToPlayerChat(db, {
+        userId: user._id.toString(),
+        userEmail: cleanPlayerEmail,
+        username: user.username || deposit.username,
+        text: buildDepositApprovedChatText({
+          amount: deposit.amount,
+          methodName: deposit.methodName,
+          creditedSC,
+          gameTitle: targetGame,
+          gameUsername: existingGameAcc?.username,
+          gamePassword: existingGameAcc?.password,
+        }),
+        agentName: session.username,
+      });
+
       if (!existingGameAcc) {
         const existingPending = await db.collection('accountRequests').findOne({
           userEmail: cleanPlayerEmail,
@@ -570,6 +590,14 @@ export async function PUT(req) {
         message: `Your deposit of $${Number(deposit.amount).toFixed(2)} via ${deposit.methodName} could not be approved. Reason: ${reason}. Please contact 24/7 VIP Concierge if you need assistance.`,
         type: 'deposit_rejected',
         data: { depositId: deposit._id.toString(), url: '/cashier' },
+      });
+
+      await postConciergeReplyToPlayerChat(db, {
+        userId: user._id.toString(),
+        userEmail: (user.email || deposit.senderEmail || '').toLowerCase().trim(),
+        username: user.username,
+        text: `⚠️ Your $${Number(deposit.amount).toFixed(2)} deposit via ${deposit.methodName} could not be approved.\n\nReason: ${reason}\n\nSend another receipt or message us here for help. — Zorra Royals VIP Concierge`,
+        agentName: session.username,
       });
 
       try {
