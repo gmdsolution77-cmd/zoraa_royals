@@ -23,7 +23,10 @@ import {
   MessageSquare,
   Send,
   MessageCircle,
+  Tag,
 } from 'lucide-react';
+import AdminPlayerStaffMeta from '@/components/admin/AdminPlayerStaffMeta';
+import { labelChipStyle } from '@/lib/chatConversationMeta';
 
 export default function Player360ProfileModal({
   userId,
@@ -329,6 +332,25 @@ export default function Player360ProfileModal({
                     <Smartphone size={11} /> Bound Device
                   </span>
                 )}
+                {(data?.staffMeta?.labels || []).map((lbl) => (
+                  <span
+                    key={lbl}
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '9999px',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      border: `1px solid ${labelChipStyle(lbl).borderColor}`,
+                      backgroundColor: labelChipStyle(lbl).backgroundColor,
+                      color: labelChipStyle(lbl).color,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Tag size={10} /> {lbl}
+                  </span>
+                ))}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '12px', color: '#9A91A8', flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'monospace', color: '#E2DCEB' }}>{data?.user?.email}</span>
@@ -778,6 +800,30 @@ export default function Player360ProfileModal({
                       <div style={{ fontSize: '11px', color: '#9A91A8', marginTop: '2px' }}>Directly invited players</div>
                     </div>
                   </div>
+
+                  {/* Staff labels & notes */}
+                  <AdminPlayerStaffMeta
+                    userId={data.user?.id || userId}
+                    initialLabels={data.staffMeta?.labels || []}
+                    initialNotes={data.staffMeta?.staffNotes || ''}
+                    onSaved={(meta) => {
+                      setData((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              staffMeta: {
+                                labels: meta.labels || [],
+                                staffNotes: meta.staffNotes || '',
+                                staffNotesPreview: String(meta.staffNotes || '').slice(0, 120),
+                                updatedBy: meta.updatedBy,
+                                updatedAt: meta.updatedAt,
+                              },
+                            }
+                          : prev
+                      );
+                    }}
+                    variant="dark"
+                  />
 
                   {/* Two Column Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(290px, 100%), 1fr))', gap: '16px' }}>

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShieldCheck, Lock, Award, HeartHandshake } from 'lucide-react';
+import SiteSocialLinks from '@/components/common/SiteSocialLinks';
 
 export default function RoyalFooter() {
   return (
@@ -59,6 +60,10 @@ export default function RoyalFooter() {
             <p className="text-[11px] leading-relaxed text-gray-400">
               The premier social sweepstakes gaming palace. Play cutting-edge slots, crash games, table classics, and external platform favorites with 100% compliant redemption.
             </p>
+            <div className="mt-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">Community</p>
+              <SiteSocialLinks variant="footer" />
+            </div>
           </div>
 
           <div>

@@ -353,6 +353,9 @@ export async function ensureDbInitialized() {
         geoRestrictionEnabled: true,
         restrictedStates: ['WA', 'ID', 'NV', 'MI'],
         maintenanceMode: false,
+        facebookPageUrl: '',
+        facebookPageLabel: 'Official Facebook Page',
+        facebookPageEnabled: true,
         updatedAt: new Date(),
       });
     }

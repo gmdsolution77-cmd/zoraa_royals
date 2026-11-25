@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { openSupportChat } from '@/lib/supportChatFlow';
+import SiteSocialLinks from '@/components/common/SiteSocialLinks';
 
 export default function RoyalSidebar({
   collapsed: controlledCollapsed,
@@ -263,6 +264,7 @@ export default function RoyalSidebar({
                 <span>REDEEM</span>
               </button>
             </div>
+            <SiteSocialLinks variant="compact" className="flex justify-center w-full" />
             <div className="text-[10px] text-center text-slate-500 font-mono">
               ZORRA ROYALS v1.0 • 2026
             </div>

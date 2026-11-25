@@ -109,8 +109,18 @@ export async function GET(req) {
         .filter(w => w.status === 'COMPLETED' || w.status === 'approved' || w.status === 'PAID')
         .reduce((sum, w) => sum + Number(w.amount || 0), 0);
 
+      const staffDoc = await db.collection('player_staff_meta').findOne({ userId: uIdStr });
+      const staffMeta = {
+        labels: staffDoc?.labels || [],
+        staffNotes: staffDoc?.staffNotes || '',
+        staffNotesPreview: String(staffDoc?.staffNotes || '').slice(0, 120),
+        updatedBy: staffDoc?.updatedBy || '',
+        updatedAt: staffDoc?.updatedAt || null,
+      };
+
       return NextResponse.json({
         success: true,
+        staffMeta,
         user: {
           id: u._id.toString(),
           username: u.username,

@@ -60,6 +60,8 @@ export async function initDb() {
       db.collection('chat_messages').createIndex({ customerUserId: 1, createdAt: 1 }),
       db.collection('chat_messages').createIndex({ createdAt: -1 }),
       db.collection('chat_messages').createIndex({ messageType: 1, requestId: 1 }),
+      db.collection('chat_conversation_meta').createIndex({ conversationId: 1 }, { unique: true }),
+      db.collection('player_staff_meta').createIndex({ userId: 1 }, { unique: true }),
       db.collection('accountRequests').createIndex({ status: 1, createdAt: -1 }),
       db.collection('accountRequests').createIndex({ userEmail: 1 }),
       db.collection('deposits').createIndex({ status: 1, createdAt: -1 }),

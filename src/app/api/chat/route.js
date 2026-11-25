@@ -94,6 +94,32 @@ async function buildStaffInbox(chatCol) {
   }
 }
 
+async function attachConversationMeta(db, convList) {
+  try {
+    if (!db || !Array.isArray(convList) || convList.length === 0) return convList;
+    const ids = convList.map((c) => String(c._id)).filter(Boolean);
+    const metaCol = db.collection('chat_conversation_meta');
+    const rows = await metaCol.find({ conversationId: { $in: ids } }).toArray();
+    const metaMap = new Map(rows.map((m) => [String(m.conversationId), m]));
+    return convList.map((c) => {
+      const m = metaMap.get(String(c._id));
+      if (!m) return c;
+      const staffNotes = m.staffNotes || '';
+      return {
+        ...c,
+        staffLabels: Array.isArray(m.labels) ? m.labels : [],
+        staffNotes,
+        staffNotesPreview: staffNotes.slice(0, 72),
+        staffMetaUpdatedBy: m.updatedBy || '',
+        staffMetaUpdatedAt: m.updatedAt || null,
+      };
+    });
+  } catch (err) {
+    console.error('attachConversationMeta error:', err);
+    return convList;
+  }
+}
+
 export async function GET(req) {
   try {
     await initDb();
@@ -140,7 +166,8 @@ export async function GET(req) {
     if (isStaff && inbox) {
       await syncPendingRequestsToAdminChat(db);
       const activeConvs = await buildStaffInbox(chatCol);
-      return Response.json({ success: true, conversations: activeConvs });
+      const enriched = await attachConversationMeta(db, activeConvs);
+      return Response.json({ success: true, conversations: enriched });
     }
 
     // 2. Staff Viewing Specific Conversation

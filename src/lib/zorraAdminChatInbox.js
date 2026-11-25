@@ -26,6 +26,12 @@ export function mergeChatInboxPreservingUnread(local, remote, { exceptConvId = n
       lastSenderRole: locTs > remTs ? loc.lastSenderRole : c.lastSenderRole,
       updatedAt: locTs > remTs ? loc.updatedAt : c.updatedAt,
       username: loc.username && loc.username !== 'VIP Patron' ? loc.username : c.username,
+      staffLabels:
+        Array.isArray(c.staffLabels) && c.staffLabels.length > 0
+          ? c.staffLabels
+          : loc.staffLabels || [],
+      staffNotes: c.staffNotes || loc.staffNotes || '',
+      staffNotesPreview: c.staffNotesPreview || loc.staffNotesPreview || '',
     };
   });
   const orphanLocal = (local || []).filter((lc) => !remoteIds.has(String(lc._id)));

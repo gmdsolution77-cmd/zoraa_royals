@@ -1,4 +1,5 @@
 import { getDb, initDb } from '@/lib/db';
+import { resolvePublicFacebook } from '@/lib/socialLinks';
 
 export async function GET() {
   try {
@@ -19,11 +20,15 @@ export async function GET() {
       : (settings?.referralBonusPercentage !== undefined ? Number(settings.referralBonusPercentage) : 50);
 
     const minCashout = Number(settings?.minCashoutThreshold ?? settings?.minWithdrawal ?? 50);
+    const facebook = resolvePublicFacebook(settings || {});
 
     return Response.json({
       success: true,
       settings: {
         siteName: settings?.siteName || 'Zorra Royals',
+        facebookPageUrl: facebook.url,
+        facebookPageLabel: facebook.label,
+        facebookPageVisible: facebook.visible,
         welcomeBonusPercent: welcomePct,
         welcomeBonusPercentage: welcomePct,
         welcomeBonusTitle: settings?.welcomeBonusTitle || 'FIRST DEPOSIT BONUS',

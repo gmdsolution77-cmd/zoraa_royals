@@ -78,6 +78,8 @@ import Patron360ProfileModal from '@/components/admin/Patron360ProfileModal';
 import Player360ProfileModal from '@/components/admin/Player360ProfileModal';
 import AffiliateManagementHub from '@/components/admin/AffiliateManagementHub';
 import AdminChatRequestCard from '@/components/admin/AdminChatRequestCard';
+import AdminChatConversationMeta from '@/components/admin/AdminChatConversationMeta';
+import { labelChipStyle } from '@/lib/chatConversationMeta';
 import {
   playTune,
   unlockAudioContext,
@@ -421,6 +423,7 @@ export default function AdminPortal({ initialTab }) {
   // System Settings state
   const [sysSettings, setSysSettings] = useState(null);
   const [savingBonusSettings, setSavingBonusSettings] = useState(false);
+  const [savingSocialSettings, setSavingSocialSettings] = useState(false);
   const [bonusSaveMessage, setBonusSaveMessage] = useState(null);
 
   const handleSaveBonusSettings = async (e) => {
@@ -465,6 +468,34 @@ export default function AdminPortal({ initialTab }) {
     } catch (err) {
       setSavingBonusSettings(false);
       alert('Error saving settings: ' + err.message);
+    }
+  };
+
+  const handleSaveSocialSettings = async (e) => {
+    if (e) e.preventDefault();
+    setSavingSocialSettings(true);
+    setBonusSaveMessage(null);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          facebookPageUrl: sysSettings?.facebookPageUrl || '',
+          facebookPageLabel: sysSettings?.facebookPageLabel || 'Official Facebook Page',
+          facebookPageEnabled: sysSettings?.facebookPageEnabled !== false,
+        }),
+      });
+      const data = await res.json();
+      setSavingSocialSettings(false);
+      if (data.success) {
+        setBonusSaveMessage('Facebook & social links saved!');
+        setTimeout(() => setBonusSaveMessage(null), 3500);
+      } else {
+        alert(data.error || 'Failed to save social settings.');
+      }
+    } catch (err) {
+      setSavingSocialSettings(false);
+      alert('Error saving social settings: ' + err.message);
     }
   };
 
@@ -3269,11 +3300,29 @@ export default function AdminPortal({ initialTab }) {
             const totalUnreadChat = chatConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
             const totalPendingChatRequests = chatConversations.reduce((acc, c) => acc + (c.pendingRequestCount || 0), 0);
 
+            const handleChatMetaSaved = (meta) => {
+              const id = activeChatConvRef.current?._id;
+              if (!id || !meta) return;
+              const patch = {
+                staffLabels: meta.labels || [],
+                staffNotes: meta.staffNotes || '',
+                staffNotesPreview: String(meta.staffNotes || meta.staffNotesPreview || '').slice(0, 72),
+              };
+              setActiveChatConv((prev) => (prev && String(prev._id) === String(id) ? { ...prev, ...patch } : prev));
+              setChatConversations((prev) =>
+                prev.map((c) => (String(c._id) === String(id) ? { ...c, ...patch } : c))
+              );
+            };
+
             const filteredChatConvs = chatConversations.filter(c => {
               const q = chatSearchQuery.trim().toLowerCase();
+              const labelHaystack = (c.staffLabels || []).join(' ').toLowerCase();
+              const notesHaystack = String(c.staffNotes || c.staffNotesPreview || '').toLowerCase();
               const matchesSearch = !q ||
                 (c.username && c.username.toLowerCase().includes(q)) ||
-                (c.lastMessage && c.lastMessage.toLowerCase().includes(q));
+                (c.lastMessage && c.lastMessage.toLowerCase().includes(q)) ||
+                labelHaystack.includes(q) ||
+                notesHaystack.includes(q);
               if (chatFilterTab === 'unread') {
                 return matchesSearch && ((c.unreadCount || 0) > 0);
               }
@@ -3473,7 +3522,7 @@ export default function AdminPortal({ initialTab }) {
                           type="text"
                           value={chatSearchQuery}
                           onChange={(e) => setChatSearchQuery(e.target.value)}
-                          placeholder="Search player or keyword..."
+                          placeholder="Search player, labels, or staff notes..."
                           className="w-full bg-[#10141e] border border-white/10 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#ffd700]/80 transition"
                         />
                         {chatSearchQuery && (
@@ -3582,6 +3631,24 @@ export default function AdminPortal({ initialTab }) {
                                     ) : null}
                                     {c.lastMessage || 'Active inquiry'}
                                   </p>
+                                  {(c.staffLabels || []).length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {(c.staffLabels || []).slice(0, 4).map((lbl) => (
+                                        <span
+                                          key={`${c._id}-${lbl}`}
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-bold border"
+                                          style={labelChipStyle(lbl)}
+                                        >
+                                          {lbl}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {c.staffNotesPreview && (
+                                    <p className="text-[10px] text-cyan-500/80 truncate mt-0.5 italic">
+                                      Note: {c.staffNotesPreview}
+                                    </p>
+                                  )}
                                 </div>
 
                                 {/* Unread & Pending Request Pills */}
@@ -3641,6 +3708,19 @@ export default function AdminPortal({ initialTab }) {
                               <p className="text-[10px] text-gray-400 font-mono truncate">
                                 Player ID: {activeChatConv.userId}
                               </p>
+                              {(activeChatConv.staffLabels || []).length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {(activeChatConv.staffLabels || []).map((lbl) => (
+                                    <span
+                                      key={`hdr-${lbl}`}
+                                      className="px-1.5 py-0.5 rounded text-[9px] font-bold border"
+                                      style={labelChipStyle(lbl)}
+                                    >
+                                      {lbl}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -3677,6 +3757,13 @@ export default function AdminPortal({ initialTab }) {
                             </button>
                           </div>
                         </div>
+
+                        <AdminChatConversationMeta
+                          conversationId={activeChatConv._id}
+                          initialLabels={activeChatConv.staffLabels || []}
+                          initialNotes={activeChatConv.staffNotes || ''}
+                          onSaved={handleChatMetaSaved}
+                        />
 
                         {/* Chat Messages Stream */}
                         <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#07080b]/60">
@@ -5082,6 +5169,100 @@ export default function AdminPortal({ initialTab }) {
                     <p className="text-[11px] text-gray-400 leading-relaxed pt-1">
                       Referrers receive automatic direct-to-wallet credits the moment an invited friend's first deposit is approved.
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Facebook & public social links */}
+              <div className="bg-[#10141e] border border-[#1877F2]/35 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-[#1877F2]/15 border border-[#1877F2]/40 text-[#6ea8fe] flex items-center justify-center shrink-0 shadow-[0_0_18px_rgba(24,119,242,0.25)]">
+                      <Megaphone size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black font-serif text-white">Facebook &amp; Community</h3>
+                      <p className="text-xs text-gray-400 mt-0.5 max-w-xl">
+                        Official Facebook page link — shows in the site footer for all players when enabled.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveSocialSettings}
+                    disabled={savingSocialSettings}
+                    className="py-2.5 px-6 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer bg-[#1877F2] hover:brightness-110 text-white shadow-lg disabled:opacity-50 transition"
+                  >
+                    <Save size={15} />
+                    <span>{savingSocialSettings ? 'Saving...' : 'Save Facebook Link'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={sysSettings?.facebookPageEnabled !== false}
+                        onChange={(e) =>
+                          setSysSettings((prev) => ({ ...prev, facebookPageEnabled: e.target.checked }))
+                        }
+                        className="w-4 h-4 accent-[#1877F2]"
+                      />
+                      <span className="text-xs text-gray-300 font-bold">Display footer Facebook link (when URL is set)</span>
+                    </label>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                        Facebook page URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://www.facebook.com/YourPage or facebook.com/YourPage"
+                        value={sysSettings?.facebookPageUrl || ''}
+                        onChange={(e) => setSysSettings((prev) => ({ ...prev, facebookPageUrl: e.target.value }))}
+                        className="w-full rounded-xl px-3.5 py-2.5 text-sm text-white font-mono bg-[#07080b] border border-[#1877F2]/30 outline-none focus:border-[#1877F2]"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1.5">
+                        Full link, or short form like <span className="text-gray-400 font-mono">zorraroyals</span>
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-300 block mb-1 uppercase tracking-wider">
+                        Button label (optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Official Facebook Page"
+                        value={sysSettings?.facebookPageLabel || ''}
+                        onChange={(e) => setSysSettings((prev) => ({ ...prev, facebookPageLabel: e.target.value }))}
+                        className="w-full rounded-xl px-3.5 py-2.5 text-sm text-white bg-[#07080b] border border-white/15 outline-none focus:border-[#ffd700]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-[#07080b] border border-white/10 space-y-3">
+                    <p className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Live preview</p>
+                    {sysSettings?.facebookPageUrl && sysSettings?.facebookPageEnabled !== false ? (
+                      <a
+                        href={sysSettings.facebookPageUrl.startsWith('http') ? sysSettings.facebookPageUrl : `https://www.facebook.com/${sysSettings.facebookPageUrl.replace(/^@/, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1877F2]/10 border border-[#1877F2]/35 text-white"
+                      >
+                        <span className="p-2 rounded-xl bg-[#1877F2] text-white text-xs font-black">f</span>
+                        <span className="text-xs">
+                          <span className="font-black block text-[#6ea8fe]">FACEBOOK</span>
+                          <span className="text-gray-400">
+                            {sysSettings.facebookPageLabel || 'Official Facebook Page'}
+                          </span>
+                        </span>
+                        <ExternalLink size={14} className="text-gray-500" />
+                      </a>
+                    ) : (
+                      <p className="text-xs text-gray-500">Add a URL and enable display to show the footer button.</p>
+                    )}
                   </div>
                 </div>
               </div>

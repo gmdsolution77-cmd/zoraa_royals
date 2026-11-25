@@ -1,5 +1,6 @@
 import { getDb, initDb } from '@/lib/db';
 import { getSessionUser, hasPermission } from '@/lib/auth';
+import { normalizeFacebookUrl } from '@/lib/socialLinks';
 
 export async function GET() {
   try {
@@ -65,6 +66,16 @@ export async function POST(req) {
     }
     if (updatedData.referralBonusActive !== undefined) {
       updatedData.referralBonusActive = Boolean(updatedData.referralBonusActive);
+    }
+
+    if (updatedData.facebookPageUrl !== undefined) {
+      updatedData.facebookPageUrl = normalizeFacebookUrl(updatedData.facebookPageUrl);
+    }
+    if (updatedData.facebookPageLabel !== undefined) {
+      updatedData.facebookPageLabel = String(updatedData.facebookPageLabel || 'Official Facebook Page').trim().slice(0, 120);
+    }
+    if (updatedData.facebookPageEnabled !== undefined) {
+      updatedData.facebookPageEnabled = Boolean(updatedData.facebookPageEnabled);
     }
 
     await db.collection('system_settings').updateOne(
