@@ -3303,12 +3303,20 @@ export default function AdminPortal({ initialTab }) {
             const handleChatMetaSaved = (meta) => {
               const id = activeChatConvRef.current?._id;
               if (!id || !meta) return;
+              const updatedAt = meta.updatedAt
+                ? new Date(meta.updatedAt).toISOString()
+                : new Date().toISOString();
               const patch = {
                 staffLabels: meta.labels || [],
                 staffNotes: meta.staffNotes || '',
                 staffNotesPreview: String(meta.staffNotes || meta.staffNotesPreview || '').slice(0, 72),
+                staffMetaUpdatedAt: updatedAt,
+                staffMetaUpdatedBy: meta.updatedBy || user?.username || 'staff',
               };
               setActiveChatConv((prev) => (prev && String(prev._id) === String(id) ? { ...prev, ...patch } : prev));
+              if (activeChatConvRef.current && String(activeChatConvRef.current._id) === String(id)) {
+                activeChatConvRef.current = { ...activeChatConvRef.current, ...patch };
+              }
               setChatConversations((prev) =>
                 prev.map((c) => (String(c._id) === String(id) ? { ...c, ...patch } : c))
               );
@@ -3422,13 +3430,12 @@ export default function AdminPortal({ initialTab }) {
                 const cRes = await fetch('/api/chat?inbox=true');
                 const cD = await cRes.json();
                 if (cD.success) {
-                  const mapped = (cD.conversations || []).map(item => {
-                    if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
-                      return { ...item, unreadCount: 0, unreadStaff: false };
-                    }
-                    return item;
-                  });
-                  setChatConversations(mapped);
+                  const viewingOpen = activeChatConvRef.current?._id ?? null;
+                  setChatConversations((prev) =>
+                    mergeChatInboxPreservingUnread(prev, cD.conversations || [], {
+                      exceptConvId: viewingOpen,
+                    })
+                  );
                 }
               } catch (err) {
                 console.error('Failed to send chat message:', err);
@@ -3475,13 +3482,12 @@ export default function AdminPortal({ initialTab }) {
                       onClick={() => {
                         fetch('/api/chat?inbox=true').then(r => r.json()).then(d => {
                           if (d.success) {
-                            const mapped = (d.conversations || []).map(item => {
-                              if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
-                                return { ...item, unreadCount: 0, unreadStaff: false };
-                              }
-                              return item;
-                            });
-                            setChatConversations(mapped);
+                            const viewingOpen = activeChatConvRef.current?._id ?? null;
+                            setChatConversations((prev) =>
+                              mergeChatInboxPreservingUnread(prev, d.conversations || [], {
+                                exceptConvId: viewingOpen,
+                              })
+                            );
                           }
                         });
                         if (activeChatConv) {
@@ -3800,13 +3806,12 @@ export default function AdminPortal({ initialTab }) {
                                               .then(r => r.json())
                                               .then(d => {
                                                 if (d.success) {
-                                                  const mapped = (d.conversations || []).map(item => {
-                                                    if (activeChatConvRef.current && (item._id === activeChatConvRef.current._id || (activeChatConvRef.current.userId && item.userId === activeChatConvRef.current.userId))) {
-                                                      return { ...item, unreadCount: 0, unreadStaff: false };
-                                                    }
-                                                    return item;
-                                                  });
-                                                  setChatConversations(mapped);
+                                                  const viewingOpen = activeChatConvRef.current?._id ?? null;
+                                                  setChatConversations((prev) =>
+                                                    mergeChatInboxPreservingUnread(prev, d.conversations || [], {
+                                                      exceptConvId: viewingOpen,
+                                                    })
+                                                  );
                                                 }
                                               })
                                               .catch(() => {});

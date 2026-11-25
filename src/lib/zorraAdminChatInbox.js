@@ -1,5 +1,43 @@
 /** Live Support inbox — instant SSE bumps + poll merge (Richroom pattern). */
 
+export function mergeStaffMetaFields(loc, rem) {
+  const locLabels = Array.isArray(loc?.staffLabels) ? loc.staffLabels : [];
+  const remLabels = Array.isArray(rem?.staffLabels) ? rem.staffLabels : [];
+  const locTs = new Date(loc?.staffMetaUpdatedAt || 0).getTime();
+  const remTs = new Date(rem?.staffMetaUpdatedAt || 0).getTime();
+
+  const pick =
+    remTs > locTs
+      ? 'remote'
+      : locTs > remTs
+        ? 'local'
+        : remLabels.length > 0 && locLabels.length === 0
+          ? 'remote'
+          : locLabels.length > 0 && remLabels.length === 0
+            ? 'local'
+            : remLabels.length >= locLabels.length
+              ? 'remote'
+              : 'local';
+
+  if (pick === 'remote') {
+    return {
+      staffLabels: remLabels,
+      staffNotes: rem.staffNotes ?? loc?.staffNotes ?? '',
+      staffNotesPreview: rem.staffNotesPreview ?? loc?.staffNotesPreview ?? '',
+      staffMetaUpdatedAt: rem.staffMetaUpdatedAt ?? loc?.staffMetaUpdatedAt ?? null,
+      staffMetaUpdatedBy: rem.staffMetaUpdatedBy ?? loc?.staffMetaUpdatedBy ?? '',
+    };
+  }
+
+  return {
+    staffLabels: locLabels,
+    staffNotes: loc?.staffNotes ?? rem.staffNotes ?? '',
+    staffNotesPreview: loc?.staffNotesPreview ?? rem.staffNotesPreview ?? '',
+    staffMetaUpdatedAt: loc?.staffMetaUpdatedAt ?? rem.staffMetaUpdatedAt ?? null,
+    staffMetaUpdatedBy: loc?.staffMetaUpdatedBy ?? rem.staffMetaUpdatedBy ?? '',
+  };
+}
+
 export function mergeChatInboxPreservingUnread(local, remote, { exceptConvId = null } = {}) {
   const localMap = new Map((local || []).map((c) => [String(c._id), c]));
   const remoteIds = new Set((remote || []).map((c) => String(c._id)));
@@ -18,6 +56,7 @@ export function mergeChatInboxPreservingUnread(local, remote, { exceptConvId = n
     }
     const locTs = new Date(loc.updatedAt || 0).getTime();
     const remTs = new Date(c.updatedAt || 0).getTime();
+    const staffMeta = mergeStaffMetaFields(loc, c);
     return {
       ...c,
       unreadCount,
@@ -26,12 +65,7 @@ export function mergeChatInboxPreservingUnread(local, remote, { exceptConvId = n
       lastSenderRole: locTs > remTs ? loc.lastSenderRole : c.lastSenderRole,
       updatedAt: locTs > remTs ? loc.updatedAt : c.updatedAt,
       username: loc.username && loc.username !== 'VIP Patron' ? loc.username : c.username,
-      staffLabels:
-        Array.isArray(c.staffLabels) && c.staffLabels.length > 0
-          ? c.staffLabels
-          : loc.staffLabels || [],
-      staffNotes: c.staffNotes || loc.staffNotes || '',
-      staffNotesPreview: c.staffNotesPreview || loc.staffNotesPreview || '',
+      ...staffMeta,
     };
   });
   const orphanLocal = (local || []).filter((lc) => !remoteIds.has(String(lc._id)));

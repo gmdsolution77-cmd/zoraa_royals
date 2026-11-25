@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Tag, StickyNote, Save, Plus, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { CHAT_LABEL_PRESETS, labelChipStyle } from '@/lib/chatConversationMeta';
 
@@ -11,15 +11,26 @@ export default function AdminChatConversationMeta({ conversationId, initialLabel
   const [saving, setSaving] = useState(false);
   const [saveHint, setSaveHint] = useState('');
   const [open, setOpen] = useState(false);
+  const convIdRef = useRef(conversationId);
 
   useEffect(() => {
-    setLabels(Array.isArray(initialLabels) ? initialLabels : []);
-    setStaffNotes(initialNotes || '');
-    setSaveHint('');
-    const hasMeta =
-      (Array.isArray(initialLabels) && initialLabels.length > 0) ||
-      Boolean(String(initialNotes || '').trim());
-    setOpen(hasMeta);
+    const nextLabels = Array.isArray(initialLabels) ? initialLabels : [];
+    const nextNotes = initialNotes || '';
+    const switched = convIdRef.current !== conversationId;
+    if (switched) {
+      convIdRef.current = conversationId;
+      setLabels(nextLabels);
+      setStaffNotes(nextNotes);
+      setSaveHint('');
+      const hasMeta = nextLabels.length > 0 || Boolean(String(nextNotes).trim());
+      setOpen(hasMeta);
+      return;
+    }
+    setLabels((prev) => (nextLabels.length === 0 && prev.length > 0 ? prev : nextLabels));
+    setStaffNotes((prev) => {
+      if (!String(nextNotes).trim() && String(prev).trim()) return prev;
+      return nextNotes;
+    });
   }, [conversationId, initialLabels, initialNotes]);
 
   const toggleLabel = (name) => {
