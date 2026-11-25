@@ -137,6 +137,13 @@ export async function getSessionUser(preferredType = null) {
           return { ...decoded, id: uid, userId: uid };
         }
       }
+      if (adminToken) {
+        const decoded = await acceptStaffSession(verifyToken(adminToken));
+        if (decoded) {
+          const uid = decoded.id || decoded.userId || decoded.sub;
+          return { ...decoded, id: uid, userId: uid };
+        }
+      }
       return null;
     }
 

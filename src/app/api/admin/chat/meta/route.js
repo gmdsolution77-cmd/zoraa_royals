@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, initDb } from '@/lib/db';
-import { getSessionUser, hasPermission } from '@/lib/auth';
+import { getAdminSessionUser, hasPermission } from '@/lib/auth';
 import { sanitizeChatLabels, sanitizeStaffNotes } from '@/lib/chatConversationMeta';
 
 function staffOk(session) {
@@ -10,7 +10,7 @@ function staffOk(session) {
 export async function GET(req) {
   try {
     await initDb();
-    const session = await getSessionUser();
+    const session = await getAdminSessionUser();
     if (!staffOk(session)) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
@@ -57,7 +57,7 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const session = await getSessionUser();
+    const session = await getAdminSessionUser();
     if (!staffOk(session)) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }

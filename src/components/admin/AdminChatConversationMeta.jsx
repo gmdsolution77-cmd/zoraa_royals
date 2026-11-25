@@ -64,7 +64,12 @@ export default function AdminChatConversationMeta({ conversationId, initialLabel
       const res = await fetch('/api/admin/chat/meta', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId, labels, staffNotes }),
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          conversationId: String(conversationId),
+          labels,
+          staffNotes,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -90,11 +95,14 @@ export default function AdminChatConversationMeta({ conversationId, initialLabel
   const hasNotes = Boolean(staffNotes.trim());
 
   return (
-    <div className="relative shrink-0 border-b border-white/10 bg-[#0a0e16]/90 z-20" ref={panelRef}>
+    <div className="relative shrink-0 border-b border-white/10 bg-[#0a0e16]/90 z-30" ref={panelRef}>
       {/* Slim toolbar — chat ko zyada jagah */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
         className="w-full px-3 py-2 sm:px-3.5 sm:py-2 flex items-center gap-2 text-left hover:bg-white/[0.03] transition min-h-[40px]"
         aria-expanded={open}
       >
@@ -186,8 +194,8 @@ function motionPanel({
       className="
         fixed inset-x-0 bottom-0 z-[70] max-h-[min(78vh,520px)] overflow-y-auto
         rounded-t-2xl border-t border-[#ffd700]/30 bg-[#0e1320] shadow-[0_-12px_40px_rgba(0,0,0,0.65)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]
-        md:absolute md:inset-x-0 md:top-full md:bottom-auto md:max-h-[min(65vh,420px)]
-        md:rounded-b-2xl md:border md:border-white/10 md:shadow-2xl md:p-3.5
+        md:static md:z-auto md:max-h-[min(42vh,380px)] md:overflow-y-auto
+        md:rounded-none md:border-t md:border-white/10 md:shadow-none md:p-3.5
         space-y-3
       "
     >
