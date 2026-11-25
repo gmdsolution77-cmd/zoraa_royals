@@ -1,5 +1,6 @@
 import { getDb, initDb } from '@/lib/db';
 import { signToken } from '@/lib/auth';
+import { getStaffSessionEpochForLogin, isStaffRole } from '@/lib/staffSessionEpoch';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 
@@ -53,18 +54,21 @@ export async function POST(req) {
       return Response.json({ success: false, error: 'Account suspended. Contact royal support.' }, { status: 403 });
     }
 
+    const isStaff = isStaffRole(user.role);
+    const staffSessionEpoch = isStaff ? await getStaffSessionEpochForLogin(db) : undefined;
+
     const tokenPayload = {
       id: user._id,
       email: user.email,
       username: user.username,
       role: user.role || 'player',
       vipTier: user.vipTier || 'Bronze',
+      ...(isStaff ? { staffSessionEpoch } : {}),
     };
 
     const token = signToken(tokenPayload);
     const cookieStore = await cookies();
     const referer = req.headers.get('referer') || '';
-    const isStaff = user.role && user.role !== 'player';
     const isExplicitAdminPortal = referer.includes('/admin') || body.adminPortal === true;
 
     if (isExplicitAdminPortal) {

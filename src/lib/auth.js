@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import { isStaffRole, staffSessionMatchesToken } from './staffSessionEpoch';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'zorra_royals_ultra_vip_jwt_secret_token_2026_royal_luxury';
 
@@ -85,6 +86,13 @@ export function verifyToken(token) {
   }
 }
 
+async function acceptStaffSession(verified) {
+  if (!verified) return null;
+  if (!isStaffRole(verified.role)) return verified;
+  const valid = await staffSessionMatchesToken(verified);
+  return valid ? verified : null;
+}
+
 export async function getSessionUser(preferredType = null) {
   try {
     const cookieStore = await cookies();
@@ -112,7 +120,7 @@ export async function getSessionUser(preferredType = null) {
 
     if (isAdminContext) {
       if (adminToken) {
-        const decoded = verifyToken(adminToken);
+        const decoded = await acceptStaffSession(verifyToken(adminToken));
         if (decoded) {
           const uid = decoded.id || decoded.userId || decoded.sub;
           return { ...decoded, id: uid, userId: uid };

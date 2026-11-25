@@ -3673,12 +3673,12 @@ export default function AdminPortal({ initialTab }) {
                   </div>
 
                   {/* Right: Active Chat View OR Concierge Welcome Hub */}
-                  <div className={`${activeChatConv ? 'flex' : 'hidden md:flex'} flex-1 h-full min-h-0 bg-gradient-to-b from-[#141824]/95 to-[#07080b]/95 border border-white/10 rounded-2xl flex-col overflow-hidden shadow-2xl backdrop-blur-xl relative`}>
+                  <div className={`${activeChatConv ? 'flex' : 'hidden md:flex'} flex-1 h-full min-h-0 bg-gradient-to-b from-[#141824]/95 to-[#07080b]/95 border border-white/10 rounded-2xl flex-col overflow-hidden shadow-2xl backdrop-blur-xl relative min-w-0`}>
                     {activeChatConv ? (
                       <>
                         {/* Active Chat Header */}
-                        <div className="p-3.5 bg-[#0d1017]/90 border-b border-white/10 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2.5 sm:p-3.5 bg-[#0d1017]/90 border-b border-white/10 flex items-center justify-between gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                             {/* Mobile Back Button */}
                             <button
                               type="button"
@@ -3705,27 +3705,14 @@ export default function AdminPortal({ initialTab }) {
                                   Online
                                 </span>
                               </div>
-                              <p className="text-[10px] text-gray-400 font-mono truncate">
-                                Player ID: {activeChatConv.userId}
+                              <p className="text-[10px] text-gray-400 font-mono truncate max-w-[140px] sm:max-w-none">
+                                ID: {activeChatConv.userId}
                               </p>
-                              {(activeChatConv.staffLabels || []).length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {(activeChatConv.staffLabels || []).map((lbl) => (
-                                    <span
-                                      key={`hdr-${lbl}`}
-                                      className="px-1.5 py-0.5 rounded text-[9px] font-bold border"
-                                      style={labelChipStyle(lbl)}
-                                    >
-                                      {lbl}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
                             </div>
                           </div>
 
                           {/* Action Buttons in Header */}
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                             {activeChatConv.userId && (
                               <button
                                 type="button"

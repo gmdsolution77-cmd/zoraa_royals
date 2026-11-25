@@ -1,5 +1,5 @@
 import { MongoClient } from 'mongodb';
-import bcrypt from 'bcryptjs';
+import { ensureStaffAccountsFromEnv } from './seedStaffFromEnv';
 
 const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/zorra_royals';
 
@@ -77,42 +77,8 @@ export async function initDb() {
     console.warn('Index initialization notice:', idxErr?.message);
   }
 
-  // 1. Ensure Super Admin & Staff
-  const usersCol = db.collection('users');
-  const adminExists = await usersCol.findOne({ email: 'admin@zorraroyals.com' });
-  if (!adminExists) {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash('RoyalAdmin2026!', salt);
-    await usersCol.insertOne({
-      username: 'RoyalAdmin',
-      email: 'admin@zorraroyals.com',
-      password: hash,
-      role: 'super_admin',
-      vipTier: 'Royal Emperor',
-      balance: 100000.0,
-      isVerified: true,
-      createdAt: new Date(),
-    });
-  }
-
-  // Ensure Demo VIP Player
-  const playerExists = await usersCol.findOne({ email: 'player@zorraroyals.com' });
-  if (!playerExists) {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash('Player123!', salt);
-    await usersCol.insertOne({
-      username: 'CrownPlayer',
-      email: 'player@zorraroyals.com',
-      password: hash,
-      role: 'player',
-      vipTier: 'Gold',
-      balance: 150.0,
-      firstDepositMade: false,
-      signupBonusClaimed: true,
-      isVerified: true,
-      createdAt: new Date(),
-    });
-  }
+  // 1. Super admin, staff, and demo player — credentials from .env (see .env.example)
+  await ensureStaffAccountsFromEnv(db);
 
   // 2. Ensure Curated Games
   const gamesCol = db.collection('games');

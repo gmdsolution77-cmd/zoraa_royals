@@ -1,73 +1,11 @@
-import bcrypt from 'bcryptjs';
 import { getDb } from './mongodb';
-import { ROLES } from './auth';
+import { ensureStaffAccountsFromEnv } from './seedStaffFromEnv';
 
 export async function ensureDbInitialized() {
   try {
     const db = await getDb();
 
-    // 1. Ensure Super Admin and Staff accounts
-    const usersCol = db.collection('users');
-    const existingAdmin = await usersCol.findOne({ role: ROLES.SUPER_ADMIN });
-
-    if (!existingAdmin) {
-      console.log('Seeding initial administrators and staff...');
-      const adminPasswordHash = await bcrypt.hash('RoyalAdmin2026!', 10);
-      const staffPasswordHash = await bcrypt.hash('Staff@2026!', 10);
-
-      await usersCol.insertMany([
-        {
-          username: 'superadmin',
-          email: 'superadmin@zoraaroyal.com',
-          passwordHash: adminPasswordHash,
-          role: ROLES.SUPER_ADMIN,
-          balanceSC: 10000.0,
-          balanceGC: 10000000,
-          kycStatus: 'approved',
-          createdAt: new Date(),
-        },
-        {
-          username: 'financemanager',
-          email: 'finance@zoraaroyal.com',
-          passwordHash: staffPasswordHash,
-          role: ROLES.FINANCIAL_MANAGER,
-          balanceSC: 0,
-          balanceGC: 0,
-          kycStatus: 'approved',
-          createdAt: new Date(),
-        },
-        {
-          username: 'coinofficer',
-          email: 'coins@zoraaroyal.com',
-          passwordHash: staffPasswordHash,
-          role: ROLES.COIN_MANAGER,
-          balanceSC: 0,
-          balanceGC: 0,
-          kycStatus: 'approved',
-          createdAt: new Date(),
-        },
-        {
-          username: 'operationadmin',
-          email: 'ops@zoraaroyal.com',
-          passwordHash: staffPasswordHash,
-          role: ROLES.OPERATION_ADMIN,
-          balanceSC: 0,
-          balanceGC: 0,
-          kycStatus: 'approved',
-          createdAt: new Date(),
-        },
-        {
-          username: 'chatsupport',
-          email: 'support@zoraaroyal.com',
-          passwordHash: staffPasswordHash,
-          role: ROLES.CHAT_SUPPORT,
-          balanceSC: 0,
-          balanceGC: 0,
-          kycStatus: 'approved',
-          createdAt: new Date(),
-        },
-      ]);
-    }
+    await ensureStaffAccountsFromEnv(db);
 
     // 2. Ensure Initial Games
     const gamesCol = db.collection('games');

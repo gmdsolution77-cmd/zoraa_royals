@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zorra Royals — Live Server Update Guide (Client)</title>
+  <style>
+    :root {
+      --bg: #06070a;
+      --card: #0e1320;
+      --border: rgba(212, 175, 55, 0.22);
+      --gold: #ffd700;
+      --text: #e8e4f0;
+      --muted: #9a91a8;
+      --ok: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(ellipse at top, #1a1408 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 24px 16px 56px;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    h1 {
+      font-size: 1.45rem;
+      margin: 0 0 8px;
+      background: linear-gradient(90deg, var(--gold), #e5c058);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 20px; line-height: 1.5; }
+    .step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 18px 16px;
+      margin-bottom: 14px;
+    }
+    .step-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .step-num {
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .step-title { font-size: 1rem; font-weight: 700; margin: 4px 0 0; }
+    .step-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin: 0 0 12px;
+    }
+    .copy-step {
+      flex-shrink: 0;
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      color: var(--gold);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .copy-step:hover { background: rgba(255, 215, 0, 0.18); }
+    pre.cmd {
+      margin: 0;
+      padding: 12px 14px;
+      background: #07080b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #d4d0e0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    }
+    .hint {
+      font-size: 0.8rem;
+      color: #fbbf24;
+      margin-top: 10px;
+      line-height: 1.45;
+    }
+    .login-box {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+    kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #1e1638;
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+    .meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px dashed var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Zorra Royals — live server update (copy each block)</h1>
+    <p class="sub">
+      Use this after new code is pushed to <strong>main</strong> on GitHub.
+      Open each step, click <strong>Copy</strong>, paste into Terminal (Mac) or PuTTY (Windows). Do steps in order.
+    </p>
+    <p class="meta">
+      <strong>VPS:</strong> Hostinger · <strong>IP:</strong> 2.25.149.3 ·
+      <strong>App folder:</strong> <code>/var/www/zorra_royals</code>
+      (if your server uses <code>zoraa_royals</code>, use that path instead) ·
+      <strong>PM2 name:</strong> <code>zorraroyals</code> ·
+      <strong>Site:</strong> <a href="https://zoraaroyal.com" style="color:#ffd700">zoraaroyal.com</a>
+    </p>
+
+    <article class="step" data-copy="step1">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 1</div>
+          <h2 class="step-title">Connect to the VPS (SSH)</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step1">Copy</button>
+      </div>
+      <p class="step-desc">On your computer, open Terminal and run:</p>
+      <pre class="cmd" id="step1">ssh root@2.25.149.3</pre>
+    </article>
+
+    <article class="step" data-copy="step2">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 2</div>
+          <h2 class="step-title">Enter VPS root password</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step2">Copy password</button>
+      </div>
+      <p class="step-desc">
+        When asked for <strong>password</strong>, paste below (nothing shows while typing — normal). Press Enter.
+        Same Hostinger VPS password as Players Paradise unless you changed it.
+      </p>
+      <pre class="cmd" id="step2">12345678Na@#</pre>
+      <p class="hint">This is the <strong>server SSH</strong> password, not your Zorra admin website login.</p>
+    </article>
+
+    <article class="step" data-copy="step3">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 3</div>
+          <h2 class="step-title">Go to the project folder</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step3">Copy</button>
+      </div>
+      <p class="step-desc">After login, at the server prompt run:</p>
+      <pre class="cmd" id="step3">cd /var/www/zorra_royals</pre>
+    </article>
+
+    <article class="step" data-copy="step4">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 4</div>
+          <h2 class="step-title">Pull latest code, build &amp; restart (one line)</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step4">Copy</button>
+      </div>
+      <p class="step-desc">Wait until the build finishes (can take 1–3 minutes). PM2 process name must stay <code>zorraroyals</code>.</p>
+      <pre class="cmd" id="step4">git pull origin main &amp;&amp; rm -rf .next &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; pm2 delete all &amp;&amp; pm2 start npm --name "zorraroyals" -- start &amp;&amp; pm2 save</pre>
+      <p class="hint">If you prefer a lighter restart after a small change: <code>git pull origin main &amp;&amp; npm run build &amp;&amp; pm2 restart zorraroyals</code></p>
+    </article>
+
+    <article class="step" data-copy="step5">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 5</div>
+          <h2 class="step-title">Open environment file (admin password &amp; keys)</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step5">Copy</button>
+      </div>
+      <p class="step-desc">To set or change the <strong>admin website password</strong> (not VPS SSH), open:</p>
+      <pre class="cmd" id="step5">nano .env.local</pre>
+      <p class="hint">MongoDB, Firebase, and domain URLs live in the same file — do not delete existing lines you are not changing.</p>
+    </article>
+
+    <article class="step" data-copy="step6">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 6</div>
+          <h2 class="step-title">Add or update admin lines in .env.local</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step6">Copy lines</button>
+      </div>
+      <p class="step-desc">
+        In nano, scroll with arrow keys. If these lines already exist, change only the values after <code>=</code>.
+        If they are missing, paste at the bottom. On every app restart, the site copies <code>ADMIN_PASSWORD</code> into the database — <strong>no code edit needed</strong>.
+        <strong>Current admin portal password</strong> for <a href="https://zoraaroyal.com/admin" style="color:#34d399">https://zoraaroyal.com/admin</a> is whatever you set in <code>ADMIN_PASSWORD</code>.
+      </p>
+      <pre class="cmd" id="step6">ADMIN_EMAIL=admin@zorraroyals.com
+ADMIN_USERNAME=superadmin
+ADMIN_USERNAME_ALIAS=RoyalAdmin
+ADMIN_PASSWORD=RoyalAdmin2026!
+STAFF_DEFAULT_PASSWORD=Staff@2026!</pre>
+      <div class="login-box">
+        <strong>Admin login after restart:</strong><br />
+        URL: <a href="https://zoraaroyal.com/admin" style="color:#34d399">https://zoraaroyal.com/admin</a><br />
+        Username: <code>superadmin</code> or <code>RoyalAdmin</code><br />
+        Password: value of <code>ADMIN_PASSWORD</code> above (current: <code>RoyalAdmin2026!</code> until client changes it)<br />
+        Optional staff accounts (same <code>STAFF_DEFAULT_PASSWORD</code> if set): <code>financemanager</code>, <code>coinofficer</code>, <code>operationadmin</code>, <code>chatsupport</code>
+      </div>
+      <p class="hint">Also keep <code>MONGODB_URI</code>, <code>JWT_SECRET</code>, <code>NEXT_PUBLIC_APP_URL</code>, and Firebase paths in this file — see <code>.env.example</code> in the project.</p>
+    </article>
+
+    <article class="step" data-copy="step7">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 7</div>
+          <h2 class="step-title">Save and exit nano</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step7">Copy shortcuts</button>
+      </div>
+      <p class="step-desc">In nano, press (hold Control):</p>
+      <pre class="cmd" id="step7">1) Ctrl+O  then Enter  (save)
+2) Ctrl+X  (exit)</pre>
+    </article>
+
+    <article class="step" data-copy="step8">
+      <div class="step-head">
+        <div>
+          <div class="step-num">Step 8</div>
+          <h2 class="step-title">Check PM2 &amp; test the site</h2>
+        </div>
+        <button type="button" class="copy-step" data-target="step8">Copy</button>
+      </div>
+      <p class="step-desc">After deploy, confirm the app is online:</p>
+      <pre class="cmd" id="step8">pm2 status &amp;&amp; pm2 logs zorraroyals --lines 30</pre>
+      <p class="hint" style="margin-top:10px">After changing <code>ADMIN_PASSWORD</code>, run <code>pm2 restart zorraroyals</code> before testing admin login.</p>
+    </article>
+  </div>
+
+  <script>
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    }
+
+    function decodePre(id) {
+      const el = document.getElementById(id);
+      if (!el) return '';
+      const div = document.createElement('div');
+      div.innerHTML = el.innerHTML;
+      return (div.textContent || div.innerText || '').trim();
+    }
+
+    document.querySelectorAll('.copy-step').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-target');
+        const text = decodePre(id);
+        const old = btn.textContent;
+        await copyText(text);
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = old; }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
