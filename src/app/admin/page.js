@@ -1424,6 +1424,12 @@ export default function AdminPortal({ initialTab }) {
     };
 
     run(false);
+    // Do not auto-poll settings tab so unsaved form inputs (e.g. Facebook URL, bonuses) aren't overwritten while typing
+    if (activeTab === 'settings') {
+      return () => {
+        cancelled = true;
+      };
+    }
     const interval = setInterval(() => run(true), 5000);
     return () => {
       cancelled = true;
