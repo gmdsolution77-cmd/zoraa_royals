@@ -128,9 +128,8 @@
     </p>
     <p class="meta">
       <strong>VPS:</strong> Hostinger · <strong>IP:</strong> 2.25.149.3 ·
-      <strong>App folder:</strong> <code>/var/www/zorra_royals</code>
-      (if your server uses <code>zoraa_royals</code>, use that path instead) ·
-      <strong>PM2 name:</strong> <code>zorraroyals</code> ·
+      <strong>App folder:</strong> <code>/var/www/zoraa_royals</code> ·
+      <strong>PM2 name:</strong> <code>zoraaroyals</code> ·
       <strong>Site:</strong> <a href="https://zoraaroyal.com" style="color:#ffd700">zoraaroyal.com</a>
     </p>
 
@@ -171,7 +170,7 @@
         <button type="button" class="copy-step" data-target="step3">Copy</button>
       </div>
       <p class="step-desc">After login, at the server prompt run:</p>
-      <pre class="cmd" id="step3">cd /var/www/zorra_royals</pre>
+      <pre class="cmd" id="step3">cd /var/www/zoraa_royals</pre>
     </article>
 
     <article class="step" data-copy="step4">
@@ -182,9 +181,9 @@
         </div>
         <button type="button" class="copy-step" data-target="step4">Copy</button>
       </div>
-      <p class="step-desc">Wait until the build finishes (can take 1–3 minutes). PM2 process name must stay <code>zorraroyals</code>.</p>
-      <pre class="cmd" id="step4">git pull origin main &amp;&amp; rm -rf .next &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; pm2 delete all &amp;&amp; pm2 start npm --name "zorraroyals" -- start &amp;&amp; pm2 save</pre>
-      <p class="hint">If you prefer a lighter restart after a small change: <code>git pull origin main &amp;&amp; npm run build &amp;&amp; pm2 restart zorraroyals</code></p>
+      <p class="step-desc">Wait until the build finishes (can take 1–3 minutes). PM2 process name must stay <code>zoraaroyals</code>.</p>
+      <pre class="cmd" id="step4">git pull origin main &amp;&amp; rm -rf .next &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; pm2 delete all &amp;&amp; pm2 start npm --name "zoraaroyals" -- start &amp;&amp; pm2 save</pre>
+      <p class="hint">If you prefer a lighter restart after a small change: <code>git pull origin main &amp;&amp; npm run build &amp;&amp; pm2 restart zoraaroyals</code></p>
     </article>
 
     <article class="step" data-copy="step5">
@@ -245,13 +244,13 @@ STAFF_DEFAULT_PASSWORD=Staff@2026!</pre>
       <div class="step-head">
         <div>
           <div class="step-num">Step 8</div>
-          <h2 class="step-title">Check PM2 &amp; test the site</h2>
+          <h2 class="step-title">Restart PM2 &amp; check status</h2>
         </div>
         <button type="button" class="copy-step" data-target="step8">Copy</button>
       </div>
-      <p class="step-desc">After deploy, confirm the app is online:</p>
-      <pre class="cmd" id="step8">pm2 status &amp;&amp; pm2 logs zorraroyals --lines 30</pre>
-      <p class="hint" style="margin-top:10px">After changing <code>ADMIN_PASSWORD</code>, run <code>pm2 restart zorraroyals</code> before testing admin login.</p>
+      <p class="step-desc">Apply your <code>.env.local</code> changes and confirm the app is online (exits right away, no hanging):</p>
+      <pre class="cmd" id="step8">pm2 restart zoraaroyals &amp;&amp; pm2 status</pre>
+      <p class="hint" style="margin-top:10px">If you ever want to view recent logs without getting stuck: <code>pm2 logs zoraaroyals --lines 20 --nostream</code></p>
     </article>
   </div>
 
